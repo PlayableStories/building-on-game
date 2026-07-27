@@ -57,5 +57,9 @@ hospice garden should never require opening a file that isn't one of those two.
 
 ## Status
 
-**M0 — scaffold.** Toolchain, shared types and the two fork-surface files exist; the game
-itself does not yet. The grid, the hand and the eight rounds arrive in M1.
+**M1 — core loop.** Playable end to end: the 5×5 plot with the inherited house on
+B2/C2/B3/C3, a hand of three drawn fresh each round and weighted to the tier, legal-cell
+highlighting, eight placements, and a finish.
+
+Not yet: the household and the "why now" line (M2), the adjacency line on each placement
+(M3), the report (M4), demolition confirmation and consent flags (M5).

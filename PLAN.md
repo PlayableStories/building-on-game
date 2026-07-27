@@ -87,7 +87,7 @@ Seven milestones, each independently verifiable. M1–M6 map onto §18 prioritie
 returns 200 for `/`, `/src/main.tsx`, `/src/App.tsx`, `/src/theme.css` · `npm run validate`
 exits 0.
 
-## M1 — Core loop (§18.1)
+## M1 — Core loop (§18.1) ✅
 
 **Goal:** eight placements can be made on a real grid and the game ends. No writing yet.
 
@@ -100,10 +100,19 @@ exits 0.
   (§6). Rounds 1–2 threshold, 3–4 daily, 5–6 private, 7–8 outside. A placed plan leaves the
   pool; a passed-over hand returns to it. Injectable `rng` for deterministic tests.
   `ROUNDS` is a config constant so §6's **[Open]** 6-vs-8 playtest is one number.
-- `content.ts` — deck skeleton: all 24 plans with `id`, `name`, `tier` only.
-- `App.tsx` reducer: `SELECT_PLAN`, `PLACE`, `NEXT_ROUND`, `RESTART`.
+- `content.ts` — deck skeleton: all 24 plans with `id`, `name`, `tier` only, typed as
+  `PlanIdentity` (`Pick<Plan, 'id'|'name'|'tier'>`). The grid and the draw never read the
+  writing, so they are typed against that narrower shape and M3/M4 widen the deck to full
+  `Plan` without touching engine code.
+- Reducer: `SELECT_PLAN`, `PLACE`, `RESTART`. It lives in `engine/game.ts` rather than
+  `App.tsx` as originally planned — as a pure function it is directly testable, and
+  `createGame(deck, config)` is how it reaches content without importing it. `NEXT_ROUND`
+  was dropped: with no adjacency line to stop on yet, `PLACE` advances the round itself,
+  and M3 splits it when there is something to dismiss.
 - `components/Plot.tsx`, `Hand.tsx` — click a plan, legal cells highlight, click to place
   (§13). Round indicator *3 of 8*.
+- Street and garden edge labels landed here rather than in M6: without them the grid can't
+  be read, and orientation is the rule §17.9 asks whether players notice.
 
 **Tests:** fabric occupied at start · legal-cell set from the opening position is exactly
 right · a placed cell is never legal again · every hand across a seeded 8-round run is
@@ -111,6 +120,13 @@ right · a placed cell is never legal again · every hand across a seeded 8-roun
 
 **Done when:** a full 8-round game can be played to its end in the browser, with correct
 legal-cell highlighting throughout, and the grid shows named blocks.
+
+**Verified:** 46 tests pass · `tsc --noEmit` clean · `vite build` clean · dev server
+compiles every module. Browser automation was unavailable, so `App.test.tsx` plays a
+complete eight-round game through the rendered components — selecting a plan, asserting
+the twelve opening legal cells highlight, clicking one, and reaching the finish — which
+covers the click wiring the engine tests cannot. **A human still needs to look at it**:
+the tests confirm the game is playable, not that it reads well.
 
 ## M2 — Framing (§18.2)
 
