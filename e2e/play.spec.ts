@@ -12,6 +12,12 @@ import { expect, test, type Page } from '@playwright/test';
 
 const ROUNDS = 8;
 
+/** Load the game and dismiss the framing (§2) to reach round 1. */
+async function start(page: Page) {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Begin' }).click();
+}
+
 function cell(page: Page, ref: string) {
   return page.getByRole('gridcell', { name: new RegExp(`^${ref}[,$]`) });
 }
@@ -43,7 +49,7 @@ function watchForErrors(page: Page): string[] {
 
 test.describe('the plot (§5, §12)', () => {
   test('lays out as a 5×5 grid', async ({ page }) => {
-    await page.goto('/');
+    await start(page);
     const cells = page.getByRole('gridcell');
     await expect(cells).toHaveCount(25);
 
@@ -59,7 +65,7 @@ test.describe('the plot (§5, §12)', () => {
   });
 
   test('puts the street at the top and the garden at the bottom', async ({ page }) => {
-    await page.goto('/');
+    await start(page);
 
     const street = await page.locator('.plot__edge--street').boundingBox();
     const garden = await page.locator('.plot__edge--garden').boundingBox();
@@ -74,7 +80,7 @@ test.describe('the plot (§5, §12)', () => {
   });
 
   test('shows the inherited house as visibly different fabric (§12)', async ({ page }) => {
-    await page.goto('/');
+    await start(page);
 
     for (const ref of ['B2', 'C2', 'B3', 'C3']) {
       await expect(cell(page, ref)).toContainText('Inherited');
@@ -98,7 +104,7 @@ test.describe('placement (§13)', () => {
   test('highlights legal cells only once a plan is selected, and does so visibly', async ({
     page,
   }) => {
-    await page.goto('/');
+    await start(page);
     await expect(legalCells(page)).toHaveCount(0);
 
     const before = await background(page, '.cell--empty');
@@ -112,7 +118,7 @@ test.describe('placement (§13)', () => {
   });
 
   test('places on click and cannot be undone (§7.3)', async ({ page }) => {
-    await page.goto('/');
+    await start(page);
 
     const name = await hand(page).first().locator('.plan__name').innerText();
     await hand(page).first().click();
@@ -132,7 +138,7 @@ test.describe('a whole game (§15)', () => {
     page,
   }) => {
     const errors = watchForErrors(page);
-    await page.goto('/');
+    await start(page);
 
     for (let round = 1; round <= ROUNDS; round++) {
       await expect(page.getByText(`${round} of ${ROUNDS}`)).toBeVisible();
@@ -155,7 +161,7 @@ test.describe('a whole game (§15)', () => {
   });
 
   test('starts over from the inherited house', async ({ page }) => {
-    await page.goto('/');
+    await start(page);
 
     for (let round = 1; round <= ROUNDS; round++) {
       await hand(page).first().click();
@@ -164,16 +170,50 @@ test.describe('a whole game (§15)', () => {
 
     await page.getByRole('button', { name: 'Build again' }).click();
 
+    // A new game is a new round 1, so the framing comes back with it.
+    await expect(page.locator('.intro')).toBeVisible();
+    await page.getByRole('button', { name: 'Begin' }).click();
+
     await expect(page.getByText(`1 of ${ROUNDS}`)).toBeVisible();
     await expect(page.locator('.cell--placed')).toHaveCount(0);
     await expect(page.locator('.cell--fabric')).toHaveCount(4);
   });
 });
 
+test.describe('the framing (§2, §14)', () => {
+  test('comes before the plot, and does not come back', async ({ page }) => {
+    await page.goto('/');
+
+    // Who the house is for, and why the work is happening at all.
+    await expect(page.getByText('Someone left you a house.')).toBeVisible();
+    await expect(page.locator('.household__person')).toHaveCount(3);
+
+    // Nothing to play with yet.
+    await expect(page.getByRole('grid')).toHaveCount(0);
+    await expect(page.locator('.plan')).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Begin' }).click();
+
+    await expect(page.getByRole('grid')).toBeVisible();
+    await expect(page.locator('.intro')).toHaveCount(0);
+
+    // §2 — never mentioned again during play.
+    for (let round = 1; round <= ROUNDS; round++) {
+      await expect(page.locator('.household')).toHaveCount(0);
+      await hand(page).first().click();
+      await legalCells(page).first().click();
+    }
+  });
+});
+
 test.describe('screenshots', () => {
   test('captures the opening, a game in progress, and the finish', async ({ page }) => {
-    await page.goto('/');
     await page.setViewportSize({ width: 900, height: 1100 });
+
+    await page.goto('/');
+    await page.screenshot({ path: 'e2e/screenshots/00-framing.png', fullPage: true });
+
+    await page.getByRole('button', { name: 'Begin' }).click();
     await page.screenshot({ path: 'e2e/screenshots/01-opening.png', fullPage: true });
 
     // Selected but not yet placed: this is the frame that shows the highlight.

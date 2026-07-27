@@ -12,6 +12,12 @@
   padding: var(--space-5) var(--space-3);
 }
 
+/* Keyboard focus should look like part of the game, not like a browser default. */
+:focus-visible {
+  outline: 2px solid var(--colour-focus);
+  outline-offset: 2px;
+}
+
 .app__header {
   display: flex;
   align-items: baseline;
@@ -41,6 +47,48 @@
   color: var(--colour-ink-soft);
   text-align: center;
   margin: var(--space-3) 0;
+}
+
+/* ---- The framing — §2, §14 ------------------------------------------ */
+
+.intro {
+  max-width: 30rem;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.intro__premise {
+  font-size: var(--size-title);
+  margin: var(--space-5) 0 var(--space-2);
+}
+
+.intro__why {
+  font-style: italic;
+  color: var(--colour-ink-soft);
+  margin: 0 0 var(--space-5);
+}
+
+.household {
+  margin: 0 0 var(--space-5);
+  text-align: left;
+}
+
+.household__person {
+  border-top: 1px solid var(--colour-rule);
+  padding: var(--space-3) 0;
+}
+
+.household__name {
+  font-family: var(--font-ui);
+  font-size: var(--size-small);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--colour-ink-soft);
+  margin-bottom: var(--space-1);
+}
+
+.household__line {
+  margin: 0;
 }
 
 /* ---- The plot — §5, §12 -------------------------------------------- */

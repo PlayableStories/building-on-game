@@ -11,6 +11,7 @@ import { FABRIC_CELLS, FRONT_DOOR_CELL, isFabric, isLegalCell } from './grid.ts'
 import { createRng } from './rng.ts';
 
 export type Action =
+  | { type: 'BEGIN' }
   | { type: 'SELECT_PLAN'; planId: Plan['id'] }
   | { type: 'PLACE'; cell: CellId }
   | { type: 'RESTART'; seed: number };
@@ -41,9 +42,10 @@ export function createGame(deck: readonly PlanIdentity[], config: Config): Game 
     const first = deal(pool, 1, seed);
 
     return {
-      // M2 introduces the 'intro' phase in front of this — §2, the why-now line
-      // and the household, shown once before round 1.
-      phase: 'play',
+      // §2 — the why-now line and the household are shown once, before round 1.
+      // The first hand is dealt here so that dismissing the intro puts the
+      // player straight into a round rather than into a wait.
+      phase: 'intro',
       round: 1,
       hand: first.hand,
       selectedPlanId: null,
@@ -106,6 +108,12 @@ export function createGame(deck: readonly PlanIdentity[], config: Config): Game 
 
   function reducer(state: GameState, action: Action): GameState {
     switch (action.type) {
+      case 'BEGIN': {
+        // §2 — the framing is shown once and never returned to.
+        if (state.phase !== 'intro') return state;
+        return { ...state, phase: 'play' };
+      }
+
       case 'SELECT_PLAN': {
         if (state.phase !== 'play') return state;
         if (!state.hand.includes(action.planId)) return state;

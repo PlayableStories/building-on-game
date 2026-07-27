@@ -136,6 +136,13 @@ export interface HouseholdMember {
   reaction: (state: GameState) => string;
 }
 
+/**
+ * Who the house is for, before the house exists to react to. The intro needs
+ * only the setup lines; the reactions in §10.4 are written against a finished
+ * plot and arrive with the report in M4.
+ */
+export type HouseholdIntro = Omit<HouseholdMember, 'reaction'>;
+
 /* ------------------------------------------------------------------ *
  * Game state
  * ------------------------------------------------------------------ */

@@ -6,9 +6,10 @@
  * content — the deck and the config are handed to `createGame` here.
  */
 import { useMemo, useReducer, useState } from 'react';
-import { config, deck } from './content.ts';
+import { config, deck, household, premise, whyNow } from './content.ts';
 import { createGame } from './engine/game.ts';
 import Hand from './components/Hand.tsx';
+import Intro from './components/Intro.tsx';
 import Plot from './components/Plot.tsx';
 
 function freshSeed(): number {
@@ -33,7 +34,14 @@ export default function App() {
         )}
       </header>
 
-      {state.phase === 'play' ? (
+      {state.phase === 'intro' ? (
+        <Intro
+          premise={premise}
+          whyNow={whyNow}
+          household={household}
+          onBegin={() => dispatch({ type: 'BEGIN' })}
+        />
+      ) : state.phase === 'play' ? (
         <>
           <Plot
             state={state}
