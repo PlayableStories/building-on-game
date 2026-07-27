@@ -1,24 +1,13 @@
 {
-  "compilerOptions": {
-    "target": "ES2022",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "jsx": "react-jsx",
-    "types": ["vitest/globals", "node"],
-
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noUncheckedIndexedAccess": true,
-    "noFallthroughCasesInSwitch": true,
-    "verbatimModuleSyntax": true,
-
-    "allowImportingTsExtensions": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "noEmit": true,
-    "skipLibCheck": true
-  },
-  "include": ["src", "scripts", "e2e", "vite.config.ts", "playwright.config.ts"]
+  /**
+   * A solution file. The real configuration is split in two so that the code
+   * that ships to a browser cannot see the tooling that tests it:
+   *
+   *   tsconfig.app.json   src/, minus tests. No Node types, no test globals.
+   *   tsconfig.node.json  configs, scripts, e2e and the tests themselves.
+   *
+   * `npm run build` runs `tsc -b`, which checks both.
+   */
+  "files": [],
+  "references": [{ "path": "./tsconfig.app.json" }, { "path": "./tsconfig.node.json" }]
 }

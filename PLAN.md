@@ -41,6 +41,17 @@ One consequence, settled in M0: `jsdom` is pinned to **^29** rather than the lat
 which requires Node 22.22+/24.15+. Pinning keeps the toolchain on the Node 20 line the
 `.nvmrc` commits to. Revisit if the target Node moves.
 
+### Keeping the tooling out of the game
+
+The TypeScript config is split in two — `tsconfig.app.json` covers `src/` minus the tests
+with **no ambient types at all**, and `tsconfig.node.json` covers the configs, scripts, e2e
+and the tests. `npm run build` runs `tsc -b` over both.
+
+Before the split, `"types": ["vitest/globals", "node"]` applied project-wide, which meant a
+component could reference `process.env` — `undefined` in a browser — or call `describe()`
+and still typecheck. Both now fail to compile in application code. `globals: true` was
+dropped from the Vitest config for the same reason; every test imports what it uses.
+
 ## The architectural rule that makes §16 work
 
 `src/engine/` imports from `src/types.ts` **only** — never from `content.ts`. Content is
