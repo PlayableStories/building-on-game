@@ -62,10 +62,10 @@ hospice garden should never require opening a file that isn't one of those two.
 
 ## Status
 
-**M2 — framing.** Playable end to end, and it now opens by saying why the work is happening
-and who the house is for: the 5×5 plot with the inherited house on B2/C2/B3/C3, a hand of
-three drawn fresh each round and weighted to the tier, legal-cell highlighting, eight
-placements, and a finish.
+**M3 — adjacency lines.** The game now does the thing it exists to do: every placement is
+checked against its neighbours and may say one short line about what has just been put next
+to what. Opens with why the work is happening and who the house is for; then the 5×5 plot
+with the inherited house on B2/C2/B3/C3, a hand of three drawn fresh each round and
+weighted to the tier, eight placements, and a finish.
 
-Not yet: the adjacency line on each placement (M3), the report (M4), demolition
-confirmation and consent flags (M5).
+Not yet: the report (M4), demolition confirmation and consent flags (M5).

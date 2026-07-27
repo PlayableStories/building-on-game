@@ -97,21 +97,43 @@ export interface Plan {
  */
 export type PlanIdentity = Pick<Plan, 'id' | 'name' | 'tier'>;
 
+/**
+ * What the adjacency resolution in §8.6 needs: which plan it is, what it puts
+ * into its neighbours, what it suffers from, and how it behaves north or south.
+ * Still not the writing for the report, which arrives with M4.
+ */
+export type PlanAdjacency = PlanIdentity &
+  Pick<Plan, 'emits' | 'sensitive' | 'orientation'>;
+
 /* ------------------------------------------------------------------ *
  * Writing — §8.6
  * ------------------------------------------------------------------ */
 
-/** An explicit line for one exact pair of plans. Matched in either direction. */
+/**
+ * §8.7 — a neighbour a pair line can name. Usually another plan, but two of the
+ * lines the GDD asks for are not plan-to-plan: air conditioning speaks up
+ * "beside anything", and internal wall insulation reacts to the original solid
+ * walls rather than to a room.
+ */
+export type PairTarget = Plan['id'] | '*' | 'fabric';
+
+/**
+ * An explicit line for one exact pairing. Matched in either direction, and the
+ * best writing in the game — used for the handful of pairs that deserve it.
+ */
 export interface PairLine {
   a: Plan['id'];
-  b: Plan['id'];
+  b: PairTarget;
   line: string;
 }
 
-/** A generic line for an emitted quality meeting a neighbour sensitive to it. */
+/**
+ * §8.6 — the generic line for an emitted quality meeting a neighbour sensitive
+ * to it. One line per quality: what fires is always a quality meeting its own
+ * sensitivity, so there is nothing to key a second axis on.
+ */
 export interface QualityLine {
-  emits: Quality;
-  sensitive: Quality;
+  quality: Quality;
   line: string;
 }
 
