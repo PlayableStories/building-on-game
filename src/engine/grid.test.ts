@@ -11,7 +11,7 @@ import {
 } from './grid.ts';
 
 const game = createGame(deck, config);
-const opening = game.initialState(1);
+const opening = game.reducer(game.initialState(1), { type: 'BEGIN' });
 
 describe('the plot', () => {
   it('is 25 cells', () => {

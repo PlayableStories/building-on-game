@@ -8,10 +8,18 @@ import { legalCells } from './grid.ts';
 const game = createGame(deck, config);
 const byId = new Map(deck.map((plan) => [plan.id, plan]));
 
+/**
+ * The game opens on the framing (§2). Play begins once it is dismissed, so
+ * every test that places anything starts here.
+ */
+function startGame(seed: number): GameState {
+  return game.reducer(game.initialState(seed), { type: 'BEGIN' });
+}
+
 /** Play a whole game, always taking the first plan and the first legal cell. */
 function playThrough(seed: number): { final: GameState; steps: GameState[] } {
   const steps: GameState[] = [];
-  let state = game.initialState(seed);
+  let state = startGame(seed);
 
   while (state.phase === 'play') {
     steps.push(state);
@@ -62,7 +70,7 @@ describe('the core loop (§6, §15)', () => {
   });
 
   it('returns a passed-over plan to the pool — only what is placed is gone (§6)', () => {
-    const opening = game.initialState(11);
+    const opening = startGame(11);
     const kept = opening.hand[0] as string;
     const passedOver = opening.hand[1] as string;
 
@@ -76,7 +84,7 @@ describe('the core loop (§6, §15)', () => {
 
 describe('selection', () => {
   it('clears after a placement', () => {
-    const opening = game.initialState(3);
+    const opening = startGame(3);
     const planId = opening.hand[0] as string;
     const selected = game.reducer(opening, { type: 'SELECT_PLAN', planId });
     expect(selected.selectedPlanId).toBe(planId);
@@ -86,7 +94,7 @@ describe('selection', () => {
   });
 
   it('toggles off when the same plan is clicked twice', () => {
-    const opening = game.initialState(3);
+    const opening = startGame(3);
     const planId = opening.hand[0] as string;
     const once = game.reducer(opening, { type: 'SELECT_PLAN', planId });
     const twice = game.reducer(once, { type: 'SELECT_PLAN', planId });
@@ -94,7 +102,7 @@ describe('selection', () => {
   });
 
   it('ignores a plan that is not in the hand', () => {
-    const opening = game.initialState(3);
+    const opening = startGame(3);
     const notDealt = deck.find((plan) => !opening.hand.includes(plan.id));
     const after = game.reducer(opening, {
       type: 'SELECT_PLAN',
@@ -106,12 +114,12 @@ describe('selection', () => {
 
 describe('placement (§7)', () => {
   it('does nothing without a selected plan', () => {
-    const opening = game.initialState(5);
+    const opening = startGame(5);
     expect(game.reducer(opening, { type: 'PLACE', cell: 'C1' })).toBe(opening);
   });
 
   it('refuses an illegal cell', () => {
-    const opening = game.initialState(5);
+    const opening = startGame(5);
     const planId = opening.hand[0] as string;
     const selected = game.reducer(opening, { type: 'SELECT_PLAN', planId });
     // E5 is the far corner — nothing touches it at the opening.
@@ -119,7 +127,7 @@ describe('placement (§7)', () => {
   });
 
   it('records a placement onto fabric as a demolition (§7.2)', () => {
-    const opening = game.initialState(5);
+    const opening = startGame(5);
     const planId = opening.hand[0] as string;
     const selected = game.reducer(opening, { type: 'SELECT_PLAN', planId });
     const placed = game.reducer(selected, { type: 'PLACE', cell: 'C3' });
@@ -129,7 +137,7 @@ describe('placement (§7)', () => {
   });
 
   it('removes the front door when B2 is demolished (§7)', () => {
-    const opening = game.initialState(5);
+    const opening = startGame(5);
     const planId = opening.hand[0] as string;
     const selected = game.reducer(opening, { type: 'SELECT_PLAN', planId });
     const placed = game.reducer(selected, { type: 'PLACE', cell: 'B2' });
@@ -138,7 +146,7 @@ describe('placement (§7)', () => {
   });
 
   it('leaves the front door alone otherwise', () => {
-    const opening = game.initialState(5);
+    const opening = startGame(5);
     const planId = opening.hand[0] as string;
     const selected = game.reducer(opening, { type: 'SELECT_PLAN', planId });
     const placed = game.reducer(selected, { type: 'PLACE', cell: 'C1' });
@@ -153,7 +161,9 @@ describe('restart (§15)', () => {
     const { final } = playThrough(2);
     const again = game.reducer(final, { type: 'RESTART', seed: 4 });
 
-    expect(again.phase).toBe('play');
+    // A new game is a new round 1, so the framing is shown again — it is who
+    // the house is for, and the next one is for them too.
+    expect(again.phase).toBe('intro');
     expect(again.round).toBe(1);
     expect(again.placements).toEqual([]);
     expect(again.fabric).toEqual(['B2', 'C2', 'B3', 'C3']);

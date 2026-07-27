@@ -150,18 +150,36 @@ Layer 3 immediately found something the other two structurally could not: a miss
 favicon 404ing on every load. Fixed with an inline SVG data URI, so §12's "no image
 assets" still holds.
 
-## M2 — Framing (§18.2)
+## M2 — Framing (§18.2) ✅
 
 **Goal:** the player knows who the house is for before they place anything.
 
-- `content.ts`: `whyNow` — *"The roof failed in February. You can't put it off any longer."*
-  The three §2 **[Open]** alternatives sit beside it as commented-out constants so a
+- `content.ts`: `premise` and `whyNow` — *"The roof failed in February. You can't put it off
+  any longer."* The three §2 **[Open]** alternatives sit beside it in a comment so a
   playtest is a one-line swap. `household` — the three people from §2, each with `id`, a
-  setup line, and a `reaction(state)` selector left stubbed until M4.
+  name and a setup line.
+- The household is typed `HouseholdIntro` (`Omit<HouseholdMember, 'reaction'>`), the same
+  move as `PlanIdentity` in M1: the reactions in §10.4 are written against a finished plot,
+  so they arrive with the report rather than shipping as placeholder prose now.
+- `engine/game.ts` gains an `intro` phase and a `BEGIN` action. The first hand is dealt at
+  `initialState`, so dismissing the framing puts the player straight into round 1 rather
+  than into a wait. Nothing can be selected or placed while the framing is up.
 - `components/Intro.tsx` — shown once, before round 1, then never again (§2).
 
 **Done when:** the intro shows the why-now line and three household members, dismisses to
 round 1, and does not reappear.
+
+**One judgement call:** *Build again* returns to the framing rather than straight to round
+1. §14 says the framing is shown once before round 1, and a new game is a new round 1 — but
+more than that, §2's design note calls the household the cleanest replay driver in the
+design. Putting it back in front of the player on replay is what makes that land. Easy to
+reverse if it grates in playtesting.
+
+**Verified:** 57 unit and component tests · 9 end-to-end tests in Chrome · `tsc -b` clean ·
+`vite build` clean. The framing is asserted at all three layers: that it blocks placement
+while up, that it gives way to round 1, and that neither the why-now line nor any household
+line appears anywhere on screen across a full eight-round game (§2 — never mentioned again
+during play).
 
 ## M3 — Adjacency lines (§18.3)
 

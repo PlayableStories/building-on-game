@@ -12,7 +12,7 @@
  * milestones that use it: the household and the why-now line in M2, the
  * adjacency lines in M3, the report copy in M4, the consent flags in M5.
  */
-import type { Config, PlanIdentity } from './types.ts';
+import type { Config, HouseholdIntro, PlanIdentity } from './types.ts';
 
 export const config: Config = {
   /**
@@ -25,6 +25,61 @@ export const config: Config = {
   /** §9.2 — one flag that changes the character of the whole game. Lands in M5. */
   conservation: false,
 };
+
+/* ------------------------------------------------------------------ *
+ * The framing — §2
+ * ------------------------------------------------------------------ */
+
+/** §2 — the whole premise, in five words. */
+export const premise = 'Someone left you a house.';
+
+/**
+ * §2 — one line, shown at the start, explaining why the work is happening at
+ * all. It justifies the eight rounds, the fixed front door and the existing
+ * fabric in a single sentence: the player is not building a dream house, they
+ * are responding to something.
+ */
+export const whyNow = 'The roof failed in February. You can’t put it off any longer.';
+
+/**
+ * §2 [Open] — alternatives to test. Each changes what the player prioritises
+ * without changing a rule. Swap one in above and play it twice.
+ *
+ *   'Your mother is moving in next spring.'
+ *   'You both work from home now, and there is one desk.'
+ *   'The lease on the flat ends in August.'
+ */
+
+/**
+ * §2 — who this house is for. Two or three people, one sentence each.
+ *
+ * The household is never scored and never mentioned again during play. It comes
+ * back only in the report (§10.4), where each person says one line about the
+ * finished house. That is the motivation the game needs and the only one it can
+ * afford: the player now has someone to satisfy, and the game never measures
+ * whether they did.
+ *
+ * It is also the cleanest replay driver in the design. Same deck, different
+ * household, entirely different house — so this is the first thing to change
+ * when forking (§16, rung 1).
+ */
+export const household: HouseholdIntro[] = [
+  {
+    id: 'you',
+    name: 'You',
+    line: 'You work from home three days a week and have never had a door to close.',
+  },
+  {
+    id: 'daughter',
+    name: 'Your daughter, 14',
+    line: 'She plays drums. She has been promised this will be better than the flat.',
+  },
+  {
+    id: 'mother',
+    name: 'Your mother',
+    line: 'Moving in next spring. She manages one flight of stairs on a good day.',
+  },
+];
 
 /**
  * The deck — §8.1, §8.3, §8.4.
