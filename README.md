@@ -26,9 +26,14 @@ npm run dev        # http://localhost:5173
 | `npm run dev` | Dev server with hot reload |
 | `npm run build` | Type-check, then build to `dist/` |
 | `npm run preview` | Serve the built `dist/` |
-| `npm test` | Run the test suite once |
-| `npm run test:watch` | Run tests in watch mode |
+| `npm test` | Run the unit and component tests once |
+| `npm run test:watch` | Run those in watch mode |
+| `npm run test:e2e` | Play a whole game in real Chrome, and write screenshots |
 | `npm run validate` | Check the deck against the rules in GDD §16 |
+
+`npm run test:e2e` drives the Google Chrome already on your machine (Playwright's
+`channel: 'chrome'`), so there is no browser download. It starts the dev server itself and
+leaves screenshots of a full playthrough in `e2e/screenshots/`.
 
 ## What to fork
 

@@ -121,12 +121,23 @@ right · a placed cell is never legal again · every hand across a seeded 8-roun
 **Done when:** a full 8-round game can be played to its end in the browser, with correct
 legal-cell highlighting throughout, and the grid shows named blocks.
 
-**Verified:** 46 tests pass · `tsc --noEmit` clean · `vite build` clean · dev server
-compiles every module. Browser automation was unavailable, so `App.test.tsx` plays a
-complete eight-round game through the rendered components — selecting a plan, asserting
-the twelve opening legal cells highlight, clicking one, and reaching the finish — which
-covers the click wiring the engine tests cannot. **A human still needs to look at it**:
-the tests confirm the game is playable, not that it reads well.
+**Verified:** 46 unit tests · 8 end-to-end tests in headless Chrome · `tsc --noEmit` clean ·
+`vite build` clean.
+
+Three layers, each catching what the one below cannot:
+
+1. `src/engine/*.test.ts` — the pure functions: the grid, the draw, the reducer.
+2. `src/App.test.tsx` — a complete eight-round game through the rendered components in
+   jsdom, covering the click wiring.
+3. `e2e/play.spec.ts` — the same game in real Chrome, covering layout and paint: that the
+   plot lays out as an actual 5×5 grid, that the street sits above row 1 and the garden
+   below row 5 by measured position, that the fabric fill and the legal-cell highlight are
+   real computed-colour changes rather than just attributes, and that a whole playthrough
+   leaves the console clean.
+
+Layer 3 immediately found something the other two structurally could not: a missing
+favicon 404ing on every load. Fixed with an inline SVG data URI, so §12's "no image
+assets" still holds.
 
 ## M2 — Framing (§18.2)
 
@@ -254,14 +265,24 @@ Per-milestone gates are above. Full check at the end:
 nvm use            # .nvmrc → 20; default v14 will not run Vite
 npm install
 npm run validate   # deck integrity, must exit 0
-npm test           # engine unit tests
+npm test           # unit tests and the jsdom playthrough
+npm run test:e2e   # the same game in real Chrome, plus screenshots
 npm run dev        # manual playthrough
 ```
+
+`npm run test:e2e` uses the system Google Chrome via Playwright's `channel: 'chrome'`, so
+nothing has to download a browser. It writes screenshots to `e2e/screenshots/` (gitignored)
+— the fastest way to see what a playthrough actually looks like without playing one.
 
 Manual playthrough checklist: intro appears once before round 1 · eight placements end the
 game · a B2 demolition asks for confirmation and surfaces in *what you'll look after* ·
 `conservation: true` changes the four §9.2 items · no cost, score, counter or timer appears
 at any point · the fork test in M6.
+
+**What automated tests cannot settle.** Every question in §17 is a human one. The suites
+prove the game is playable and the rules hold; whether the adjacency line reads as an
+observation rather than a score, or whether the household is forgotten by round three, only
+a playtest answers. M7 is where that happens.
 
 ## Explicitly out of scope
 
