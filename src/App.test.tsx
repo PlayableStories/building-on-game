@@ -32,6 +32,21 @@ function handButtons() {
     .filter((button) => button.classList.contains('plan'));
 }
 
+function observation() {
+  return document.querySelector('.observation');
+}
+
+/**
+ * One round: choose a plan, place it, and read past the line if there is one.
+ * §8.6 — silence is a valid result, so there is not always a line to dismiss.
+ */
+function playRound() {
+  fireEvent.click(handButtons()[0] as HTMLElement);
+  fireEvent.click(legalCells()[0] as HTMLElement);
+  const line = observation();
+  if (line) fireEvent.click(line);
+}
+
 /**
  * These drive the real components rather than the reducer, so they cover the
  * wiring the engine tests cannot: that a click on a plan highlights cells, that
@@ -80,6 +95,9 @@ describe('a whole game, played through the interface', () => {
       const legal = legalCells();
       expect(legal.length).toBeGreaterThan(0);
       fireEvent.click(legal[0] as HTMLElement);
+
+      const line = observation();
+      if (line) fireEvent.click(line);
     }
 
     // §15 — the game ends when the last plan is placed. No score, no verdict.
@@ -91,8 +109,7 @@ describe('a whole game, played through the interface', () => {
     renderPlaying();
 
     for (let round = 1; round <= config.rounds; round++) {
-      fireEvent.click(handButtons()[0] as HTMLElement);
-      fireEvent.click(legalCells()[0] as HTMLElement);
+      playRound();
     }
 
     const named = cells().filter((cell) => {
@@ -106,8 +123,7 @@ describe('a whole game, played through the interface', () => {
     renderPlaying();
 
     for (let round = 1; round <= config.rounds; round++) {
-      fireEvent.click(handButtons()[0] as HTMLElement);
-      fireEvent.click(legalCells()[0] as HTMLElement);
+      playRound();
     }
 
     fireEvent.click(screen.getByRole('button', { name: 'Build again' }));
@@ -153,9 +169,74 @@ describe('the framing, before round 1 (§2, §14)', () => {
       for (const person of household) {
         expect(screen.queryByText(person.line)).toBeNull();
       }
+      playRound();
+    }
+  });
+});
+
+describe('the line, through the interface (§8.6, §13)', () => {
+  /** Play until a placement actually says something, then stop on it. */
+  function playUntilLine(): Element {
+    for (let round = 1; round <= config.rounds; round++) {
       fireEvent.click(handButtons()[0] as HTMLElement);
       fireEvent.click(legalCells()[0] as HTMLElement);
+      const line = observation();
+      if (line) return line;
     }
+    throw new Error('no placement in a whole game said anything');
+  }
+
+  it('shows one line, and holds the round on it', () => {
+    renderPlaying();
+    const line = playUntilLine();
+
+    expect(line.querySelectorAll('.observation__line')).toHaveLength(1);
+    expect((line.textContent ?? '').trim().length).toBeGreaterThan(0);
+    // The hand for the next round waits until the line has been read.
+    expect(handButtons()).toHaveLength(0);
+  });
+
+  it('gives the hand back when the line is clicked', () => {
+    renderPlaying();
+    fireEvent.click(playUntilLine());
+
+    expect(observation()).toBeNull();
+    expect(handButtons()).toHaveLength(3);
+  });
+
+  it('is dismissed by Enter (§13)', () => {
+    renderPlaying();
+    playUntilLine();
+
+    fireEvent.keyDown(window, { key: 'Enter' });
+    expect(observation()).toBeNull();
+    expect(handButtons()).toHaveLength(3);
+  });
+
+  it('is dismissed by Space (§13)', () => {
+    renderPlaying();
+    playUntilLine();
+
+    fireEvent.keyDown(window, { key: ' ' });
+    expect(observation()).toBeNull();
+    expect(handButtons()).toHaveLength(3);
+  });
+
+  it('is not dismissed by any other key', () => {
+    renderPlaying();
+    playUntilLine();
+
+    fireEvent.keyDown(window, { key: 'a' });
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(observation()).not.toBeNull();
+  });
+
+  it('keeps the plot visible, so you can see what you just did', () => {
+    renderPlaying();
+    playUntilLine();
+
+    expect(grid()).toBeDefined();
+    expect(cells()).toHaveLength(25);
   });
 });
 
@@ -166,8 +247,7 @@ describe('what the interface must not show (§10.1, §14)', () => {
     for (let round = 1; round <= config.rounds; round++) {
       const text = document.body.textContent ?? '';
       expect(text).not.toMatch(/score|points|£|\$|budget|total/i);
-      fireEvent.click(handButtons()[0] as HTMLElement);
-      fireEvent.click(legalCells()[0] as HTMLElement);
+      playRound();
     }
 
     expect(document.body.textContent ?? '').not.toMatch(

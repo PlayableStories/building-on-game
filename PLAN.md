@@ -181,7 +181,7 @@ while up, that it gives way to round 1, and that neither the why-now line nor an
 line appears anywhere on screen across a full eight-round game (§2 — never mentioned again
 during play).
 
-## M3 — Adjacency lines (§18.3)
+## M3 — Adjacency lines (§18.3) ✅
 
 **Goal:** the mechanic the whole prototype exists to test.
 
@@ -206,6 +206,34 @@ silence when nothing fires · orientation fires on row, not column.
 **Done when:** placing the home farm next to the kitchen produces *"A short walk with wet
 hands. This is the version that gets used."*, and a placement with no relationship produces
 nothing at all.
+
+**Three things the GDD did not settle, decided here:**
+
+1. **The boot room emits a quality that does not exist.** §8.3 gives it `emits: damp,
+   clutter`, but §8.5 fixes the vocabulary at nine and clutter is not among them. Resolved
+   as `damp, work` — the boot room's own care line says as much: *"It only works if you keep
+   it emptied. Most people don't."* Flagged rather than silently widened, because §8.5's
+   smallness is the point.
+2. **Two of §8.7's lines are not plan-to-plan.** Air conditioning speaks "beside anything",
+   and insulation reacts to the original solid walls rather than to a room. `PairLine.b`
+   therefore accepts a plan id, `'*'`, or `'fabric'`, and resolution prefers the most
+   specific match — so a wildcard rule can be added to a deck without drowning everything
+   near it.
+3. **Nothing in the GDD emits `shade`,** though the home farm suffers from it. Full-height
+   rooms now emit it: the glass extension, living and dining rooms, bedroom, bathroom,
+   study, gym, spare room and shed. That is what makes the garden tier's placement matter at
+   all, and it is a content decision, reversible in `content.ts`.
+
+**Also:** `QualityLine` became `{ quality, line }`. The M0 guess had separate `emits` and
+`sensitive` fields, but §8.6 only ever fires a quality against its own sensitivity, so the
+second axis had nothing to key on.
+
+**Verified:** 90 unit and component tests · 12 end-to-end tests in Chrome · `tsc -b` clean ·
+`vite build` clean. The resolution order is asserted step by step — a pair beating a live
+quality match *and* a live orientation line, a quality match beating orientation, the
+strongest quality winning when several fire, and silence when nothing does. Two content
+checks are worth keeping: every sensitivity in the deck is emitted by something (otherwise
+it is dead weight), and no line is written twice.
 
 ## M4 — The report (§18.4)
 

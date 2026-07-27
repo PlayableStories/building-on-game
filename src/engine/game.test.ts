@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { config, deck } from '../content.ts';
+import { config, deck, pairLines, qualityLines, qualitySeverity } from '../content.ts';
 import type { GameState } from '../types.ts';
 import { tierForRound } from './deck.ts';
 import { createGame } from './game.ts';
 import { legalCells } from './grid.ts';
 
-const game = createGame(deck, config);
+const game = createGame(deck, config, { pairLines, qualityLines, qualitySeverity });
 const byId = new Map(deck.map((plan) => [plan.id, plan]));
 
 /**
@@ -17,8 +17,13 @@ function startGame(seed: number): GameState {
 }
 
 /** Play a whole game, always taking the first plan and the first legal cell. */
-function playThrough(seed: number): { final: GameState; steps: GameState[] } {
+function playThrough(seed: number): {
+  final: GameState;
+  steps: GameState[];
+  lines: (string | null)[];
+} {
   const steps: GameState[] = [];
+  const lines: (string | null)[] = [];
   let state = startGame(seed);
 
   while (state.phase === 'play') {
@@ -28,10 +33,14 @@ function playThrough(seed: number): { final: GameState; steps: GameState[] } {
     const selected = game.reducer(state, { type: 'SELECT_PLAN', planId });
     const cell = legalCells(selected)[0];
     if (cell === undefined) throw new Error('no legal cell');
-    state = game.reducer(selected, { type: 'PLACE', cell });
+
+    const placed = game.reducer(selected, { type: 'PLACE', cell });
+    lines.push(placed.observation);
+    state =
+      placed.observation === null ? placed : game.reducer(placed, { type: 'DISMISS' });
   }
 
-  return { final: state, steps };
+  return { final: state, steps, lines };
 }
 
 describe('the core loop (§6, §15)', () => {
@@ -79,6 +88,74 @@ describe('the core loop (§6, §15)', () => {
 
     expect(next.pool).not.toContain(kept);
     expect(next.pool).toContain(passedOver);
+  });
+});
+
+describe('the line, and the pause for it (§8.6, §13)', () => {
+  /** Force a placement that is guaranteed to say something. */
+  function placeInto(seed: number, planId: string, cell: 'C1' | 'C4' | 'B2') {
+    const state = startGame(seed);
+    // The hand is drawn, so put the plan we want to test into it directly.
+    const rigged: GameState = { ...state, hand: [planId], selectedPlanId: planId };
+    return game.reducer(rigged, { type: 'PLACE', cell });
+  }
+
+  it('holds the round open while there is a line to read', () => {
+    // The glass extension in row 1 fires its orientation line.
+    const placed = placeInto(1, 'glass-extension', 'C1');
+
+    expect(placed.observation).toBe(
+      'The light is even and cold. You will heat this room more than any other.',
+    );
+    expect(placed.round).toBe(1);
+    expect(placed.placements).toHaveLength(1);
+  });
+
+  it('moves on when the line is dismissed', () => {
+    const placed = placeInto(1, 'glass-extension', 'C1');
+    const dismissed = game.reducer(placed, { type: 'DISMISS' });
+
+    expect(dismissed.observation).toBeNull();
+    expect(dismissed.round).toBe(2);
+    expect(dismissed.hand).toHaveLength(3);
+  });
+
+  it('carries straight on when there is nothing to say (§8.6)', () => {
+    // A shed in row 3 touching only the old walls: no pair, no quality, no
+    // orientation. Silence, and the round advances without a dismissal.
+    const placed = placeInto(1, 'shed', 'C1');
+    expect(placed.observation).toBeNull();
+    expect(placed.round).toBe(2);
+  });
+
+  it('accepts nothing but a dismissal while the line is up', () => {
+    const placed = placeInto(1, 'glass-extension', 'C1');
+    const otherPlan = deck[0]?.id as string;
+
+    expect(game.reducer(placed, { type: 'SELECT_PLAN', planId: otherPlan })).toBe(placed);
+    expect(game.reducer(placed, { type: 'PLACE', cell: 'D2' })).toBe(placed);
+  });
+
+  it('does nothing when dismissed with no line up', () => {
+    const opening = startGame(1);
+    expect(game.reducer(opening, { type: 'DISMISS' })).toBe(opening);
+  });
+
+  it('ends the game on the last line, not before it', () => {
+    const { final, lines } = playThrough(7);
+    expect(lines).toHaveLength(config.rounds);
+    expect(final.phase).toBe('report');
+    expect(final.observation).toBeNull();
+  });
+
+  it('says something at least sometimes, across many games', () => {
+    // If the deck were written so that nothing ever fired, every test above
+    // would still pass and the prototype would have nothing to test.
+    let spoken = 0;
+    for (let seed = 1; seed <= 30; seed++) {
+      spoken += playThrough(seed).lines.filter((line) => line !== null).length;
+    }
+    expect(spoken).toBeGreaterThan(30);
   });
 });
 

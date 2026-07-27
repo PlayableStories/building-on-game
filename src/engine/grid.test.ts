@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { config, deck } from '../content.ts';
+import { config, deck, pairLines, qualityLines, qualitySeverity } from '../content.ts';
 import { createGame } from './game.ts';
 import {
   ALL_CELLS,
@@ -10,7 +10,7 @@ import {
   orthogonalNeighbours,
 } from './grid.ts';
 
-const game = createGame(deck, config);
+const game = createGame(deck, config, { pairLines, qualityLines, qualitySeverity });
 const opening = game.reducer(game.initialState(1), { type: 'BEGIN' });
 
 describe('the plot', () => {

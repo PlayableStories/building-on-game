@@ -5,15 +5,24 @@
  * config, which is how the engine gets at content without ever importing
  * `content.ts` — the constraint the fork surface in §16 depends on.
  */
-import type { CellId, Config, GameState, Plan, PlanIdentity } from '../types.ts';
+import type { CellId, Config, GameState, Plan, PlanAdjacency } from '../types.ts';
+import { type AdjacencyContent, type Neighbour, observationFor } from './adjacency.ts';
 import { drawHand } from './deck.ts';
-import { FABRIC_CELLS, FRONT_DOOR_CELL, isFabric, isLegalCell } from './grid.ts';
+import {
+  FABRIC_CELLS,
+  FRONT_DOOR_CELL,
+  isFabric,
+  isLegalCell,
+  orthogonalNeighbours,
+  placementAt,
+} from './grid.ts';
 import { createRng } from './rng.ts';
 
 export type Action =
   | { type: 'BEGIN' }
   | { type: 'SELECT_PLAN'; planId: Plan['id'] }
   | { type: 'PLACE'; cell: CellId }
+  | { type: 'DISMISS' }
   | { type: 'RESTART'; seed: number };
 
 export interface Game {
@@ -21,7 +30,12 @@ export interface Game {
   reducer: (state: GameState, action: Action) => GameState;
 }
 
-export function createGame(deck: readonly PlanIdentity[], config: Config): Game {
+export function createGame(
+  deck: readonly PlanAdjacency[],
+  config: Config,
+  writing: AdjacencyContent,
+): Game {
+  const byId = new Map(deck.map((plan) => [plan.id, plan]));
   /**
    * Deal the given round and return the hand alongside the seed the *next* deal
    * should use, so that the whole game is reproducible from one starting number
@@ -80,28 +94,72 @@ export function createGame(deck: readonly PlanIdentity[], config: Config): Game 
     const frontDoor =
       demolished && cell === state.frontDoor ? null : state.frontDoor;
 
-    const finished = state.round >= config.rounds;
-    const nextRound = state.round + 1;
-
-    // M3 splits this: PLACE will stop on the adjacency line (§8.6) and a
-    // separate dismissal will advance the round. There is nothing to stop on yet.
-    const dealt = finished
-      ? { hand: [] as Plan['id'][], seed: state.seed }
-      : deal(pool, nextRound, state.seed);
-
-    return {
+    const placed = {
       ...state,
-      // §15 — the game ends when the last plan is placed. There is no win
-      // condition to check and no way to fail.
-      phase: finished ? 'report' : 'play',
-      round: finished ? state.round : nextRound,
-      hand: dealt.hand,
       selectedPlanId: null,
       placements,
       fabric,
       frontDoor,
-      observation: null,
       pool,
+    };
+
+    // §8.6 — one line for what has just been put next to what, or silence.
+    const observation = observationAt(placed, planId, cell);
+
+    // With a line to read, the round waits on it being dismissed (§13). With
+    // silence there is nothing to wait for, so play simply carries on.
+    return observation === null
+      ? advance(placed)
+      : { ...placed, observation };
+  }
+
+  /**
+   * The neighbours of a cell, as §8.6 sees them: the plans next door, and the
+   * old house where it is still standing.
+   */
+  function neighboursOf(state: GameState, cell: CellId): Neighbour[] {
+    const neighbours: Neighbour[] = [];
+
+    for (const ref of orthogonalNeighbours(cell)) {
+      const placement = placementAt(state, ref);
+      if (placement) {
+        const plan = byId.get(placement.planId);
+        if (plan) neighbours.push({ kind: 'plan', plan });
+      } else if (state.fabric.includes(ref)) {
+        neighbours.push({ kind: 'fabric' });
+      }
+    }
+
+    return neighbours;
+  }
+
+  function observationAt(
+    state: GameState,
+    planId: Plan['id'],
+    cell: CellId,
+  ): string | null {
+    const plan = byId.get(planId);
+    if (!plan) return null;
+    return observationFor(writing, plan, cell, neighboursOf(state, cell));
+  }
+
+  /** Move to the next round, or end the game — §15. */
+  function advance(state: GameState): GameState {
+    // §15 — the game ends when the last plan is placed. There is no win
+    // condition to check and no way to fail.
+    if (state.round >= config.rounds) {
+      return { ...state, phase: 'report', hand: [], observation: null };
+    }
+
+    const nextRound = state.round + 1;
+    const dealt = deal(state.pool, nextRound, state.seed);
+
+    return {
+      ...state,
+      round: nextRound,
+      hand: dealt.hand,
+      selectedPlanId: null,
+      observation: null,
       seed: dealt.seed,
     };
   }
@@ -116,6 +174,8 @@ export function createGame(deck: readonly PlanIdentity[], config: Config): Game 
 
       case 'SELECT_PLAN': {
         if (state.phase !== 'play') return state;
+        // Nothing else happens while a line is being read.
+        if (state.observation !== null) return state;
         if (!state.hand.includes(action.planId)) return state;
         // Clicking the selected plan again deselects it.
         const selectedPlanId =
@@ -125,7 +185,15 @@ export function createGame(deck: readonly PlanIdentity[], config: Config): Game 
 
       case 'PLACE': {
         if (state.phase !== 'play') return state;
+        if (state.observation !== null) return state;
         return place(state, action.cell);
+      }
+
+      case 'DISMISS': {
+        // §13 — the line is dismissed by clicking, Space or Enter, and the
+        // round moves on. With no line up there is nothing to dismiss.
+        if (state.observation === null) return state;
+        return advance(state);
       }
 
       case 'RESTART':

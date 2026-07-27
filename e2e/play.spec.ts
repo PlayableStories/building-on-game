@@ -30,6 +30,20 @@ function hand(page: Page) {
   return page.locator('.plan');
 }
 
+function observation(page: Page) {
+  return page.locator('.observation');
+}
+
+/**
+ * One round: choose a plan, place it, and read past the line if there is one.
+ * §8.6 — silence is a valid result, so there is not always a line to dismiss.
+ */
+async function playRound(page: Page) {
+  await hand(page).first().click();
+  await legalCells(page).first().click();
+  if ((await observation(page).count()) > 0) await observation(page).click();
+}
+
 async function background(page: Page, selector: string): Promise<string> {
   return page
     .locator(selector)
@@ -124,7 +138,10 @@ test.describe('placement (§13)', () => {
     await hand(page).first().click();
     await cell(page, 'C1').click();
 
+    // The block is on the plot before the line is read — you see what you did.
     await expect(cell(page, 'C1')).toContainText(name);
+    if ((await observation(page).count()) > 0) await observation(page).click();
+
     await expect(page.getByText(`2 of ${ROUNDS}`)).toBeVisible();
 
     // Placed cells are never offered again.
@@ -144,8 +161,7 @@ test.describe('a whole game (§15)', () => {
       await expect(page.getByText(`${round} of ${ROUNDS}`)).toBeVisible();
       await expect(hand(page)).toHaveCount(3);
 
-      await hand(page).first().click();
-      await legalCells(page).first().click();
+      await playRound(page);
     }
 
     await expect(page.getByText('The house is finished.')).toBeVisible();
@@ -164,8 +180,7 @@ test.describe('a whole game (§15)', () => {
     await start(page);
 
     for (let round = 1; round <= ROUNDS; round++) {
-      await hand(page).first().click();
-      await legalCells(page).first().click();
+      await playRound(page);
     }
 
     await page.getByRole('button', { name: 'Build again' }).click();
@@ -200,9 +215,66 @@ test.describe('the framing (§2, §14)', () => {
     // §2 — never mentioned again during play.
     for (let round = 1; round <= ROUNDS; round++) {
       await expect(page.locator('.household')).toHaveCount(0);
+      await playRound(page);
+    }
+  });
+});
+
+test.describe('the line (§8.6, §13)', () => {
+  /** Play until a placement actually says something, then stop on it. */
+  async function playUntilLine(page: Page) {
+    for (let round = 1; round <= ROUNDS; round++) {
       await hand(page).first().click();
       await legalCells(page).first().click();
+      if ((await observation(page).count()) > 0) return;
     }
+    throw new Error('no placement in a whole game said anything');
+  }
+
+  test('holds the round, keeps the plot visible, and reads as one sentence', async ({
+    page,
+  }) => {
+    await start(page);
+    await playUntilLine(page);
+
+    await expect(observation(page)).toBeVisible();
+    // The plot stays up: seeing the block you just placed while reading the
+    // line about it is the whole transaction.
+    await expect(page.getByRole('grid')).toBeVisible();
+    // The hand for the next round waits.
+    await expect(hand(page)).toHaveCount(0);
+
+    const text = await observation(page).locator('.observation__line').innerText();
+    expect(text.trim().length).toBeGreaterThan(0);
+  });
+
+  test('is dismissed by click, Space and Enter (§13)', async ({ page }) => {
+    for (const dismiss of ['click', 'Space', 'Enter'] as const) {
+      await start(page);
+      await playUntilLine(page);
+
+      if (dismiss === 'click') await observation(page).click();
+      else await page.keyboard.press(dismiss);
+
+      await expect(observation(page)).toHaveCount(0);
+      await expect(hand(page)).toHaveCount(3);
+    }
+  });
+
+  test('says something at least once in a game', async ({ page }) => {
+    await start(page);
+    let spoken = 0;
+
+    for (let round = 1; round <= ROUNDS; round++) {
+      await hand(page).first().click();
+      await legalCells(page).first().click();
+      if ((await observation(page).count()) > 0) {
+        spoken++;
+        await observation(page).click();
+      }
+    }
+
+    expect(spoken).toBeGreaterThan(0);
   });
 });
 
@@ -221,16 +293,24 @@ test.describe('screenshots', () => {
     await page.screenshot({ path: 'e2e/screenshots/02-selected.png', fullPage: true });
 
     await legalCells(page).first().click();
-    for (let round = 2; round <= 4; round++) {
-      await hand(page).first().click();
-      await legalCells(page).first().click();
-    }
-    await page.screenshot({ path: 'e2e/screenshots/03-midway.png', fullPage: true });
+    if ((await observation(page).count()) > 0) await observation(page).click();
 
-    for (let round = 5; round <= ROUNDS; round++) {
+    // Play on until something is actually said, and capture that — the line is
+    // the whole point of the prototype (§8.6).
+    for (let round = 2; round <= ROUNDS; round++) {
       await hand(page).first().click();
       await legalCells(page).first().click();
+      if ((await observation(page).count()) > 0) {
+        await page.screenshot({ path: 'e2e/screenshots/03-line.png', fullPage: true });
+        await observation(page).click();
+        break;
+      }
     }
-    await page.screenshot({ path: 'e2e/screenshots/04-finished.png', fullPage: true });
+    await page.screenshot({ path: 'e2e/screenshots/04-midway.png', fullPage: true });
+
+    while ((await page.getByText('The house is finished.').count()) === 0) {
+      await playRound(page);
+    }
+    await page.screenshot({ path: 'e2e/screenshots/05-finished.png', fullPage: true });
   });
 });

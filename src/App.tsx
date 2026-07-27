@@ -5,11 +5,21 @@
  * game is in. All game logic lives in `src/engine/`, which never imports
  * content — the deck and the config are handed to `createGame` here.
  */
-import { useMemo, useReducer, useState } from 'react';
-import { config, deck, household, premise, whyNow } from './content.ts';
+import { useCallback, useMemo, useReducer, useState } from 'react';
+import {
+  config,
+  deck,
+  household,
+  pairLines,
+  premise,
+  qualityLines,
+  qualitySeverity,
+  whyNow,
+} from './content.ts';
 import { createGame } from './engine/game.ts';
 import Hand from './components/Hand.tsx';
 import Intro from './components/Intro.tsx';
+import Observation from './components/Observation.tsx';
 import Plot from './components/Plot.tsx';
 
 function freshSeed(): number {
@@ -17,11 +27,18 @@ function freshSeed(): number {
 }
 
 export default function App() {
-  const game = useMemo(() => createGame(deck, config), []);
+  const game = useMemo(
+    () => createGame(deck, config, { pairLines, qualityLines, qualitySeverity }),
+    [],
+  );
   const [seed] = useState(freshSeed);
   const [state, dispatch] = useReducer(game.reducer, seed, game.initialState);
 
   const placing = state.selectedPlanId !== null;
+  const reading = state.observation !== null;
+
+  // Stable, so Observation's key handler is not torn down and rebuilt each render.
+  const dismiss = useCallback(() => dispatch({ type: 'DISMISS' }), []);
 
   return (
     <main className="app">
@@ -49,17 +66,25 @@ export default function App() {
             onPlace={(cell) => dispatch({ type: 'PLACE', cell })}
           />
 
-          <p className="app__prompt">
-            {placing
-              ? 'Place it anywhere touching what is already built. You cannot move it later.'
-              : 'Choose one of three. The other two are gone.'}
-          </p>
+          {/* While there is a line to read, it has the floor — the hand for the
+              next round arrives once it is dismissed (§8.6, §13). */}
+          {reading ? (
+            <Observation line={state.observation as string} onDismiss={dismiss} />
+          ) : (
+            <>
+              <p className="app__prompt">
+                {placing
+                  ? 'Place it anywhere touching what is already built. You cannot move it later.'
+                  : 'Choose one of three. The other two are gone.'}
+              </p>
 
-          <Hand
-            state={state}
-            deck={deck}
-            onSelect={(planId) => dispatch({ type: 'SELECT_PLAN', planId })}
-          />
+              <Hand
+                state={state}
+                deck={deck}
+                onSelect={(planId) => dispatch({ type: 'SELECT_PLAN', planId })}
+              />
+            </>
+          )}
         </>
       ) : (
         <section className="finished">

@@ -1,8 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { config, deck, household, premise, whyNow } from '../content.ts';
+import {
+  config,
+  deck,
+  household,
+  pairLines,
+  premise,
+  qualityLines,
+  qualitySeverity,
+  whyNow,
+} from '../content.ts';
 import { createGame } from './game.ts';
 
-const game = createGame(deck, config);
+const game = createGame(deck, config, { pairLines, qualityLines, qualitySeverity });
 
 describe('the framing (§2)', () => {
   it('opens on the intro, before any placement is possible', () => {

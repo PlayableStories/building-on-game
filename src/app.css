@@ -204,6 +204,40 @@
   background: var(--colour-tier-wildcard);
 }
 
+/* ---- The line — §8.6, §13 ------------------------------------------- */
+
+.observation {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  margin-top: var(--space-3);
+  padding: var(--space-4) var(--space-3);
+  border: 1px solid var(--colour-rule);
+  border-left: var(--space-1) solid var(--colour-observation-edge);
+  border-radius: var(--radius);
+  background: var(--colour-observation);
+  color: var(--colour-ink);
+  font-family: var(--font-body);
+  cursor: pointer;
+  text-align: center;
+}
+
+.observation__line {
+  font-size: var(--size-observation);
+  line-height: var(--leading-body);
+  max-width: 30rem;
+}
+
+.observation__dismiss {
+  font-family: var(--font-ui);
+  font-size: var(--size-small);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--colour-ink-soft);
+}
+
 /* ---- The hand — §6, §14 --------------------------------------------- */
 
 .hand {

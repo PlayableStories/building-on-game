@@ -43,10 +43,15 @@
   --colour-button: #23201c;
   --colour-button-ink: #f4f1ea;
 
+  /* ---- The adjacency line — §8.6 ---------------------------------- */
+  --colour-observation: #efeadd;
+  --colour-observation-edge: #8d8577;
+
   /* ---- Type ------------------------------------------------------- */
   --font-body: ui-serif, Georgia, 'Times New Roman', serif;
   --font-ui: ui-sans-serif, system-ui, -apple-system, sans-serif;
   --size-title: 2rem;
+  --size-observation: 1.1875rem;
   --size-body: 1rem;
   --size-small: 0.8125rem;
   --leading-body: 1.55;
