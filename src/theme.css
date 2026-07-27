@@ -36,6 +36,12 @@
   --colour-street: #8d8577;
   --colour-garden: #778a6b;
 
+  /* ---- Selection and controls ------------------------------------- */
+  --colour-selected: #3f6a4a;
+  --colour-selected-ink: #f4f1ea;
+  --colour-button: #23201c;
+  --colour-button-ink: #f4f1ea;
+
   /* ---- Type ------------------------------------------------------- */
   --font-body: ui-serif, Georgia, 'Times New Roman', serif;
   --font-ui: ui-sans-serif, system-ui, -apple-system, sans-serif;

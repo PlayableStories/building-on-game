@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    /** The tests render components, so they need the DOM as well as Node. */
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo"
+  },
+  /**
+   * `src` is included whole, not just the tests: the tests and the validator
+   * import from it, and a composite project has to list everything it pulls in.
+   * The guarantee still holds, because tsconfig.app.json also checks every file
+   * in `src` with no ambient types at all — a `process.env` in a component fails
+   * there whatever this project thinks of it.
+   */
+  "include": ["vite.config.ts", "playwright.config.ts", "scripts", "e2e", "src"]
+}

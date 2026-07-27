@@ -89,6 +89,14 @@ export interface Plan {
   care: string;
 }
 
+/**
+ * The part of a plan the core loop needs: which plan it is, what to print on the
+ * block, and which tier it is drawn from. The grid and the draw never read the
+ * writing, so they are typed against this rather than the whole `Plan` — which
+ * also lets M1 ship a deck that has not been written yet.
+ */
+export type PlanIdentity = Pick<Plan, 'id' | 'name' | 'tier'>;
+
 /* ------------------------------------------------------------------ *
  * Writing — §8.6
  * ------------------------------------------------------------------ */

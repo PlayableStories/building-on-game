@@ -26,9 +26,14 @@ npm run dev        # http://localhost:5173
 | `npm run dev` | Dev server with hot reload |
 | `npm run build` | Type-check, then build to `dist/` |
 | `npm run preview` | Serve the built `dist/` |
-| `npm test` | Run the test suite once |
-| `npm run test:watch` | Run tests in watch mode |
+| `npm test` | Run the unit and component tests once |
+| `npm run test:watch` | Run those in watch mode |
+| `npm run test:e2e` | Play a whole game in real Chrome, and write screenshots |
 | `npm run validate` | Check the deck against the rules in GDD §16 |
+
+`npm run test:e2e` drives the Google Chrome already on your machine (Playwright's
+`channel: 'chrome'`), so there is no browser download. It starts the dev server itself and
+leaves screenshots of a full playthrough in `e2e/screenshots/`.
 
 ## What to fork
 
@@ -57,5 +62,9 @@ hospice garden should never require opening a file that isn't one of those two.
 
 ## Status
 
-**M0 — scaffold.** Toolchain, shared types and the two fork-surface files exist; the game
-itself does not yet. The grid, the hand and the eight rounds arrive in M1.
+**M1 — core loop.** Playable end to end: the 5×5 plot with the inherited house on
+B2/C2/B3/C3, a hand of three drawn fresh each round and weighted to the tier, legal-cell
+highlighting, eight placements, and a finish.
+
+Not yet: the household and the "why now" line (M2), the adjacency line on each placement
+(M3), the report (M4), demolition confirmation and consent flags (M5).

@@ -1,0 +1,240 @@
+/**
+ * Layout and structure.
+ *
+ * Every value here comes from a custom property in `theme.css`. Nothing in this
+ * file hard-codes a colour, a font or a spacing step — that is what makes
+ * theme.css a real fork surface rather than a suggestion (GDD §16).
+ */
+
+.app {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-3);
+}
+
+.app__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  border-bottom: 1px solid var(--colour-rule);
+  padding-bottom: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.app__title {
+  font-size: var(--size-title);
+  font-weight: 400;
+  margin: 0;
+}
+
+.app__round {
+  font-family: var(--font-ui);
+  font-size: var(--size-small);
+  color: var(--colour-ink-soft);
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.app__prompt {
+  font-size: var(--size-small);
+  color: var(--colour-ink-soft);
+  text-align: center;
+  margin: var(--space-3) 0;
+}
+
+/* ---- The plot — §5, §12 -------------------------------------------- */
+
+.plot__edge {
+  font-family: var(--font-ui);
+  font-size: var(--size-small);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+  margin: var(--space-2) 0;
+}
+
+.plot__edge--street {
+  color: var(--colour-street);
+}
+
+.plot__edge--garden {
+  color: var(--colour-garden);
+}
+
+.plot__sun {
+  text-transform: none;
+  letter-spacing: 0;
+  opacity: 0.75;
+}
+
+.plot__frame {
+  display: flex;
+  justify-content: center;
+}
+
+.plot__grid {
+  display: grid;
+  grid-template-columns: repeat(5, var(--cell-size));
+  grid-auto-rows: var(--cell-size);
+  gap: var(--space-1);
+}
+
+/* ---- Cells ---------------------------------------------------------- */
+
+.cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: var(--colour-plot-empty);
+  color: var(--colour-ink);
+  font-family: var(--font-ui);
+  font-size: var(--size-small);
+  line-height: 1.15;
+  text-align: center;
+  cursor: default;
+}
+
+.cell:not(:disabled) {
+  cursor: pointer;
+}
+
+.cell__ref {
+  font-size: 0.625rem;
+  letter-spacing: 0.06em;
+  color: var(--colour-ink-soft);
+}
+
+.cell__name {
+  font-size: 0.6875rem;
+  overflow-wrap: anywhere;
+}
+
+.cell__door {
+  font-size: 0.5625rem;
+  letter-spacing: 0.04em;
+  color: var(--colour-front-door);
+}
+
+/* Inherited fabric: a distinct muted fill with a visible edge — §5, §12. */
+.cell--fabric {
+  background: var(--colour-fabric);
+  border-color: var(--colour-fabric-edge);
+  border-style: dashed;
+}
+
+.cell--legal {
+  background: var(--colour-plot-legal);
+  border-color: var(--colour-plot-legal-edge);
+  border-style: solid;
+}
+
+.cell--fabric.cell--legal {
+  background: var(--colour-fabric);
+  border-color: var(--colour-plot-legal-edge);
+  border-style: solid;
+}
+
+.cell--placed[data-tier='threshold'] {
+  background: var(--colour-tier-threshold);
+}
+.cell--placed[data-tier='daily'] {
+  background: var(--colour-tier-daily);
+}
+.cell--placed[data-tier='private'] {
+  background: var(--colour-tier-private);
+}
+.cell--placed[data-tier='outside'] {
+  background: var(--colour-tier-outside);
+}
+.cell--placed[data-tier='wildcard'] {
+  background: var(--colour-tier-wildcard);
+}
+
+/* ---- The hand — §6, §14 --------------------------------------------- */
+
+.hand {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--space-2);
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+}
+
+.plan {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  width: 100%;
+  min-height: 4.5rem;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--colour-rule);
+  border-radius: var(--radius);
+  background: var(--colour-plot-empty);
+  color: var(--colour-ink);
+  font-family: var(--font-ui);
+  text-align: left;
+  cursor: pointer;
+}
+
+.plan[data-tier='threshold'] {
+  border-left: var(--space-1) solid var(--colour-tier-threshold);
+}
+.plan[data-tier='daily'] {
+  border-left: var(--space-1) solid var(--colour-tier-daily);
+}
+.plan[data-tier='private'] {
+  border-left: var(--space-1) solid var(--colour-tier-private);
+}
+.plan[data-tier='outside'] {
+  border-left: var(--space-1) solid var(--colour-tier-outside);
+}
+.plan[data-tier='wildcard'] {
+  border-left: var(--space-1) solid var(--colour-tier-wildcard);
+}
+
+.plan--selected {
+  background: var(--colour-selected);
+  color: var(--colour-selected-ink);
+  border-color: var(--colour-selected);
+}
+
+.plan__name {
+  font-size: var(--size-body);
+}
+
+.plan__tier {
+  font-size: var(--size-small);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+/* ---- Finished — §15 -------------------------------------------------- */
+
+.finished {
+  text-align: center;
+}
+
+.finished__line {
+  font-size: var(--size-title);
+  margin: var(--space-4) 0 var(--space-2);
+}
+
+.button {
+  padding: var(--space-2) var(--space-4);
+  border: none;
+  border-radius: var(--radius);
+  background: var(--colour-button);
+  color: var(--colour-button-ink);
+  font-family: var(--font-ui);
+  font-size: var(--size-body);
+  cursor: pointer;
+}

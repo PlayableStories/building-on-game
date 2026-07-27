@@ -41,6 +41,17 @@ One consequence, settled in M0: `jsdom` is pinned to **^29** rather than the lat
 which requires Node 22.22+/24.15+. Pinning keeps the toolchain on the Node 20 line the
 `.nvmrc` commits to. Revisit if the target Node moves.
 
+### Keeping the tooling out of the game
+
+The TypeScript config is split in two — `tsconfig.app.json` covers `src/` minus the tests
+with **no ambient types at all**, and `tsconfig.node.json` covers the configs, scripts, e2e
+and the tests. `npm run build` runs `tsc -b` over both.
+
+Before the split, `"types": ["vitest/globals", "node"]` applied project-wide, which meant a
+component could reference `process.env` — `undefined` in a browser — or call `describe()`
+and still typecheck. Both now fail to compile in application code. `globals: true` was
+dropped from the Vitest config for the same reason; every test imports what it uses.
+
 ## The architectural rule that makes §16 work
 
 `src/engine/` imports from `src/types.ts` **only** — never from `content.ts`. Content is
@@ -87,7 +98,7 @@ Seven milestones, each independently verifiable. M1–M6 map onto §18 prioritie
 returns 200 for `/`, `/src/main.tsx`, `/src/App.tsx`, `/src/theme.css` · `npm run validate`
 exits 0.
 
-## M1 — Core loop (§18.1)
+## M1 — Core loop (§18.1) ✅
 
 **Goal:** eight placements can be made on a real grid and the game ends. No writing yet.
 
@@ -100,10 +111,19 @@ exits 0.
   (§6). Rounds 1–2 threshold, 3–4 daily, 5–6 private, 7–8 outside. A placed plan leaves the
   pool; a passed-over hand returns to it. Injectable `rng` for deterministic tests.
   `ROUNDS` is a config constant so §6's **[Open]** 6-vs-8 playtest is one number.
-- `content.ts` — deck skeleton: all 24 plans with `id`, `name`, `tier` only.
-- `App.tsx` reducer: `SELECT_PLAN`, `PLACE`, `NEXT_ROUND`, `RESTART`.
+- `content.ts` — deck skeleton: all 24 plans with `id`, `name`, `tier` only, typed as
+  `PlanIdentity` (`Pick<Plan, 'id'|'name'|'tier'>`). The grid and the draw never read the
+  writing, so they are typed against that narrower shape and M3/M4 widen the deck to full
+  `Plan` without touching engine code.
+- Reducer: `SELECT_PLAN`, `PLACE`, `RESTART`. It lives in `engine/game.ts` rather than
+  `App.tsx` as originally planned — as a pure function it is directly testable, and
+  `createGame(deck, config)` is how it reaches content without importing it. `NEXT_ROUND`
+  was dropped: with no adjacency line to stop on yet, `PLACE` advances the round itself,
+  and M3 splits it when there is something to dismiss.
 - `components/Plot.tsx`, `Hand.tsx` — click a plan, legal cells highlight, click to place
   (§13). Round indicator *3 of 8*.
+- Street and garden edge labels landed here rather than in M6: without them the grid can't
+  be read, and orientation is the rule §17.9 asks whether players notice.
 
 **Tests:** fabric occupied at start · legal-cell set from the opening position is exactly
 right · a placed cell is never legal again · every hand across a seeded 8-round run is
@@ -111,6 +131,24 @@ right · a placed cell is never legal again · every hand across a seeded 8-roun
 
 **Done when:** a full 8-round game can be played to its end in the browser, with correct
 legal-cell highlighting throughout, and the grid shows named blocks.
+
+**Verified:** 46 unit tests · 8 end-to-end tests in headless Chrome · `tsc --noEmit` clean ·
+`vite build` clean.
+
+Three layers, each catching what the one below cannot:
+
+1. `src/engine/*.test.ts` — the pure functions: the grid, the draw, the reducer.
+2. `src/App.test.tsx` — a complete eight-round game through the rendered components in
+   jsdom, covering the click wiring.
+3. `e2e/play.spec.ts` — the same game in real Chrome, covering layout and paint: that the
+   plot lays out as an actual 5×5 grid, that the street sits above row 1 and the garden
+   below row 5 by measured position, that the fabric fill and the legal-cell highlight are
+   real computed-colour changes rather than just attributes, and that a whole playthrough
+   leaves the console clean.
+
+Layer 3 immediately found something the other two structurally could not: a missing
+favicon 404ing on every load. Fixed with an inline SVG data URI, so §12's "no image
+assets" still holds.
 
 ## M2 — Framing (§18.2)
 
@@ -238,14 +276,24 @@ Per-milestone gates are above. Full check at the end:
 nvm use            # .nvmrc → 20; default v14 will not run Vite
 npm install
 npm run validate   # deck integrity, must exit 0
-npm test           # engine unit tests
+npm test           # unit tests and the jsdom playthrough
+npm run test:e2e   # the same game in real Chrome, plus screenshots
 npm run dev        # manual playthrough
 ```
+
+`npm run test:e2e` uses the system Google Chrome via Playwright's `channel: 'chrome'`, so
+nothing has to download a browser. It writes screenshots to `e2e/screenshots/` (gitignored)
+— the fastest way to see what a playthrough actually looks like without playing one.
 
 Manual playthrough checklist: intro appears once before round 1 · eight placements end the
 game · a B2 demolition asks for confirmation and surfaces in *what you'll look after* ·
 `conservation: true` changes the four §9.2 items · no cost, score, counter or timer appears
 at any point · the fork test in M6.
+
+**What automated tests cannot settle.** Every question in §17 is a human one. The suites
+prove the game is playable and the rules hold; whether the adjacency line reads as an
+observation rather than a score, or whether the household is forgotten by round three, only
+a playtest answers. M7 is where that happens.
 
 ## Explicitly out of scope
 
