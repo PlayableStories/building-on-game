@@ -21,7 +21,7 @@ Target: §18 priorities **1–6**. Discovery (§11) and polish (§18.8) are out.
 
 | Layer | Choice | Why |
 |---|---|---|
-| Build | **Vite 7** | Instant dev server, static `dist/`, zero config for TS |
+| Build | **Vite 8** | Instant dev server, static `dist/`, zero config for TS |
 | UI | **React 19 + TypeScript** | §16's fork test needs a stack participants already read |
 | State | **`useReducer` in `App.tsx`** | The whole game is one immutable `GameState`; a state library earns nothing at 25 cells and 8 rounds |
 | Styling | **Plain CSS + custom properties** in `theme.css` | §16 names the file; every colour, fill, font, spacing value is a `--var` |
@@ -33,9 +33,13 @@ no CSS framework, no icon package (§12: procedural shapes and colour, placehold
 
 ### Blocking prerequisite — Node version
 
-Default `node` here is **v14.16.1**, which Vite 7 rejects. `nvm` has **v18.20.8, v20.20.2,
-v24.13.0** installed. M0 adds `.nvmrc` (`20`); every command below assumes `nvm use` first,
-and the README says so.
+Default `node` here is **v14.16.1**, which Vite 8 rejects — it needs 20.19 or later. `nvm`
+has **v18.20.8, v20.20.2, v24.13.0** installed. M0 adds `.nvmrc` (`20`); every command below
+assumes `nvm use` first, and the README says so.
+
+One consequence, settled in M0: `jsdom` is pinned to **^29** rather than the latest 30,
+which requires Node 22.22+/24.15+. Pinning keeps the toolchain on the Node 20 line the
+`.nvmrc` commits to. Revisit if the target Node moves.
 
 ## The architectural rule that makes §16 work
 
@@ -60,18 +64,28 @@ src/
 
 Seven milestones, each independently verifiable. M1–M6 map onto §18 priorities 1–6.
 
-## M0 — Scaffold and toolchain
+## M0 — Scaffold and toolchain ✅
 
 **Goal:** a running dev server and a green test command.
 
-- `.nvmrc` → `20`; `npm create vite@latest . -- --template react-ts`; strip the demo app
-- Add Vitest. Scripts: `dev`, `build`, `preview`, `test`, `validate`
+- `.nvmrc` → `20`; Vite + React + TS config written directly rather than scaffolded, so
+  there is no demo app to strip
+- Vitest wired through `vite.config.ts` (imported from `vitest/config`, which Vitest 4
+  requires). Scripts: `dev`, `build`, `preview`, `test`, `test:watch`, `validate`
 - `src/types.ts`: `Quality` (exactly the nine in §8.5), `Tier`, `Consent` (the four in
-  §9.1), `CostBand`, `Plan`, `CellRef`, `Placement`, `GameState`, `Content`
+  §9.1), `CostBand`, `Plan`, `Placement`, `GameState`, `Config`, `Content`. Cells are a
+  template-literal `CellId` (`'B2'`), not a `{col,row}` pair — content authoring names
+  cells the way the GDD does, and §11's discovery triggers will too. The vocabularies are
+  `as const` arrays with types derived from them, so M6's validator has runtime lists.
 - `theme.css` with the custom-property block stubbed; `README.md` quick-start
+- `scripts/validate.ts` wired up now, checking the vocabulary; deck checks land in M6
 
 **Done when:** `nvm use && npm install && npm run dev` serves a blank page and
 `npm test` passes with one placeholder test.
+
+**Verified:** 4 tests pass · `tsc --noEmit` clean · `vite build` clean · dev server
+returns 200 for `/`, `/src/main.tsx`, `/src/App.tsx`, `/src/theme.css` · `npm run validate`
+exits 0.
 
 ## M1 — Core loop (§18.1)
 

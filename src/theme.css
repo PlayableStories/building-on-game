@@ -1,0 +1,68 @@
+/**
+ * Building On — theme.
+ *
+ * Fork surface 2 of 2 (GDD §16). Every colour, fill, font and spacing value in
+ * the game is declared here as a custom property. No component stylesheet may
+ * hard-code a colour or a size; it reads a var from this block instead.
+ *
+ * Stubbed in M0 — the plot, hand and report styles arrive with the milestones
+ * that build them.
+ */
+
+:root {
+  /* ---- Surface ---------------------------------------------------- */
+  --colour-page: #f4f1ea;
+  --colour-ink: #23201c;
+  --colour-ink-soft: #6b6459;
+  --colour-rule: #d9d3c6;
+
+  /* ---- The plot — §12 --------------------------------------------- */
+  --colour-plot-empty: #eae5da;
+  --colour-plot-legal: #e2ecdf;
+  --colour-plot-legal-edge: #7d9c81;
+  /* Inherited fabric: a distinct muted fill with a visible edge. */
+  --colour-fabric: #cfc6b4;
+  --colour-fabric-edge: #a3987f;
+  --colour-front-door: #8c5a3c;
+
+  /* ---- Tiers — §6 -------------------------------------------------- */
+  --colour-tier-threshold: #c8b8a1;
+  --colour-tier-daily: #b7c3a8;
+  --colour-tier-private: #a9b6c4;
+  --colour-tier-outside: #a8bfa0;
+  --colour-tier-wildcard: #c4b0bd;
+
+  /* ---- Orientation labels — §5 ------------------------------------ */
+  --colour-street: #8d8577;
+  --colour-garden: #778a6b;
+
+  /* ---- Type ------------------------------------------------------- */
+  --font-body: ui-serif, Georgia, 'Times New Roman', serif;
+  --font-ui: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --size-title: 2rem;
+  --size-body: 1rem;
+  --size-small: 0.8125rem;
+  --leading-body: 1.55;
+
+  /* ---- Spacing ---------------------------------------------------- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 1rem;
+  --space-4: 1.5rem;
+  --space-5: 2.5rem;
+  --radius: 2px;
+  --cell-size: clamp(3.25rem, 11vmin, 5.5rem);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--colour-page);
+  color: var(--colour-ink);
+  font-family: var(--font-body);
+  font-size: var(--size-body);
+  line-height: var(--leading-body);
+}
