@@ -83,39 +83,137 @@ function reportFor(seed: number): Report {
 }
 
 /* ------------------------------------------------------------------ *
- * The three columns — §10.2
+ * Benefit beside obligation — §10.2
  * ------------------------------------------------------------------ */
 
-describe('the three columns (§10.2)', () => {
-  it('lists what you will have, in placement order', () => {
-    const state = playThrough(11);
-    const report = buildReport(state, deck, content, qualitySeverity, config);
-    expect(report.have).toEqual(
-      state.placements.map((placement) => plan(placement.planId).have),
-    );
-  });
-
-  it('gives one have line per placement, and rather more care than that', () => {
+describe('the paired rows (§10.2)', () => {
+  it('is three pairs, however many plans were placed', () => {
     for (let seed = 1; seed <= 30; seed++) {
-      const state = playThrough(seed);
-      const report = buildReport(state, deck, content, qualitySeverity, config);
-
-      expect(report.have).toHaveLength(config.rounds);
-
-      // One obligation per plan, then whatever consent the house has taken on
-      // (§9.3), then demolition (§7). Never a repeat.
-      const demolished = state.placements.some((placement) => placement.demolished);
-      expect(report.care.length).toBeGreaterThanOrEqual(
-        config.rounds + 1 + (demolished ? 1 : 0),
-      );
-      expect(report.care.slice(0, config.rounds)).toEqual(
-        state.placements.map((placement) => plan(placement.planId).care),
-      );
-      expect(new Set(report.care).size).toBe(report.care.length);
+      expect(reportFor(seed).pairs).toHaveLength(3);
     }
   });
 
-  it('never puts a number in the cost column (§10.2)', () => {
+  it('never separates what you gained from what it asks', () => {
+    // The whole point of the shape. Every row carries both, from the same plan.
+    for (let seed = 1; seed <= 30; seed++) {
+      for (const pair of reportFor(seed).pairs) {
+        const entry = deck.find((one) => one.name === pair.name);
+        if (!entry) throw new Error(`no plan named ${pair.name}`);
+        expect(pair.have).toBe(entry.have);
+        expect(pair.care).toBe(entry.care);
+      }
+    }
+  });
+
+  it('only ever reports plans that are actually on the plot', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const state = playThrough(seed);
+      const built = new Set(
+        state.placements.map((placement) => plan(placement.planId).name),
+      );
+      for (const pair of buildReport(state, deck, content, qualitySeverity, config)
+        .pairs) {
+        expect(built.has(pair.name)).toBe(true);
+      }
+    }
+  });
+
+  it('names each of the three once', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const names = reportFor(seed).pairs.map((pair) => pair.name);
+      expect(new Set(names).size).toBe(names.length);
+    }
+  });
+
+  /**
+   * §10.2 — which three. Not the first three or the last three: the three that
+   * ask the most, by what they cost to build and the consent they took on. It
+   * is not a score and it is never shown; it decides what the report is about.
+   */
+  it('reports the three that ask the most, heaviest first', () => {
+    // Read against a house that demolished nothing, so that a plan's own cost
+    // and consent are the whole of what it asks and the ranking is checkable
+    // without re-implementing it. Demolition is tested separately below.
+    const played = playThrough(11);
+    const state: GameState = {
+      ...played,
+      placements: played.placements.map((placement) => ({
+        ...placement,
+        demolished: false,
+      })),
+    };
+    const report = buildReport(state, deck, content, qualitySeverity, config);
+
+    const weight = (name: string) => {
+      const entry = deck.find((one) => one.name === name);
+      if (!entry) throw new Error(`no plan named ${name}`);
+      const bands = ['very-low', 'low', 'moderate', 'high'];
+      return bands.indexOf(entry.cost) + consentOrder.indexOf(entry.consent);
+    };
+
+    const chosen = report.pairs.map((pair) => pair.name);
+    // Heaviest first within the three...
+    for (let index = 1; index < chosen.length; index++) {
+      expect(weight(chosen[index - 1] as string)).toBeGreaterThanOrEqual(
+        weight(chosen[index] as string),
+      );
+    }
+
+    // ...and nothing left out asks more than the lightest one reported.
+    const lightest = Math.min(...chosen.map(weight));
+    for (const placement of state.placements) {
+      const name = plan(placement.planId).name;
+      if (chosen.includes(name)) continue;
+      expect(weight(name)).toBeLessThanOrEqual(lightest);
+    }
+  });
+
+  it('takes the demolition into account, not just the plan (§7)', () => {
+    // The same plan asks more of you when it took part of the old house down,
+    // because that is a heavier process and an irreversible one.
+    const state = playThrough(11);
+    const untouched: GameState = {
+      ...state,
+      placements: state.placements.map((placement) => ({
+        ...placement,
+        demolished: false,
+      })),
+    };
+    const razed: GameState = {
+      ...state,
+      // The last placement is the cheapest thing on the plot in most games, so
+      // demolishing with it is the clearest test that demolition counts.
+      placements: state.placements.map((placement, index) => ({
+        ...placement,
+        demolished: index === state.placements.length - 1,
+      })),
+    };
+
+    const wrecker = buildReport(razed, deck, content, qualitySeverity, config);
+    const keeper = buildReport(untouched, deck, content, qualitySeverity, config);
+    const name = plan(state.placements[state.placements.length - 1]!.planId).name;
+
+    expect(wrecker.pairs.map((pair) => pair.name)).toContain(name);
+    expect(keeper.pairs.map((pair) => pair.name)).not.toContain(name);
+  });
+
+  it('reports the same house the same way, whatever order it was built in', () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const state = playThrough(seed);
+      const shuffled: GameState = {
+        ...state,
+        placements: [...state.placements].reverse(),
+      };
+      const forwards = buildReport(state, deck, content, qualitySeverity, config);
+      const backwards = buildReport(shuffled, deck, content, qualitySeverity, config);
+      // The rounds move, so the tie-break moves — but the set does not.
+      expect(new Set(backwards.pairs.map((pair) => pair.name))).toEqual(
+        new Set(forwards.pairs.map((pair) => pair.name)),
+      );
+    }
+  });
+
+  it('never puts a number in the cost line (§10.2)', () => {
     for (let seed = 1; seed <= 30; seed++) {
       expect(reportFor(seed).cost).not.toMatch(/\d/);
     }
@@ -136,7 +234,53 @@ describe('the three columns (§10.2)', () => {
     expect(costPhrase([plan('kitchen')], [])).toBe('');
   });
 
-  it('adds the demolition line to the care column, and only then (§7)', () => {
+  /**
+   * §10.2 — the length playtesting asked for. "The result is too complicate and
+   * too long, better limited to three most important result in each group."
+   */
+  it('is short enough to read to the end', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const report = reportFor(seed);
+      const lines = [
+        ...report.pairs.flatMap((pair) => [pair.have, pair.care]),
+        report.cost,
+        ...report.obligations,
+        report.closing,
+        report.answer,
+      ];
+      expect(lines.length).toBeLessThanOrEqual(3 * 2 + 1 + 2 + 1 + 1);
+    }
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * Consent, as the house's own obligation — §9.3
+ * ------------------------------------------------------------------ */
+
+describe('the obligations the house took on (§9.3)', () => {
+  it('is at most two lines, and never repeats one', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const { obligations } = reportFor(seed);
+      expect(obligations.length).toBeLessThanOrEqual(2);
+      expect(new Set(obligations).size).toBe(obligations.length);
+    }
+  });
+
+  it('always says something — every house takes something on', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      expect(reportFor(seed).obligations.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('is not a section of its own, and not paired with anything (§9.3)', () => {
+    const report = reportFor(11);
+    const paired = report.pairs.flatMap((pair) => [pair.have, pair.care]);
+    for (const line of report.obligations) {
+      expect(paired).not.toContain(line);
+    }
+  });
+
+  it('leads with taking the old house down, when that happened (§7)', () => {
     const state = playThrough(11);
     const untouched: GameState = {
       ...state,
@@ -153,66 +297,48 @@ describe('the three columns (§10.2)', () => {
       })),
     };
 
-    expect(buildReport(untouched, deck, content, qualitySeverity, config).care).not.toContain(
-      demolitionCare,
-    );
-    const after = buildReport(razed, deck, content, qualitySeverity, config).care;
-    expect(after).toContain(demolitionCare);
-    // §10.2 — the obligations of the plans first, then what taking the old house
-    // down leaves you with.
-    expect(after[after.length - 1]).toBe(demolitionCare);
-  });
-
-  it('is the longest column, deliberately (§10.2)', () => {
-    for (let seed = 1; seed <= 30; seed++) {
-      const report = reportFor(seed);
-      const words = (lines: string[]) => lines.join(' ').split(/\s+/).length;
-      expect(words(report.care)).toBeGreaterThan(words(report.have));
-    }
-  });
-});
-
-/* ------------------------------------------------------------------ *
- * Consent, inside the care column — §9.3
- * ------------------------------------------------------------------ */
-
-describe('consent lands inside what you’ll look after (§9.3)', () => {
-  it('is not a section of its own', () => {
-    const report = reportFor(11);
-    const somewhereElse = [...report.have, report.cost, report.closing];
-
-    for (const line of Object.values(consentCare)) {
-      expect(report.care.includes(line) || !somewhereElse.includes(line)).toBe(true);
-    }
-    // Whatever the house was, it took something on.
     expect(
-      report.care.some((line) => Object.values(consentCare).includes(line)),
-    ).toBe(true);
+      buildReport(untouched, deck, content, qualitySeverity, config).obligations,
+    ).not.toContain(demolitionCare);
+    expect(
+      buildReport(razed, deck, content, qualitySeverity, config).obligations[0],
+    ).toBe(demolitionCare);
   });
 
-  it('comes after the plans’ own obligations and before demolition', () => {
+  it('spends its two lines heaviest first', () => {
+    // Two lines is not room for "some of this needed nobody's permission" ahead
+    // of a condition the house will be living with. The order is what decides
+    // which two survive the cut, so the order is what this checks.
+    const rank = (line: string) =>
+      consentOrder.findIndex((flag) => consentCare[flag] === line);
+
+    for (let seed = 1; seed <= 30; seed++) {
+      const shown = reportFor(seed)
+        .obligations.filter((line) => Object.values(consentCare).includes(line))
+        .map(rank);
+
+      for (let index = 1; index < shown.length; index++) {
+        expect(shown[index - 1] as number).toBeGreaterThan(shown[index] as number);
+      }
+    }
+  });
+
+  it('drops the lightest flag once the house has two heavier ones', () => {
+    // The specific case the ordering exists for: a house that applied, took on
+    // a condition and took something down does not spend a line saying that
+    // some of it needed nobody's permission — which every house could say.
     const state = playThrough(11);
-    const razed: GameState = {
+    const heavy: GameState = {
       ...state,
       placements: state.placements.map((placement, index) => ({
         ...placement,
         demolished: index === 0,
       })),
     };
-    const care = buildReport(razed, deck, content, qualitySeverity, config).care;
+    const { obligations } = buildReport(heavy, deck, content, qualitySeverity, config);
 
-    const firstConsent = care.findIndex((line) =>
-      Object.values(consentCare).includes(line),
-    );
-    expect(firstConsent).toBe(config.rounds);
-    expect(care[care.length - 1]).toBe(demolitionCare);
-  });
-
-  it('says an obligation once, however many plans took it on', () => {
-    for (let seed = 1; seed <= 30; seed++) {
-      const care = reportFor(seed).care;
-      expect(new Set(care).size).toBe(care.length);
-    }
+    expect(obligations).not.toContain(consentCare.permitted);
+    expect(obligations).toHaveLength(2);
   });
 });
 
@@ -232,13 +358,36 @@ describe('the same house, with conservation on (§9.2)', () => {
     };
   }
 
-  it('is the same house — same plans, same pleasures, same cost', () => {
+  it('is the same house — same plans on the plot, same cost, same closing', () => {
     for (let seed = 1; seed <= 20; seed++) {
+      const state = playThrough(seed);
+      const built = new Set(
+        state.placements.map((placement) => plan(placement.planId).name),
+      );
       const { ordinary, preserved: after } = bothWays(seed);
-      expect(after.have).toEqual(ordinary.have);
+
       expect(after.cost).toBe(ordinary.cost);
       expect(after.closing).toBe(ordinary.closing);
+      // Whichever three each version foregrounds, they are the same eight
+      // plans on the same plot — conservation does not build anything.
+      for (const pair of [...after.pairs, ...ordinary.pairs]) {
+        expect(built.has(pair.name)).toBe(true);
+      }
     }
+  });
+
+  it('can change which three the report is about, and that is the point', () => {
+    // Conservation makes some plans genuinely more demanding — the heat pump
+    // needs an application, the glass extension gets a condition — so the three
+    // that ask the most are not necessarily the same three. If this never
+    // happened, the ranking would not be reading consent at all.
+    let reordered = 0;
+    for (let seed = 1; seed <= 40; seed++) {
+      const { ordinary, preserved: after } = bothWays(seed);
+      const names = (report: typeof ordinary) => report.pairs.map((one) => one.name);
+      if (names(after).join('|') !== names(ordinary).join('|')) reordered++;
+    }
+    expect(reordered).toBeGreaterThan(0);
   });
 
   it('and different obligations — that is the whole argument of §9', () => {
@@ -247,18 +396,21 @@ describe('the same house, with conservation on (§9.2)', () => {
     let changed = 0;
     for (let seed = 1; seed <= 20; seed++) {
       const { ordinary, preserved: after } = bothWays(seed);
-      if (after.care.join('\n') !== ordinary.care.join('\n')) changed++;
+      if (after.obligations.join('\n') !== ordinary.obligations.join('\n')) changed++;
     }
     expect(changed).toBeGreaterThan(0);
   });
 
-  it('never takes an obligation away', () => {
+  it('replaces the demolition line rather than dropping it (§9.2)', () => {
+    // The one substitution §9.2 asks for. With only two obligation lines the
+    // old test — that nothing is ever dropped — cannot hold and should not:
+    // conservation adds heavier obligations, and heavier ones win the space.
     for (let seed = 1; seed <= 20; seed++) {
       const { ordinary, preserved: after } = bothWays(seed);
-      // The one substitution §9.2 asks for: the longer demolition line replaces
-      // the ordinary one rather than joining it.
-      const dropped = ordinary.care.filter((line) => !after.care.includes(line));
-      expect(dropped.every((line) => line === demolitionCare)).toBe(true);
+      if (ordinary.obligations.includes(demolitionCare)) {
+        expect(after.obligations).not.toContain(demolitionCare);
+        expect(after.obligations).toContain(conservationOverrides.demolition.care);
+      }
     }
   });
 
@@ -272,8 +424,10 @@ describe('the same house, with conservation on (§9.2)', () => {
       })),
     };
 
-    const ordinary = buildReport(razed, deck, content, qualitySeverity, config).care;
-    const after = buildReport(razed, deck, content, qualitySeverity, preserved).care;
+    const ordinary = buildReport(razed, deck, content, qualitySeverity, config)
+      .obligations;
+    const after = buildReport(razed, deck, content, qualitySeverity, preserved)
+      .obligations;
 
     expect(ordinary).toContain(demolitionCare);
     expect(after).not.toContain(demolitionCare);
@@ -285,7 +439,9 @@ describe('the same house, with conservation on (§9.2)', () => {
     for (let seed = 1; seed <= 20; seed++) {
       const { preserved: after } = bothWays(seed);
       expect(after.cost).not.toMatch(/\d/);
-      expect(after.care.join(' ')).not.toMatch(/\bscore[ds]?\b|\bpoints\b|\btotal\b/i);
+      expect(after.obligations.join(' ')).not.toMatch(
+        /\bscore[ds]?\b|\bpoints\b|\btotal\b/i,
+      );
     }
   });
 });
@@ -424,9 +580,9 @@ describe('the finished house (§10.4)', () => {
     for (let seed = 1; seed <= 30; seed++) {
       const report = reportFor(seed);
       const everything = [
-        ...report.have,
-        ...report.care,
+        ...report.pairs.flatMap((pair) => [pair.name, pair.have, pair.care]),
         report.cost,
+        ...report.obligations,
         report.closing,
         report.answer,
       ].join(' ');

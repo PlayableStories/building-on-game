@@ -410,11 +410,12 @@ describe('the line, through the interface (§8.6, §13)', () => {
     const cause = line.querySelector('.observation__cause')?.textContent ?? '';
     expect(cause.trim().length).toBeGreaterThan(0);
 
-    // It names the plan that was just placed — the last one on the plot.
-    const placed = cells().filter((cell) => cell.classList.contains('cell--placed'));
-    const justPlaced = placed[placed.length - 1] as HTMLElement;
-    const name = justPlaced.querySelector('.cell__name')?.textContent ?? '';
-    expect(cause).toContain(name);
+    // It names the plan the line is about. Anchored on the lit cell rather than
+    // on document order, which is not placement order — the grid is laid out in
+    // rows and a placement can land anywhere in it.
+    const subject = document.querySelector('.cell--subject');
+    expect(subject).not.toBeNull();
+    expect(cause).toContain(subject?.querySelector('.cell__name')?.textContent);
   });
 
   it('lights the placement the line is about, and dims the rest', () => {
@@ -607,47 +608,67 @@ describe('the report, when the eighth plan lands (§10)', () => {
     }
   }
 
-  function column(heading: string) {
-    const found = screen
-      .getAllByRole('heading', { level: 2 })
-      .find((element) => (element.textContent ?? '') === heading);
-    if (!found?.parentElement) throw new Error(`no "${heading}" column`);
-    return found.parentElement;
+  function pairs() {
+    return Array.from(document.querySelectorAll('.report__pair'));
   }
 
-  it('shows all three columns at once, in the order §10.2 fixes', () => {
+  it('is three rows, each pairing a benefit with what it asks (§10.2)', () => {
     playToTheEnd();
 
-    const headings = screen
-      .getAllByRole('heading', { level: 2 })
-      .map((element) => element.textContent);
-    expect(headings).toEqual([
-      'What you’ll have',
-      'What it cost',
-      'What you’ll look after',
-    ]);
+    const rows = pairs();
+    expect(rows).toHaveLength(3);
+
+    for (const row of rows) {
+      const name = row.querySelector('.report__name')?.textContent ?? '';
+      const have = row.querySelector('.report__have')?.textContent ?? '';
+      const care = row.querySelector('.report__care')?.textContent ?? '';
+
+      expect(planNames.has(name)).toBe(true);
+      expect(have.length).toBeGreaterThan(0);
+      expect(care.length).toBeGreaterThan(0);
+      // The whole point of the shape: they are in the same element, so there is
+      // no reading order in which one arrives without the other.
+      expect(row.contains(row.querySelector('.report__care'))).toBe(true);
+    }
   });
 
-  it('gives one have line per placement', () => {
+  it('only reports plans that are on the finished plot', () => {
     playToTheEnd();
-    expect(column('What you’ll have').querySelectorAll('.report__item')).toHaveLength(
-      config.rounds,
+
+    const onPlot = new Set(
+      cells()
+        .map((cell) => cell.querySelector('.cell__name')?.textContent ?? '')
+        .filter((name) => planNames.has(name)),
     );
+    for (const row of pairs()) {
+      expect(onPlot.has(row.querySelector('.report__name')?.textContent ?? '')).toBe(
+        true,
+      );
+    }
   });
 
-  it('makes what you will look after the longest column (§10.2)', () => {
+  it('is short enough to read to the end (§10.2)', () => {
     playToTheEnd();
-    const words = (element: Element) => (element.textContent ?? '').split(/\s+/).length;
-    expect(words(column('What you’ll look after'))).toBeGreaterThan(
-      words(column('What you’ll have')),
-    );
+
+    // The finding this milestone exists for: "too complicate and too long".
+    // Three rows, a cost line, at most two obligations, a closing and an answer.
+    expect(pairs()).toHaveLength(3);
+    expect(
+      document.querySelectorAll('.report__obligation').length,
+    ).toBeLessThanOrEqual(2);
+    expect(document.querySelectorAll('.report__note')).toHaveLength(2);
   });
 
   it('describes the cost in words, never a number (§10.2)', () => {
     playToTheEnd();
-    const cost = column('What it cost').textContent ?? '';
-    expect(cost.length).toBeGreaterThan('What it cost'.length);
-    expect(cost).not.toMatch(/\d/);
+
+    const notes = Array.from(document.querySelectorAll('.report__note'));
+    const cost = notes.find(
+      (note) => note.querySelector('.report__note-label')?.textContent === 'Cost',
+    );
+    const line = cost?.querySelector('.report__note-line')?.textContent ?? '';
+    expect(line.length).toBeGreaterThan(0);
+    expect(line).not.toMatch(/\d/);
   });
 
   it('closes on one sentence about what kind of house it is (§10.3)', () => {

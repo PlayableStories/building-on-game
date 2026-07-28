@@ -168,7 +168,11 @@ describe('the obligations the house takes on (§9.3)', () => {
     expect(care).toEqual([consentCareLines.householder]);
   });
 
-  it('reads them in the documented order, not in placement order', () => {
+  /**
+   * §9.3 — heaviest first, not placement order. The report has room for two of
+   * these, so the order is not presentation: it decides which two get said.
+   */
+  it('reads them heaviest first, not in placement order', () => {
     const placements = [
       consentFor(plan('glass-extension'), 'C4', false, false, content),
       consentFor(plan('shed'), 'E5', false, false, content),
@@ -177,21 +181,25 @@ describe('the obligations the house takes on (§9.3)', () => {
     const care = consentCare(placements, consentOrder, consentCareLines);
 
     expect(care).toEqual([
-      consentCareLines.permitted,
-      consentCareLines.householder,
-      consentCareLines.sensitive,
       consentCareLines.demolition,
+      consentCareLines.sensitive,
+      consentCareLines.householder,
+      consentCareLines.permitted,
     ]);
   });
 
-  it('adds the extra obligations after the flags they came with', () => {
+  it('puts an obligation agreed on this house before the general ones', () => {
+    // The same principle §8.6 uses to rank the adjacency lines: a condition on
+    // this particular roof says more than the fact that an application exists.
     const placements = [consentFor(plan('glass-extension'), 'C1', false, true, content)];
     const care = consentCare(placements, consentOrder, consentCareLines);
     const ridge = conservationOverrides.plans['glass-extension']?.care as string;
 
-    expect(care[0]).toBe(consentCareLines.sensitive);
-    expect(care).toContain(ridge);
-    expect(care).toContain(conservationOverrides.northOpening.care);
+    expect(care.slice(0, 2)).toContain(ridge);
+    expect(care.slice(0, 2)).toContain(conservationOverrides.northOpening.care);
+    expect(care.indexOf(consentCareLines.sensitive)).toBeGreaterThan(
+      care.indexOf(ridge),
+    );
   });
 
   it('says nothing twice', () => {

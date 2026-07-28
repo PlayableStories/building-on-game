@@ -407,48 +407,77 @@ test.describe('the report (§10)', () => {
     await expect(page.locator('.report')).toBeVisible();
   }
 
-  function column(page: Page, heading: string) {
-    return page.locator('.report__column').filter({ hasText: heading });
-  }
-
-  test('shows all three columns at once, side by side (§10.2)', async ({ page }) => {
+  /**
+   * §10.2 — the layout is the argument, so this is the layer that can check it.
+   * jsdom can prove the pairs exist; only a browser can prove that on a wide
+   * screen the obligation is genuinely level with the benefit it belongs to,
+   * and that on a narrow one it is directly underneath it rather than regrouped
+   * into a list of its own.
+   */
+  test('puts what it asks level with what you have (§10.2)', async ({ page }) => {
     await page.setViewportSize({ width: 1100, height: 1200 });
     await playToTheEnd(page);
 
-    const columns = page.locator('.report__column');
-    await expect(columns).toHaveCount(3);
+    const rows = page.locator('.report__pair');
+    await expect(rows).toHaveCount(3);
 
-    // All three visible together — the payoff arrives in one moment, not as a
-    // sequence of screens.
-    const boxes = await columns.evaluateAll((elements) =>
-      elements.map((element) => {
-        const box = element.getBoundingClientRect();
-        return { x: Math.round(box.x), y: Math.round(box.y) };
-      }),
-    );
-    // On a wide screen they sit in a row: same top, increasing left.
-    expect(new Set(boxes.map((box) => box.y)).size).toBe(1);
-    expect(boxes[0]!.x).toBeLessThan(boxes[1]!.x);
-    expect(boxes[1]!.x).toBeLessThan(boxes[2]!.x);
+    for (let index = 0; index < 3; index++) {
+      const row = rows.nth(index);
+      const have = await row.locator('.report__have').boundingBox();
+      const care = await row.locator('.report__care').boundingBox();
+      expect(have && care).toBeTruthy();
+      // Side by side, on the same line, benefit on the left.
+      expect(have!.y).toBe(care!.y);
+      expect(have!.x).toBeLessThan(care!.x);
+    }
   });
 
-  test('gives what you will look after the most room (§10.2)', async ({ page }) => {
-    await page.setViewportSize({ width: 1100, height: 1200 });
+  test('keeps them together when the columns collapse (§10.2)', async ({ page }) => {
+    await page.setViewportSize({ width: 420, height: 1400 });
     await playToTheEnd(page);
 
-    const widths = await page
-      .locator('.report__column')
-      .evaluateAll((elements) =>
-        elements.map((element) => element.getBoundingClientRect().width),
-      );
-    expect(widths[2]!).toBeGreaterThan(widths[0]!);
+    const rows = page.locator('.report__pair');
+    await expect(rows).toHaveCount(3);
+
+    for (let index = 0; index < 3; index++) {
+      const row = rows.nth(index);
+      const have = await row.locator('.report__have').boundingBox();
+      const care = await row.locator('.report__care').boundingBox();
+      // Stacked now — but its own obligation, immediately under it.
+      expect(care!.y).toBeGreaterThan(have!.y);
+    }
+
+    // And nothing has regrouped them into two lists, which would be the old
+    // report again in a taller shape.
+    const order = await page.locator('.report__have, .report__care').evaluateAll(
+      (elements) => elements.map((element) => element.className),
+    );
+    expect(order).toEqual([
+      'report__have',
+      'report__care',
+      'report__have',
+      'report__care',
+      'report__have',
+      'report__care',
+    ]);
+  });
+
+  test('is short enough to read to the end (§10.2)', async ({ page }) => {
+    await playToTheEnd(page);
+
+    await expect(page.locator('.report__pair')).toHaveCount(3);
+    expect(await page.locator('.report__obligation').count()).toBeLessThanOrEqual(2);
   });
 
   test('describes the cost in words, never a number (§10.2)', async ({ page }) => {
     await playToTheEnd(page);
-    const cost = await column(page, 'What it cost').innerText();
+    const cost = await page
+      .locator('.report__note')
+      .filter({ hasText: 'Cost' })
+      .locator('.report__note-line')
+      .innerText();
     expect(cost).not.toMatch(/\d/);
-    expect(cost.length).toBeGreaterThan('What it cost'.length);
+    expect(cost.trim().length).toBeGreaterThan(0);
   });
 
   test('closes on a line, and answers the situation it opened on (§10.3, §10.4)', async ({

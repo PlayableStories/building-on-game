@@ -572,25 +572,51 @@
 }
 
 /**
- * §10.2 — the three columns, in order. They stack on a narrow screen, which
- * keeps the reading order the same as the column order: have, cost, care.
+ * §10.2 — benefit and obligation on the same row.
+ *
+ * The layout is the argument. Two lists side by side never made anyone connect
+ * item three of one to item three of the other; a grid where each thing you
+ * gained and the thing it asks share a row cannot be read one column at a time.
+ *
+ * On a narrow screen the columns collapse and the obligation sits directly
+ * under its own benefit — never regrouped into a list of its own, which would
+ * be the old report again in a taller shape.
  */
-.report__columns {
+.report__pairs {
   display: grid;
-  gap: var(--space-4);
   grid-template-columns: 1fr;
+  gap: 0;
 }
 
-@media (min-width: 48rem) {
-  .report__columns {
-    /* The care column is given the most room, because it has the most in it. */
-    grid-template-columns: 1fr 1fr 1.4fr;
-  }
-}
-
-.report__column {
+.report__pair {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
   border-top: 1px solid var(--colour-rule);
-  padding-top: var(--space-3);
+  padding: var(--space-3) 0;
+}
+
+.report__name {
+  grid-column: 1 / -1;
+  font-family: var(--font-ui);
+  font-size: var(--size-small);
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  color: var(--colour-ink-soft);
+  margin: 0 0 var(--space-2);
+}
+
+.report__have,
+.report__care {
+  margin: 0;
+}
+
+/* §10.2 — what it asks reads darkest, and carries the mark. */
+.report__care {
+  color: var(--colour-report-care);
+  border-left: 2px solid var(--colour-report-care-mark);
+  padding-left: var(--space-3);
+  margin-top: var(--space-2);
 }
 
 .report__heading {
@@ -600,32 +626,74 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--colour-report-heading);
-  margin: 0 0 var(--space-3);
+  margin: 0 0 var(--space-2);
 }
 
-.report__list {
-  list-style: none;
+/* The column headings only mean anything once there are columns. */
+.report__heading--have,
+.report__heading--care {
+  display: none;
+}
+
+@media (min-width: 44rem) {
+  .report__pairs {
+    grid-template-columns: 1fr 1.15fr;
+    column-gap: var(--space-4);
+  }
+
+  .report__heading--have,
+  .report__heading--care {
+    display: block;
+  }
+
+  .report__pair {
+    column-gap: var(--space-4);
+    row-gap: var(--space-2);
+  }
+
+  .report__care {
+    margin-top: 0;
+  }
+}
+
+/**
+ * §10.2, §9.3 — the two things that belong to the house rather than to any one
+ * plan, and so have nothing to be paired against. Set quieter than the rows
+ * above them: they are footnotes to the house, not part of the exchange.
+ */
+.report__notes {
+  margin: var(--space-4) 0 0;
+  border-top: 1px solid var(--colour-rule);
+  padding-top: var(--space-3);
+  font-size: var(--size-small);
+}
+
+.report__note {
+  display: flex;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.report__note-label {
+  flex: 0 0 4rem;
+  font-family: var(--font-ui);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--colour-report-heading);
+}
+
+.report__note-line {
   margin: 0;
-  padding: 0;
+  color: var(--colour-ink-soft);
 }
 
-.report__item {
-  margin-bottom: var(--space-3);
+.report__obligation {
+  display: block;
+  margin-bottom: var(--space-2);
 }
 
-.report__item:last-child {
+.report__obligation:last-child {
   margin-bottom: 0;
-}
-
-.report__cost {
-  margin: 0;
-}
-
-/* §10.2 — the longest column, deliberately, and the one that reads darkest. */
-.report__column--care .report__item {
-  color: var(--colour-report-care);
-  border-left: 2px solid var(--colour-report-care-mark);
-  padding-left: var(--space-3);
 }
 
 /* §10.3 — what kind of house it turned out to be. */
