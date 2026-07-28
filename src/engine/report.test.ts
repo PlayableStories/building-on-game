@@ -8,9 +8,9 @@ import {
   costPhrases,
   deck,
   demolitionCare,
-  household,
   pairLines,
   plot,
+  situations,
   qualityLines,
   qualitySeverity,
 } from '../content.ts';
@@ -32,9 +32,10 @@ const game = createGame(
   config,
   { pairLines, qualityLines, qualitySeverity },
   plot,
+  situations.map((situation) => situation.id),
 );
 const content: ReportContent = {
-  household,
+  situations,
   costPhrases,
   closingLines,
   demolitionCare,
@@ -386,25 +387,35 @@ describe('the finished house (§10.4)', () => {
     expect(house.fromFrontDoor('not-a-plan')).toBeNull();
   });
 
-  it('gives every member of the household exactly one line', () => {
+  it('answers the one situation the game was played for, in one line (§10.4)', () => {
     for (let seed = 1; seed <= 30; seed++) {
-      const report = reportFor(seed);
-      expect(report.household).toHaveLength(household.length);
-      expect(report.household.map((person) => person.name)).toEqual(
-        household.map((person) => person.name),
-      );
-      for (const person of report.household) {
-        expect(person.reaction.length).toBeGreaterThan(0);
-      }
+      expect(reportFor(seed).answer.length).toBeGreaterThan(0);
     }
   });
 
-  it('reacts to a house with none of the old one left rather than falling over', () => {
+  it('answers the situation this game drew, and not another one', () => {
+    // Every situation writes lines nothing else writes, so the answer being
+    // non-empty is not enough: it has to be *that* situation's answer.
+    for (let seed = 1; seed <= 30; seed++) {
+      const state = playThrough(seed);
+      const situation = situations.find((entry) => entry.id === state.situationId);
+      if (!situation) throw new Error('no situation drawn');
+      const house = summarise(state, deck, qualitySeverity);
+      expect(buildReport(state, deck, content, qualitySeverity, config).answer).toBe(
+        situation.reaction(house),
+      );
+    }
+  });
+
+  it('answers from every situation without falling over on a sparse house', () => {
+    // Each situation asks the plot different questions, and a house with almost
+    // nothing in it has to have an answer for all six.
     const state = playThrough(11);
-    const razed: GameState = { ...state, fabric: [] };
-    for (const person of buildReport(razed, deck, content, qualitySeverity, config)
-      .household) {
-      expect(person.reaction.length).toBeGreaterThan(0);
+    for (const situation of situations) {
+      const sparse: GameState = { ...state, situationId: situation.id, fabric: [] };
+      expect(
+        buildReport(sparse, deck, content, qualitySeverity, config).answer.length,
+      ).toBeGreaterThan(0);
     }
   });
 
@@ -416,7 +427,7 @@ describe('the finished house (§10.4)', () => {
         ...report.care,
         report.cost,
         report.closing,
-        ...report.household.map((person) => person.reaction),
+        report.answer,
       ].join(' ');
       expect(everything).not.toMatch(/\bscore[ds]?\b|\bpoints\b|\btotal\b|\d+\s*\//i);
     }

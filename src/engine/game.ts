@@ -37,6 +37,11 @@ export function createGame(
   config: Config,
   writing: AdjacencyContent,
   plot: PlotContent,
+  /**
+   * §2 — the situations this game could be played for. Ids only: the engine
+   * draws one and never reads a word of it.
+   */
+  situationIds: readonly string[],
 ): Game {
   const byId = new Map(deck.map((plan) => [plan.id, plan]));
 
@@ -65,13 +70,19 @@ export function createGame(
 
   function initialState(seed: number): GameState {
     const pool = deck.map((plan) => plan.id);
-    const first = deal(pool, 1, seed);
+
+    // §2 — the situation comes out of the same seed as the deck, so one number
+    // still reproduces a whole game: the same circumstances and the same deal.
+    const rng = createRng(seed);
+    const situationId = situationIds[Math.floor(rng() * situationIds.length)] ?? '';
+    const first = deal(pool, 1, Math.floor(rng() * 2 ** 32));
 
     return {
       // §2 — the why-now line and the household are shown once, before round 1.
       // The first hand is dealt here so that dismissing the intro puts the
       // player straight into a round rather than into a wait.
       phase: 'intro',
+      situationId,
       round: 1,
       hand: first.hand,
       selectedPlanId: null,

@@ -52,15 +52,9 @@ export default function Report({ report }: ReportProps) {
       {/* §10.3 — what kind of house it turned out to be. Not a verdict. */}
       <p className="report__closing">{report.closing}</p>
 
-      {/* §10.4 — each person from §2 says one line about the finished house. */}
-      <dl className="household">
-        {report.household.map((person) => (
-          <div className="household__person" key={person.name}>
-            <dt className="household__name">{person.name}</dt>
-            <dd className="household__line">{person.reaction}</dd>
-          </div>
-        ))}
-      </dl>
+      {/* §10.4 — the situation the game opened on, answered. The only place the
+          framing comes back, and the last thing the player reads. */}
+      {report.answer && <p className="report__answer">{report.answer}</p>}
     </section>
   );
 }

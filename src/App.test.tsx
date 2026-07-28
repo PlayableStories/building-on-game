@@ -5,8 +5,9 @@ import {
   config,
   consentLabels,
   deck,
-  household,
   premise,
+  rules,
+  situations,
   whyNow,
 } from './content.ts';
 
@@ -209,14 +210,25 @@ describe('a whole game, played through the interface', () => {
 });
 
 describe('the framing, before round 1 (§2, §14)', () => {
-  it('says why the work is happening and who the house is for', () => {
+  it('says why the work is happening, and gives exactly one situation', () => {
     render(<App />);
 
     expect(screen.getByText(premise)).toBeDefined();
     expect(screen.getByText(whyNow)).toBeDefined();
-    for (const person of household) {
-      expect(screen.getByText(person.name)).toBeDefined();
-      expect(screen.getByText(person.line)).toBeDefined();
+
+    // §2 — one, not three. Three were forgotten by round three.
+    const shown = situations.filter(
+      (situation) => screen.queryByText(situation.line) !== null,
+    );
+    expect(shown).toHaveLength(1);
+  });
+
+  it('says how the game works before it asks for a placement (§13)', () => {
+    render(<App />);
+
+    expect(screen.getByText(rules.objective)).toBeDefined();
+    for (const point of rules.points) {
+      expect(screen.getByText(point)).toBeDefined();
     }
   });
 
@@ -236,11 +248,87 @@ describe('the framing, before round 1 (§2, §14)', () => {
 
     // §2 — never mentioned again during play.
     for (let round = 1; round <= config.rounds; round++) {
-      for (const person of household) {
-        expect(screen.queryByText(person.line)).toBeNull();
+      for (const situation of situations) {
+        expect(screen.queryByText(situation.line)).toBeNull();
       }
       playRound();
     }
+  });
+});
+
+/**
+ * §13 — the fix for a first-time player not knowing what they were being asked
+ * to do. The rules are a lookup available for the whole game, not a tutorial
+ * shown once, and looking them up is not a move.
+ */
+describe('the rules, during play (§13)', () => {
+  function rulesCard() {
+    return document.querySelector('.rules--open');
+  }
+
+  function rulesButton() {
+    return screen.getByRole('button', { name: 'How this works' });
+  }
+
+  it('is not up until it is asked for', () => {
+    renderPlaying();
+    expect(rulesCard()).toBeNull();
+    expect(rulesButton()).toBeDefined();
+  });
+
+  it('opens on the button and shows every rule', () => {
+    renderPlaying();
+    fireEvent.click(rulesButton());
+
+    const card = rulesCard();
+    if (!card) throw new Error('the rules did not open');
+    expect(card.textContent).toContain(rules.objective);
+    for (const point of rules.points) {
+      expect(card.textContent).toContain(point);
+    }
+  });
+
+  it('closes again, on the button, on Back, and on Escape', () => {
+    renderPlaying();
+
+    fireEvent.click(rulesButton());
+    fireEvent.click(rulesButton());
+    expect(rulesCard()).toBeNull();
+
+    fireEvent.click(rulesButton());
+    fireEvent.click(screen.getByRole('button', { name: 'Back to the house' }));
+    expect(rulesCard()).toBeNull();
+
+    fireEvent.click(rulesButton());
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(rulesCard()).toBeNull();
+  });
+
+  it('leaves the round exactly where it was — reading is not a move', () => {
+    renderPlaying();
+
+    // Mid-round, with a plan chosen and cells highlighted.
+    fireEvent.click(handButtons()[0] as HTMLElement);
+    const before = legalCells().length;
+    const chosen = document.querySelector('.plan--selected .plan__name')?.textContent;
+
+    fireEvent.click(rulesButton());
+    fireEvent.click(screen.getByRole('button', { name: 'Back to the house' }));
+
+    expect(screen.getByText(`1 of ${config.rounds}`)).toBeDefined();
+    expect(legalCells()).toHaveLength(before);
+    expect(document.querySelector('.plan--selected .plan__name')?.textContent).toBe(
+      chosen,
+    );
+  });
+
+  it('is still there in the last round (§13)', () => {
+    renderPlaying();
+    for (let round = 1; round < config.rounds; round++) playRound();
+
+    expect(screen.getByText(`${config.rounds} of ${config.rounds}`)).toBeDefined();
+    fireEvent.click(rulesButton());
+    expect(rulesCard()).not.toBeNull();
   });
 });
 
@@ -495,22 +583,15 @@ describe('the report, when the eighth plan lands (§10)', () => {
     expect((closing?.textContent ?? '').trim().length).toBeGreaterThan(0);
   });
 
-  it('gives every member of the household one line about it (§10.4)', () => {
+  it('answers the one situation it opened on, in one line (§10.4)', () => {
     playToTheEnd();
 
-    const report = document.querySelector('.report');
-    if (!report) throw new Error('no report');
-    const people = report.querySelectorAll('.household__person');
-    expect(people).toHaveLength(household.length);
-
-    for (const [index, person] of household.entries()) {
-      const shown = people[index] as HTMLElement;
-      expect(shown.querySelector('.household__name')?.textContent).toBe(person.name);
-      // A reaction to the finished house, not the setup line from the intro.
-      const reaction = shown.querySelector('.household__line')?.textContent ?? '';
-      expect(reaction.length).toBeGreaterThan(0);
-      expect(reaction).not.toBe(person.line);
-    }
+    const answer = document.querySelector('.report__answer')?.textContent ?? '';
+    expect(answer.length).toBeGreaterThan(0);
+    // A reaction to the finished house, not the setup line from the intro.
+    expect(situations.map((situation) => situation.line)).not.toContain(answer);
+    // One answer, not six.
+    expect(document.querySelectorAll('.report__answer')).toHaveLength(1);
   });
 
   it('shows none of it until the last plan is placed (§10.1)', () => {

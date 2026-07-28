@@ -16,12 +16,13 @@ import {
   costPhrases,
   deck,
   demolitionCare,
-  household,
   pairLines,
   plot,
   premise,
   qualityLines,
   qualitySeverity,
+  rules,
+  situations,
   whyNow,
 } from './content.ts';
 import { flagInHand } from './engine/consent.ts';
@@ -33,6 +34,7 @@ import Intro from './components/Intro.tsx';
 import Observation from './components/Observation.tsx';
 import Plot from './components/Plot.tsx';
 import Report from './components/Report.tsx';
+import Rules from './components/Rules.tsx';
 
 function freshSeed(): number {
   return Math.floor(Math.random() * 2 ** 32);
@@ -40,12 +42,28 @@ function freshSeed(): number {
 
 export default function App() {
   const game = useMemo(
-    () => createGame(deck, config, { pairLines, qualityLines, qualitySeverity }, plot),
+    () =>
+      createGame(
+        deck,
+        config,
+        { pairLines, qualityLines, qualitySeverity },
+        plot,
+        situations.map((situation) => situation.id),
+      ),
     [],
   );
   const [seed] = useState(freshSeed);
   const [state, dispatch] = useReducer(game.reducer, seed, game.initialState);
 
+  /**
+   * §13, §14 — the rules, looked up mid-game. Deliberately component state and
+   * not game state: reading the rules is not a move, and the round underneath
+   * has to be exactly where it was left when the card closes.
+   */
+  const [readingRules, setReadingRules] = useState(false);
+  const closeRules = useCallback(() => setReadingRules(false), []);
+
+  const situation = situations.find((entry) => entry.id === state.situationId);
   const placing = state.selectedPlanId !== null;
   const reading = state.observation !== null;
   // §7.2, §13 — waiting to hear whether part of the old house is coming down.
@@ -60,7 +78,7 @@ export default function App() {
             state,
             deck,
             {
-              household,
+              situations,
               costPhrases,
               closingLines,
               demolitionCare,
@@ -90,9 +108,21 @@ export default function App() {
       <header className="app__header">
         <h1 className="app__title">Building On</h1>
         {state.phase === 'play' && (
-          <p className="app__round">
-            {state.round} of {config.rounds}
-          </p>
+          <div className="app__status">
+            {/* §13 — the rules are a lookup, not a tutorial. Available for the
+                whole game rather than only at the start of it. */}
+            <button
+              type="button"
+              className="app__rules-button"
+              aria-expanded={readingRules}
+              onClick={() => setReadingRules((open) => !open)}
+            >
+              How this works
+            </button>
+            <p className="app__round">
+              {state.round} of {config.rounds}
+            </p>
+          </div>
         )}
       </header>
 
@@ -100,11 +130,14 @@ export default function App() {
         <Intro
           premise={premise}
           whyNow={whyNow}
-          household={household}
+          situation={situation}
+          rules={rules}
           onBegin={() => dispatch({ type: 'BEGIN' })}
         />
       ) : state.phase === 'play' ? (
         <>
+          {readingRules && <Rules rules={rules} onClose={closeRules} />}
+
           <Plot
             state={state}
             deck={deck}

@@ -17,17 +17,18 @@ import type {
   CostBand,
   GameState,
   HouseSummary,
-  HouseholdMember,
   PlacedPlan,
   Plan,
   Quality,
   Report,
+  Situation,
 } from '../types.ts';
 import { type ConsentContent, consentCare, consentFor } from './consent.ts';
 import { parseCell } from './grid.ts';
 
 export interface ReportContent extends ConsentContent {
-  household: readonly HouseholdMember[];
+  /** §2, §10.4 — the pool. The one this game was played for answers it. */
+  situations: readonly Situation[];
   /**
    * §10.2 — one phrase per band of total cost, cheapest first. The last is used
    * for anything above the rest.
@@ -243,14 +244,15 @@ export function buildReport(
     care.push(content.demolitionCare);
   }
 
+  // §10.4 — the situation this game opened on, answered by the plot that came
+  // out of it. One line, and it is the only place the framing comes back.
+  const situation = content.situations.find((entry) => entry.id === state.situationId);
+
   return {
     have,
     cost: costPhrase(placed, content.costPhrases),
     care,
     closing: closingLine(house, content.closingLines),
-    household: content.household.map((person) => ({
-      name: person.name,
-      reaction: person.reaction(house),
-    })),
+    answer: situation ? situation.reaction(house) : '',
   };
 }

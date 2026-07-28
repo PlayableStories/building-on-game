@@ -262,7 +262,8 @@ export interface Report {
    */
   care: string[];
   closing: string;
-  household: { name: string; reaction: string }[];
+  /** §10.4 — the situation the game opened on, answered. One line. */
+  answer: string;
 }
 
 /* ------------------------------------------------------------------ *
@@ -293,29 +294,57 @@ export interface ConservationOverrides {
 }
 
 /* ------------------------------------------------------------------ *
- * The household — §2, §10.4
+ * The situation — §2, §10.4
  * ------------------------------------------------------------------ */
 
-export interface HouseholdMember {
+/**
+ * §2 — why this house has to change, for the people who will live in it.
+ *
+ * One per game, drawn from the pool by the game's seed. It replaces the fixed
+ * three-person household the prototype opened with: playtesting found that
+ * three people introduced at once were all forgotten by round three, and that
+ * the specifics of *whose* daughter played *which* instrument were doing none
+ * of the work. One circumstance, common enough that most players have been in
+ * it or near it, is remembered — and it is a much stronger replay driver, since
+ * the same deck answered against a different situation is a different house.
+ */
+export interface Situation {
   id: string;
-  /** 'Your daughter, 14' */
-  name: string;
-  /** The one-sentence setup shown before round 1. */
+  /** The one sentence shown before round 1. */
   line: string;
   /**
    * §10.4 — one line about the finished house. A reaction, not a verdict:
-   * nobody says the house is good or bad, they say what it will be like to
-   * live in it.
+   * nothing here says the house is good or bad, only what it will be like to
+   * live in it in these circumstances.
    */
   reaction: (house: HouseSummary) => string;
 }
 
 /**
- * Who the house is for, before the house exists to react to. The intro needs
- * only the setup lines; the reactions in §10.4 are written against a finished
- * plot and arrive with the report in M4.
+ * The situation before there is a house to answer it. The intro needs only the
+ * line; the reaction is written against a finished plot.
  */
-export type HouseholdIntro = Omit<HouseholdMember, 'reaction'>;
+export type SituationIntro = Omit<Situation, 'reaction'>;
+
+/* ------------------------------------------------------------------ *
+ * Teaching it — §13, §14
+ * ------------------------------------------------------------------ */
+
+/**
+ * What the game is and how it is played, in the fewest words that work.
+ *
+ * Shown once before round 1 and available from the header for the whole game.
+ * Playtesting found the two things a first-time player did not know, and both
+ * are the game's own fault rather than theirs: what they were being asked to
+ * *do*, and that the old rooms could be taken down at all. A no-fail game has
+ * no failure to teach through, so it has to say.
+ */
+export interface Rules {
+  /** One sentence: what you are doing and that there is no way to lose. */
+  objective: string;
+  /** The rules a player cannot infer from the board. Keep it to a handful. */
+  points: string[];
+}
 
 /* ------------------------------------------------------------------ *
  * Game state
@@ -334,6 +363,11 @@ export interface Placement {
 
 export interface GameState {
   phase: Phase;
+  /**
+   * §2 — which situation this game is being played for, drawn from the seed so
+   * that one number still reproduces a whole game.
+   */
+  situationId: string;
   /** 1-based, up to `Config.rounds`. */
   round: number;
   /** Plan ids dealt this round. Never carried over — §6. */
@@ -391,9 +425,12 @@ export interface Config {
 export interface Content {
   /** §2 — the single line explaining why the work is happening at all. */
   whyNow: string;
+  /** §13, §14 — what the game is, for someone who has never played it. */
+  rules: Rules;
   /** §5 — the building that was already there, and where the garden starts. */
   plot: PlotContent;
-  household: HouseholdMember[];
+  /** §2 — the pool the game draws one from. */
+  situations: Situation[];
   deck: Plan[];
   pairLines: PairLine[];
   qualityLines: QualityLine[];

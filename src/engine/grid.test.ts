@@ -4,6 +4,7 @@ import {
   deck,
   pairLines,
   plot,
+  situations,
   qualityLines,
   qualitySeverity,
 } from '../content.ts';
@@ -17,7 +18,7 @@ import {
   zoneOf,
 } from './grid.ts';
 
-const game = createGame(deck, config, { pairLines, qualityLines, qualitySeverity }, plot);
+const game = createGame(deck, config, { pairLines, qualityLines, qualitySeverity }, plot, situations.map((s) => s.id));
 const opening = game.reducer(game.initialState(1), { type: 'BEGIN' });
 
 const FABRIC = plot.fabric.map((room) => room.cell);
