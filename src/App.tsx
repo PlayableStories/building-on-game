@@ -24,6 +24,7 @@ import {
   qualitySeverity,
   rules,
   situations,
+  ui,
   whyNow,
 } from './content.ts';
 import { flagInHand } from './engine/consent.ts';
@@ -66,8 +67,6 @@ export default function App() {
 
   const situation = situations.find((entry) => entry.id === state.situationId);
   const placing = state.selectedPlanId !== null;
-  // §7.2, §13 — waiting to hear whether part of the old house is coming down.
-  const demolishing = state.pendingDemolition !== null;
 
   // §10.1 — assembled once, on the last placement. Nothing here is computed for
   // display while the game is being played.
@@ -106,7 +105,7 @@ export default function App() {
   return (
     <main className="app">
       <header className="app__header">
-        <h1 className="app__title">Building On</h1>
+        <h1 className="app__title">{ui.title}</h1>
         {state.phase === 'play' && (
           <div className="app__status">
             {/* §13 — the rules are a lookup, not a tutorial. Available for the
@@ -117,7 +116,7 @@ export default function App() {
               aria-expanded={readingRules}
               onClick={() => setReadingRules((open) => !open)}
             >
-              How this works
+              {ui.rules.open}
             </button>
             <p className="app__round">
               {state.round} of {config.rounds}
@@ -132,45 +131,48 @@ export default function App() {
           whyNow={whyNow}
           situation={situation}
           rules={rules}
+          copy={ui}
           onBegin={() => dispatch({ type: 'BEGIN' })}
         />
       ) : state.phase === 'play' ? (
         <>
-          {readingRules && <Rules rules={rules} onClose={closeRules} />}
+          {readingRules && <Rules rules={rules} copy={ui.rules} onClose={closeRules} />}
 
           <Plot
             state={state}
             deck={deck}
             plot={plot}
+            copy={ui.plot}
             onPlace={(cell) => dispatch({ type: 'PLACE', cell })}
           />
 
           {/* §7.2, §13 — the one question the game asks. It takes precedence
               over everything, because nothing else can happen until it is
               answered. Then the line, which has the floor until it is read. */}
-          {demolishing && selectedPlan ? (
+          {state.pendingDemolition !== null && selectedPlan ? (
             <Demolition
               planName={selectedPlan.name}
-              cell={state.pendingDemolition as string}
+              cell={state.pendingDemolition}
               roomName={
                 plot.fabric.find((room) => room.cell === state.pendingDemolition)?.name ??
                 'room'
               }
+              copy={ui.demolition}
               onConfirm={() => dispatch({ type: 'CONFIRM_DEMOLITION' })}
               onCancel={cancelDemolition}
             />
           ) : state.observation !== null ? (
-            <Observation observation={state.observation} onDismiss={dismiss} />
+            <Observation
+              observation={state.observation}
+              copy={ui.observation}
+              onDismiss={dismiss}
+            />
           ) : (
             <>
               <p className="app__prompt">
-                {placing
-                  ? // §5 — the prompt names the zone, because that is the rule a
-                    // player is most likely to be surprised by mid-round.
-                    selectedPlan?.zone === 'outdoor'
-                    ? 'It goes in the garden, touching what is already there. You cannot move it later.'
-                    : 'It goes in the house, touching what is already built. You cannot move it later.'
-                  : 'Choose one of three. The other two are gone.'}
+                {placing && selectedPlan
+                  ? ui.prompt.place[selectedPlan.zone]
+                  : ui.prompt.choose}
               </p>
 
               <Hand
@@ -187,17 +189,23 @@ export default function App() {
         </>
       ) : (
         <section className="finished">
-          <Plot state={state} deck={deck} plot={plot} onPlace={() => {}} />
-          <p className="finished__line">The house is finished.</p>
+          <Plot
+            state={state}
+            deck={deck}
+            plot={plot}
+            copy={ui.plot}
+            onPlace={() => {}}
+          />
+          <p className="finished__line">{ui.report.finished}</p>
 
-          {report && <Report report={report} />}
+          {report && <Report report={report} copy={ui.report} />}
 
           <button
             type="button"
             className="button"
             onClick={() => dispatch({ type: 'RESTART', seed: freshSeed() })}
           >
-            Build again
+            {ui.report.again}
           </button>
         </section>
       )}

@@ -614,6 +614,15 @@ everything M8–M11 added to the surface.
 - Settle the `sensitive` finding from M7: one flag firing 0.4 times a game is either
   thinness to fix with a second `sensitive` plan, or intent to document.
 
+**Settled as thinness.** The air conditioning unit moves from `householder` to
+`sensitive` — an external condenser running in the evenings is exactly what a
+condition gets attached to, and it is the only plan in the deck where that is
+defensible without making §9 dishonest to buy a nicer distribution. A player now
+meets the flag in **45.0%** of games rather than 37.5% (0.48 per game, up from
+0.38). Still the rarest of the four, which is right: most domestic work is
+permitted development or a householder application, and the flag is a scale of
+process rather than a spread to balance.
+
 **Done when — the actual test:** swap the deck, the plot and the situations in
 `content.ts` for a different building and change values in `theme.css`, and nothing else
 needs opening.

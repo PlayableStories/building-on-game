@@ -86,6 +86,10 @@
   --size-observation: 1.1875rem;
   --size-body: 1rem;
   --size-small: 0.8125rem;
+  /* §12 — the three sizes printed inside a cell, largest to smallest. */
+  --size-cell-name: 0.6875rem;
+  --size-cell-ref: 0.625rem;
+  --size-cell-note: 0.5625rem;
   --leading-body: 1.55;
 
   /* ---- Spacing ---------------------------------------------------- */
@@ -95,7 +99,29 @@
   --space-4: 1.5rem;
   --space-5: 2.5rem;
   --radius: 2px;
+  --border: 1px;
+  --focus-offset: 2px;
   --cell-size: clamp(3.25rem, 11vmin, 5.5rem);
+
+  /* ---- Measure ----------------------------------------------------- *
+   * How wide things are allowed to get. Every one of these is a reading
+   * measure rather than a layout decision: past about 34rem a line of prose
+   * stops being comfortable, and the report is mostly prose.
+   *
+   * Note for forkers: CSS cannot read a custom property inside a media
+   * query, so the two breakpoints in `app.css` are literals and have to stay
+   * that way. They are the only sizes in the game that are not declared here.
+   */
+  --measure-app: 40rem;
+  --measure-prose: 30rem;
+  --measure-card: 34rem;
+  --measure-note: 32rem;
+  --measure-report: 46rem;
+  /* §14 — a plan in hand: wide enough for two words, tall enough for three. */
+  --plan-min-width: 9rem;
+  --plan-min-height: 4.5rem;
+  /* The label column beside 'Cost' and 'Also' in the report. */
+  --measure-label: 4rem;
 }
 
 * {
