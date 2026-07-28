@@ -20,6 +20,7 @@ import type {
   HouseholdMember,
   PairLine,
   Plan,
+  PlotContent,
   Quality,
   QualityLine,
 } from './types.ts';
@@ -34,6 +35,42 @@ export const config: Config = {
 
   /** §9.2 — one flag that changes the character of the whole game. Lands in M5. */
   conservation: false,
+};
+
+/* ------------------------------------------------------------------ *
+ * The plot — §5
+ * ------------------------------------------------------------------ */
+
+/**
+ * §5 — what was already standing when the player arrived, and where the house
+ * stops and the garden starts.
+ *
+ * The old rooms are named. That matters more than it looks: a cell labelled
+ * "Inherited" reads as scenery, and playtesters did not work out that it could
+ * be built on at all. A cell labelled "Old scullery" is obviously a room, and an
+ * obviously replaceable one — the label is doing the teaching that the rules
+ * card should not have to do twice.
+ *
+ * The front door is the exception. It is inherited, it is never a legal
+ * placement, and it cannot come down. Every other decision in the game is the
+ * player's; this one came with the house, and it is what makes the plot a house
+ * they were left rather than ground they were given.
+ *
+ * A fork points this at a different building. The engine reads cells and a row
+ * number and never learns what a scullery is.
+ */
+export const plot: PlotContent = {
+  frontDoor: { cell: 'C1', name: 'Front door' },
+
+  fabric: [
+    { cell: 'B2', name: 'Old kitchen' },
+    { cell: 'C2', name: 'Old sitting room' },
+    { cell: 'B3', name: 'Old scullery' },
+    { cell: 'C3', name: 'Old back room' },
+  ],
+
+  /** Rows 1–3 are the house. Rows 4–5 are the garden. */
+  gardenFromRow: 4,
 };
 
 /* ------------------------------------------------------------------ *
@@ -135,16 +172,11 @@ export const household: HouseholdMember[] = [
 
     /**
      * §10.4 — your mother, on the distance from the front door to the bathroom.
-     * If B2 came down there is no front door to measure from, and that is its
-     * own answer (§7).
+     * The door is fixed now (§7), so there is always something to measure from
+     * and the "there is no front door" answer this used to have is gone.
      */
     reaction: (house) => {
       const wc = house.has('downstairs-wc');
-      if (house.frontDoor === null) {
-        return wc
-          ? 'She cannot see where the front door went, but there is a WC on this floor, and that is the part she asked about.'
-          : 'She asked where the front door is. Nobody has answered her yet.';
-      }
       const steps = house.fromFrontDoor('bathroom');
       if (steps === null) {
         return wc
@@ -180,6 +212,7 @@ export const deck: Plan[] = [
     id: 'porch',
     name: 'Porch',
     tier: 'threshold',
+    zone: 'indoor',
     consent: 'permitted',
     have: 'Somewhere to stand while you find your keys, out of the rain.',
     cost: 'low',
@@ -195,6 +228,7 @@ export const deck: Plan[] = [
     id: 'hall',
     name: 'Hall',
     tier: 'threshold',
+    zone: 'indoor',
     consent: 'householder',
     have: 'A place to arrive, rather than walking straight into a room.',
     cost: 'moderate',
@@ -209,6 +243,7 @@ export const deck: Plan[] = [
     id: 'boot-room',
     name: 'Boot room',
     tier: 'threshold',
+    zone: 'indoor',
     consent: 'householder',
     have: 'Wet coats and muddy boots stop at the door.',
     cost: 'low',
@@ -220,6 +255,7 @@ export const deck: Plan[] = [
     id: 'downstairs-wc',
     name: 'Downstairs WC',
     tier: 'threshold',
+    zone: 'indoor',
     consent: 'householder',
     have: 'Nobody has to go upstairs, which matters more than it sounds.',
     cost: 'moderate',
@@ -231,6 +267,7 @@ export const deck: Plan[] = [
     id: 'bin-store',
     name: 'Bin store',
     tier: 'threshold',
+    zone: 'outdoor',
     consent: 'permitted',
     have: 'The bins are somewhere, rather than beside the back door.',
     cost: 'very-low',
@@ -245,6 +282,7 @@ export const deck: Plan[] = [
     id: 'kitchen',
     name: 'Kitchen',
     tier: 'daily',
+    zone: 'indoor',
     consent: 'householder',
     have: 'The room everyone ends up in, whatever you intended.',
     cost: 'high',
@@ -259,6 +297,7 @@ export const deck: Plan[] = [
     id: 'living-room',
     name: 'Living room',
     tier: 'daily',
+    zone: 'indoor',
     consent: 'householder',
     have: 'Somewhere to sit that is not the kitchen.',
     cost: 'moderate',
@@ -273,6 +312,7 @@ export const deck: Plan[] = [
     id: 'dining-room',
     name: 'Dining room',
     tier: 'daily',
+    zone: 'indoor',
     consent: 'householder',
     have: 'A table that stays laid, and meals that take longer.',
     cost: 'moderate',
@@ -284,6 +324,7 @@ export const deck: Plan[] = [
     id: 'utility-room',
     name: 'Utility room',
     tier: 'daily',
+    zone: 'indoor',
     consent: 'householder',
     have: 'The washing happens somewhere that is not the kitchen.',
     cost: 'moderate',
@@ -296,6 +337,7 @@ export const deck: Plan[] = [
     id: 'glass-extension',
     name: 'Glass-roofed extension',
     tier: 'daily',
+    zone: 'indoor',
     consent: 'sensitive',
     have: 'A bright room that changes with the weather.',
     cost: 'high',
@@ -314,6 +356,7 @@ export const deck: Plan[] = [
     id: 'bedroom',
     name: 'Bedroom',
     tier: 'private',
+    zone: 'indoor',
     consent: 'householder',
     have: 'A room with a door, and a window you decide about.',
     cost: 'moderate',
@@ -328,6 +371,7 @@ export const deck: Plan[] = [
     id: 'bathroom',
     name: 'Bathroom',
     tier: 'private',
+    zone: 'indoor',
     consent: 'householder',
     have: 'A bath, and somewhere to be alone at seven in the morning.',
     cost: 'high',
@@ -340,6 +384,7 @@ export const deck: Plan[] = [
     id: 'study',
     name: 'Study',
     tier: 'private',
+    zone: 'indoor',
     consent: 'permitted',
     have: 'A door you can close on the rest of the house.',
     cost: 'low',
@@ -351,6 +396,7 @@ export const deck: Plan[] = [
     id: 'gym',
     name: 'Gym',
     tier: 'private',
+    zone: 'indoor',
     consent: 'permitted',
     have: 'No membership, and no excuse.',
     cost: 'low',
@@ -362,6 +408,7 @@ export const deck: Plan[] = [
     id: 'spare-room',
     name: 'Spare room',
     tier: 'private',
+    zone: 'indoor',
     consent: 'householder',
     have: 'Somewhere for people to stay, and for everything else to go.',
     cost: 'low',
@@ -375,6 +422,7 @@ export const deck: Plan[] = [
     id: 'vegetable-garden',
     name: 'Vegetable garden',
     tier: 'outside',
+    zone: 'outdoor',
     consent: 'permitted',
     have: 'Something to pick in August, and beds to look at in February.',
     cost: 'very-low',
@@ -390,6 +438,7 @@ export const deck: Plan[] = [
     id: 'terrace',
     name: 'Terrace',
     tier: 'outside',
+    zone: 'outdoor',
     consent: 'permitted',
     have: 'Somewhere to sit outside without standing on the grass.',
     cost: 'moderate',
@@ -397,7 +446,10 @@ export const deck: Plan[] = [
     emits: [],
     sensitive: ['noise', 'smell', 'shade'],
     orientation: {
-      north: 'It faces the street. You will sit there less than you imagine.',
+      // Row 4 — the strip of garden the house keeps in shadow. The terrace's
+      // north line used to be about the street, which an outdoor plan can no
+      // longer reach; this is the same observation about the same problem.
+      north: 'It sits in the shadow of the house until late on. You will sit there less than you imagine.',
       south: 'The afternoon lands here. This is the one you will use.',
     },
   },
@@ -405,6 +457,7 @@ export const deck: Plan[] = [
     id: 'shed',
     name: 'Shed',
     tier: 'outside',
+    zone: 'outdoor',
     consent: 'permitted',
     have: 'The things that were in the hall are now in the shed.',
     cost: 'low',
@@ -416,6 +469,7 @@ export const deck: Plan[] = [
     id: 'lawn',
     name: 'Lawn',
     tier: 'outside',
+    zone: 'outdoor',
     consent: 'permitted',
     have: 'Green, soft, and somewhere to put a chair.',
     cost: 'very-low',
@@ -431,6 +485,7 @@ export const deck: Plan[] = [
     id: 'home-farm',
     name: 'Home farm',
     tier: 'outside',
+    zone: 'outdoor',
     consent: 'permitted',
     have: 'Food you grew, and a reason to be outside every day.',
     cost: 'very-low',
@@ -448,6 +503,7 @@ export const deck: Plan[] = [
     id: 'heat-pump',
     name: 'Air-source heat pump',
     tier: 'wildcard',
+    zone: 'outdoor',
     consent: 'permitted',
     have: 'Heat without a gas bill, and a house that runs warm and slow.',
     cost: 'high',
@@ -459,6 +515,7 @@ export const deck: Plan[] = [
     id: 'solar-array',
     name: 'Solar array',
     tier: 'wildcard',
+    zone: 'indoor',
     consent: 'permitted',
     have: 'Some of your electricity, on the days you need least of it.',
     cost: 'high',
@@ -474,6 +531,7 @@ export const deck: Plan[] = [
     id: 'wall-insulation',
     name: 'Internal wall insulation',
     tier: 'wildcard',
+    zone: 'indoor',
     consent: 'permitted',
     have: 'Rooms that hold their heat, in a house that never has.',
     cost: 'moderate',
@@ -485,6 +543,7 @@ export const deck: Plan[] = [
     id: 'air-conditioning',
     name: 'Air conditioning unit',
     tier: 'wildcard',
+    zone: 'indoor',
     consent: 'householder',
     have: 'One room that is bearable in the week it matters.',
     cost: 'moderate',

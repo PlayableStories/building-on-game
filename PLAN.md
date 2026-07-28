@@ -342,27 +342,281 @@ pleasures, identical cost, and an obligation list that grows from twelve lines t
 
 ## M6 — Fork surface and validator (§18.6)
 
-**Goal:** the §16 test passes for real, not by intention.
+**Moved to M12.** It has to run *after* the playtest revisions rather than before them:
+its whole job is to audit and validate the fork surface, and M8–M11 add four new things
+to that surface (`zone`, `plot`, `situations`, the paired report). Validating the shape
+that is about to change would be work done twice. See Part two.
+
+## M7 — Playtest pass — **done**
+
+Not a build milestone; the reason the build exists. Played through against §17's twelve
+questions, split into the half a simulation can answer and the half only a player can.
+
+**The measured half** — a harness driving the real engine over 400 seeded games per
+condition, with three simulated players (never demolish, always demolish, choose at
+random), because anything that depends on choice is not one number:
+
+- **§17.6 — is 8 rounds right? Yes, and 6 underfires exactly as §6's [Open] suspected.**
+  At six rounds a line fires on 38.7% of placements, the median game gets **2** lines, and
+  17 of 400 games are silent from start to finish. At eight: 45.8%, median **4**, and only
+  3 of 400 silent. Six rounds does not shave a quarter off the adjacency, it halves the
+  median and makes a silent playthrough five times more likely — a player who gets two
+  lines in six rounds has not seen the mechanic the prototype exists to test.
+  **`config.rounds` stays 8, and §6's [Open] is closed.**
+- **§17.4 — the free third card.** 87.3% of hands hold something off the current tier, so
+  the disruption is nearly always live. System plans reach 20.9% of hands, about 1.7 times
+  a game — present without dominating.
+- **§17.7 — demolition is never unavailable.** The old house is a legal target in 100% of
+  games from the opening move; all four cells, before anything else exists. Never-demolish
+  0.00 cells/game, always 4.00, random 2.07 (front door gone in 52.3%). So if real players
+  don't demolish, it is the inheritance framing doing it, not cost or availability — which
+  makes §17.7 and §17.8 the same question.
+- **§17.9 — orientation gets talked over.** Of lines that fire: quality 56.4%, orientation
+  31.1%, pair 12.5%. Sharper: orientation *had something to say* on 1.9 placements a game
+  and got to say it 60.6% of those times; the rest were outranked by a pair or quality
+  match. Not invisible, but a player who never notices the rule has had it explained to
+  them about twice a game.
+- **§17.12 — two games diverge without trying.** Two random playthroughs share 36.6% of
+  their plans and land on the same closing line 32.0% of the time.
+- **§9 — the conservation flag.** Off: 12.3 care lines/game (householder 3.8 · permitted
+  3.8 · demolition 2.1 · sensitive 0.4). On: 14.1 (sensitive jumps to 3.2). **A content
+  finding rather than a bug: without conservation, `sensitive` fires 0.4 times a game —
+  the glass extension is effectively its only source.** Three of the four flags do real
+  work and one barely appears. Decide in M12 whether that is thinness or intent.
+
+**The played half** is what Part two is. Every finding there came from playing the build
+at `89fc509` cold, then reading the report, then building again.
+
+---
+
+# Part two — playtest revisions (M8–M12)
+
+## What the playtest changed
+
+M0–M5 are built and merged. The measured half above settled the open questions and
+changed nothing. The played half changed six things:
+
+| Finding, as reported | Becomes |
+|---|---|
+| "We do not know inherited can be replaced." Wants a short objective and rules up front, recallable during play | **M9** |
+| The household is gone by round 3. Doesn't want three people; wants **one** situation drawn from six, all common to most people | **M9** |
+| "I do not aware the line is directly related to my placement and/or the neighbour" — no sense of cause and consequence | **M10** |
+| The inherited cells are confusing: they occupy squares with no function of their own. *Inherited* should be the small light label; the room's own name should sit at the top of the cell and read exactly like any other room | **M8** |
+| The report is too complicated and too long — three per group at most. And responsibility never resolved into a felt sense of long-term benefit | **M11** |
+| Move the front door B2 → C1 · rows 4–5 become garden · indoor and outdoor plans stay in their zones | **M8** |
+
+§17.3 came back clean — the tiers already feel like building a house. No change.
+
+## Decisions taken
+
+Settled before writing this, so they are not re-opened mid-build:
+
+1. **The front door at C1 is permanent.** Inherited, never a legal placement, cannot come
+   down. The four old rooms behind it stay demolishable. This deletes the "there is no
+   front door" ending and everything written against it.
+2. **Strict indoor/outdoor.** Every plan is one or the other; there is no "either" zone.
+3. **The report pairs benefit with obligation** — three rows, each showing what you gain
+   beside what it asks, with cost and obligations as short lines underneath.
+4. **Six fresh situations**, one per game, replacing you/daughter/mother entirely.
+
+## One consequence, flagged rather than silently patched
+
+Strict zoning puts every outdoor plan in rows 4–5, and both are `south` under the current
+`orientationOf`. That makes the north orientation lines on the vegetable garden, terrace,
+lawn and home farm **unreachable** — four written lines that can never fire again — and
+leaves a garden in which all ten cells are the same cell.
+
+The fix costs nothing structurally. Change `orientationOf` in `src/engine/grid.ts` from
+*rows 1–2 north / rows 4–5 south* to:
+
+| Row | Faces | Zone |
+|---|---|---|
+| 1 | `north` — the street | indoor |
+| 2 | — | indoor |
+| 3 | `south` — backs onto the garden | indoor |
+| 4 | — in the shadow of the house | outdoor |
+| 5 | `south` — open garden, full sun | outdoor |
+
+Same mechanism, no type changes, and both zones keep a real front-to-back choice: indoors,
+row 1 faces the street and row 3 faces the garden; outdoors, row 4 sits in the building's
+shadow and row 5 does not. The four unreachable north lines are rewritten as row-4 shadow
+lines rather than deleted.
+
+## M8 — The plot: fixed door, zones, named fabric
+
+**Goal:** the grid everything else is read against.
+
+**The plot becomes content.** `src/engine/grid.ts` hard-codes `FABRIC_CELLS` and
+`FRONT_DOOR_CELL`. Both move into `content.ts` and are passed through `createGame` — the
+plot of an inherited *building* is exactly what a fork changes (§16):
+
+```ts
+export const plot: PlotContent = {
+  frontDoor: { cell: 'C1', name: 'Front door' },   // permanent, never legal
+  fabric: [                                         // demolishable
+    { cell: 'B2', name: 'Old kitchen' },
+    { cell: 'C2', name: 'Old sitting room' },
+    { cell: 'B3', name: 'Old scullery' },
+    { cell: 'C3', name: 'Old back room' },
+  ],
+  gardenFromRow: 4,
+};
+```
+
+Naming the old rooms is the fix for "they occupied the square without any function of
+themselves". A room called *Old kitchen* reads as replaceable in a way *Inherited* never
+did — which is also half the answer to "we do not know inherited can be replaced".
+
+**Zones.** `Plan` gains `zone: 'indoor' | 'outdoor'`; `PlanIdentity` widens to include it
+so `Plot.tsx` can ask the selected plan. Outdoor (7): vegetable garden, terrace, shed,
+lawn, home farm, bin store, heat pump. Indoor (17): everything else, including the solar
+array (it is on the roof) and the AC unit (the room it cools). `legalCells(state, zone)`
+intersects the existing frontier rule with the zone's rows and excludes the front door
+cell unconditionally; `game.ts` passes the selected plan's zone through `propose`/`place`.
+
+**No deadlock is possible, and it gets a test.** A demolished fabric cell is replaced by a
+placement, so B3/C3 are occupied either way — B4/C4 are therefore legal from round one and
+the outdoor frontier never closes. The same argument holds indoors.
+
+**The front door stops being nullable.** `state.frontDoor` becomes `CellId`, not
+`CellId | null`. The null branches in `report.ts`, `game.ts`, the `isFrontDoor` prop and
+`.demolition__door` branch in `Demolition.tsx`, and their tests all go.
+
+**Rendering.** Every occupied cell — placed, fabric or door — renders its name at the top
+of the cell in the same treatment. Inherited cells add a small light `inherited` label
+beneath, styled as `.cell__door` is today; the `.cell__door` special case is deleted. Add
+a visible garden band behind rows 4–5.
+
+**Done when:** an outdoor plan highlights only rows 4–5 and an indoor plan only rows 1–3 ·
+C1 shows *Front door* like any other room and never highlights · the four old rooms show
+their own names with *inherited* small and light beneath · 400 simulated games complete
+with no unplaceable hand.
+
+## M9 — Teaching the game, and one situation
+
+**Goal:** a first-time player is told what they are doing, can look it up again mid-game,
+and is given one reason to care rather than three they will forget.
+
+**The rules card** — new `src/components/Rules.tsx`, copy in `content.ts` as
+`rules: { objective: string; points: string[] }`:
+
+> **The objective** — Eight rounds. Turn the house you inherited into one that works for
+> the situation you are in. There is no score and no way to lose.
+>
+> - Each round you are dealt three plans. Choose one. The other two are gone.
+> - It must touch something already built, and you can never move it.
+> - Rooms go in the house, rows 1–3. Garden things go in the garden, rows 4–5.
+> - **The old rooms can be taken down.** Place on one and it goes, for good.
+> - The front door is fixed. It came with the house.
+
+Shown as part of the intro before round 1, and reopenable at any point from a `Rules`
+button in the header. Open/closed is `useState` in `App.tsx` — UI, not game state, so the
+engine is untouched. Escape and click-outside close it, reusing `Demolition.tsx`'s keydown
+pattern.
+
+**Six situations, one per game.** `HouseholdMember` becomes
+`Situation { id, line, reaction(house) }` — `name` goes, there is no "Your daughter, 14"
+any more. `GameState` gains `situationId`, chosen from the seeded rng in `initialState` so
+a game is still reproducible from one number. Draft six: no door to close · a parent
+moving in and the stairs · a teenager who needs somewhere loud · a baby in the spring ·
+two of you cook and one tidies · on your own, and people visit. Each gets a
+`reaction(house)` written against the existing `HouseSummary` helpers. The three current
+reactions are deleted, but their *shapes* are worth reusing — front-door distance for the
+stairs, bedroom-to-living-room distance for the teenager, `has('study')` for the door.
+
+**Done when:** the intro shows one situation and the rules · the rules reopen mid-round
+without disturbing it · the same seed always gives the same situation · the report answers
+that one situation and no other.
+
+## M10 — Cause and consequence in the line
+
+**Goal:** the fix for *"I do not aware the line is directly related to my placement"*. The
+line currently appears as an unattributed caption. It has to name what caused it and light
+the cells involved.
+
+`observationFor` stops returning `string | null` and returns:
+
+```ts
+export interface Observation {
+  line: string;
+  kind: 'pair' | 'quality' | 'orientation';
+  /** The cell just placed. */
+  cell: CellId;
+  /** The neighbours that caused it. Empty for an orientation line. */
+  because: CellId[];
+  /** 'Kitchen beside the bin store' · 'Terrace, at the bottom of the garden' */
+  cause: string;
+}
+```
+
+`Neighbour` gains `cell: CellId` so `explicitPair` and `qualityMatch` can report *which*
+neighbour fired rather than only that one did. `GameState.observation` becomes
+`Observation | null`; the §8.6 resolution order does not change. `Observation.tsx` renders
+`cause` above `line` in the small light UI face so the line keeps its weight. **The
+load-bearing part:** `Plot.tsx` takes `highlight: CellId[]` and marks the placed cell plus
+its causes with `.cell--cause` while the line is up, so the player sees the two blocks lit
+while reading the sentence about them.
+
+**Done when:** placing the home farm beside the kitchen shows *"Home farm beside the
+kitchen"* above *"A short walk with wet hands…"* with both cells lit, and an orientation
+line names the row instead of a neighbour.
+
+## M11 — The report, paired and shortened
+
+**Goal:** three rows, and responsibility sitting where the benefit cannot be read without it.
+
+```ts
+export interface Report {
+  /** §10.2 — the three that ask the most, benefit beside obligation. */
+  pairs: { name: string; have: string; care: string }[];
+  cost: string;
+  /** §9.3 — condensed to at most two lines, heaviest first. */
+  obligations: string[];
+  closing: string;
+  /** §10.4 — the one situation, answered. */
+  answer: string;
+}
+```
+
+**Which three:** ranked by what the thing asks of you — `COST_WEIGHT[plan.cost]` plus the
+plan's index in `consentOrder`, ties broken by later placement. The three that ask most are
+the three the report is about, which is the same argument the pairing is making.
+
+**Obligations:** `consentCare` can emit four lines plus `demolitionCare`. Keep the two
+heaviest present by `consentOrder` and drop the rest; the deduplication in
+`engine/consent.ts` stays, only the cap is new.
+
+`Report.tsx` renders two columns of three rows, cost and obligations as labelled lines
+beneath, then the closing line and the situation's answer. The household `<dl>` goes. On
+narrow screens the columns stack with each obligation directly under its own benefit,
+never reordered away from it.
+
+**Done when:** the report is at most three pairs, one cost line, two obligation lines, a
+closing line and one answer — and no benefit is readable without its obligation beside it.
+
+## M12 — Fork surface and validator (was M6, §18.6)
+
+**Goal:** the §16 test passes for real, not by intention. Unchanged in intent, extended to
+everything M8–M11 added to the surface.
 
 - `scripts/validate.ts`, `npm run validate` — non-zero exit with a readable message on: an
-  unknown quality, a plan missing any of the seven fields, a tier with fewer than 3 plans
-  (can't fill a hand), a consent flag outside the four, a pair line naming an unknown plan
-  id, a duplicate plan id.
-- Audit every `engine/` import: `types.ts` only. Move any stray copy out of components and
-  into `content.ts`.
-- `theme.css` finished — every colour, fill, font and spacing value as a `:root` custom
-  property. Inherited fabric in a distinct muted fill with a visible edge; street edge (row 1)
-  and garden edge (row 5) labelled; sun direction indicated once (§12).
-- README gains a "what to fork" section covering the two files and the two remix rungs.
+  unknown quality · a plan missing any required field · **a missing or invalid `zone`** ·
+  **a zone too thin to fill a hand** · a tier with fewer than 3 plans · a consent flag
+  outside the four · a pair line naming an unknown plan id · a duplicate plan id · **a
+  `plot` whose fabric is not orthogonally connected, or whose front door does not touch
+  it** · **fewer than one situation** · **no unconditional closing line**.
+- Audit every `engine/` import: `types.ts` only — still true after `plot` and the
+  situations were threaded through `createGame`.
+- `theme.css` finished — every colour, fill, font and spacing value a `:root` custom
+  property, including the garden band and `.cell--cause`.
+- README gains "what to fork": the two files, the two remix rungs, and the fact that the
+  plot itself is now content.
+- Settle the `sensitive` finding from M7: one flag firing 0.4 times a game is either
+  thinness to fix with a second `sensitive` plan, or intent to document.
 
-**Done when — the actual test:** swap the deck and household in `content.ts` for a different
-building and change values in `theme.css`, and nothing else needs opening.
-
-## M7 — Playtest pass
-
-Not a build milestone; the reason the build exists. Play it through against §17's twelve
-questions, with §17.6 (is 8 rounds right, does 6 leave adjacency underfired) settled by
-flipping the `ROUNDS` constant from M1, and §17.7 (does anyone demolish) watched closely.
+**Done when — the actual test:** swap the deck, the plot and the situations in
+`content.ts` for a different building and change values in `theme.css`, and nothing else
+needs opening.
 
 ---
 
@@ -393,17 +647,26 @@ npm run dev        # manual playthrough
 nothing has to download a browser. It writes screenshots to `e2e/screenshots/` (gitignored)
 — the fastest way to see what a playthrough actually looks like without playing one.
 
-Manual playthrough checklist: intro appears once before round 1 · eight placements end the
-game · a B2 demolition asks for confirmation and surfaces in *what you'll look after* ·
-`conservation: true` changes the four §9.2 items · no cost, score, counter or timer appears
-at any point · the fork test in M6.
+Manual playthrough checklist, as of Part two: the rules card appears before round 1 and
+reopens mid-play · one situation, answered once at the end · an outdoor plan cannot be
+placed in the house and an indoor plan cannot be placed in the garden · the front door at
+C1 never highlights · demolishing an old room asks once and surfaces in the obligations ·
+every line names its cause and lights the cells that caused it · the report is three pairs,
+a cost line, two obligations, a closing line and one answer · no cost, score, counter or
+timer appears before the report · the fork test in M12.
+
+Each of M8–M11 also extends the simulation harness that ran M7: 400 seeded games complete
+with no unplaceable hand and no placement outside its zone (M8) · the situation is stable
+for a seed and spread across all six (M9) · every fired line carries a non-empty `cause`,
+and a non-empty `because` for every pair and quality line (M10) · no report exceeds its
+line budget (M11).
 
 **What automated tests cannot settle.** Every question in §17 is a human one. The suites
 prove the game is playable and the rules hold; whether the adjacency line reads as an
 observation rather than a score, or whether the household is forgotten by round three, only
-a playtest answers. M7 is where that happens.
+a playtest answers. M7 was where that happened, and Part two is what it returned.
 
 ## Explicitly out of scope
 
-Discovery (§11) · placement animation and polish (§18.8) · save/load · multiple storeys ·
-multi-cell plans · a visible budget · any score.
+Discovery (§11) · placement animation and polish (§18.8) · save/load · a seed URL
+parameter · multiple storeys · multi-cell plans · a visible budget · any score.

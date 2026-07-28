@@ -10,6 +10,7 @@ import {
   demolitionCare,
   household,
   pairLines,
+  plot,
   qualityLines,
   qualitySeverity,
 } from '../content.ts';
@@ -26,7 +27,12 @@ import {
   type ReportContent,
 } from './report.ts';
 
-const game = createGame(deck, config, { pairLines, qualityLines, qualitySeverity });
+const game = createGame(
+  deck,
+  config,
+  { pairLines, qualityLines, qualitySeverity },
+  plot,
+);
 const content: ReportContent = {
   household,
   costPhrases,
@@ -52,7 +58,9 @@ function playThrough(seed: number): GameState {
     const planId = state.hand[0];
     if (planId === undefined) throw new Error('dealt an empty hand');
     const selected = game.reducer(state, { type: 'SELECT_PLAN', planId });
-    const cell = legalCells(selected)[0];
+    const zone = byId.get(planId)?.zone;
+    if (zone === undefined) throw new Error('no such plan');
+    const cell = legalCells(selected, zone)[0];
     if (cell === undefined) throw new Error('no legal cell');
     // §7.2, §13 — say yes to the confirmation, so that demolition is exercised
     // by the report tests rather than avoided by them.
@@ -370,11 +378,12 @@ describe('the finished house (§10.4)', () => {
     expect(house.distance(first.planId, second.planId)).toBeGreaterThan(0);
   });
 
-  it('has no front door to measure from once B2 comes down (§7)', () => {
+  it('measures from the front door, which is always there to measure from (§7)', () => {
     const state = playThrough(11);
-    const doorless: GameState = { ...state, frontDoor: null };
-    const house = summarise(doorless, deck, qualitySeverity);
-    expect(house.fromFrontDoor('bathroom')).toBeNull();
+    const house = summarise(state, deck, qualitySeverity);
+    expect(house.frontDoor).toBe('C1');
+    // Null means the plan was never placed, never that the door is missing.
+    expect(house.fromFrontDoor('not-a-plan')).toBeNull();
   });
 
   it('gives every member of the household exactly one line', () => {
@@ -390,10 +399,10 @@ describe('the finished house (§10.4)', () => {
     }
   });
 
-  it('reacts to a house with no front door rather than falling over', () => {
+  it('reacts to a house with none of the old one left rather than falling over', () => {
     const state = playThrough(11);
-    const doorless: GameState = { ...state, frontDoor: null, fabric: [] };
-    for (const person of buildReport(doorless, deck, content, qualitySeverity, config)
+    const razed: GameState = { ...state, fabric: [] };
+    for (const person of buildReport(razed, deck, content, qualitySeverity, config)
       .household) {
       expect(person.reaction.length).toBeGreaterThan(0);
     }

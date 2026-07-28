@@ -16,7 +16,7 @@ import type {
   Orientation,
   Plan,
 } from '../types.ts';
-import { orientationOf } from './grid.ts';
+import { isStreetElevation } from './grid.ts';
 
 export interface ConsentContent {
   /** §9.3 — one obligation per flag. */
@@ -97,8 +97,10 @@ export function consentFor(
     // …and an extra obligation on named plans. The glass extension's ridge.
     if (plans?.care) care.push(plans.care);
 
-    // §9.2 — new openings in the street elevation.
-    if (orientationOf(cell) === 'north' && hasOpening(plan, 'north')) {
+    // §9.2 — new openings in the street elevation. The street, specifically:
+    // the shaded strip of garden faces north as well, and a lawn behind a house
+    // is not an opening onto anything.
+    if (isStreetElevation(cell) && hasOpening(plan, 'north')) {
       add(overrides.northOpening.consent);
       care.push(overrides.northOpening.care);
     }

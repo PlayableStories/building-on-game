@@ -134,7 +134,12 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  /**
+   * §12 — the name sits at the top of the cell, not floating in the middle of
+   * it. Every occupied cell reads the same way down the block: reference, then
+   * what it is, then anything quieter underneath.
+   */
+  justify-content: flex-start;
   gap: var(--space-1);
   padding: var(--space-1);
   border: 1px solid transparent;
@@ -158,22 +163,64 @@
   color: var(--colour-ink-soft);
 }
 
+/**
+ * §12 — one treatment for every name on the plot. An old room is printed exactly
+ * as a placed plan is printed, because it *is* a room, and a player who cannot
+ * tell it is a room will not work out that it can be replaced.
+ */
 .cell__name {
   font-size: 0.6875rem;
   overflow-wrap: anywhere;
 }
 
-.cell__door {
+/**
+ * …and the fact that it came with the house is the quiet part. This is the
+ * treatment the front door used to have, and the emphasis is deliberately the
+ * other way round from where it started: playtesting found a cell shouting
+ * "Inherited" reads as scenery nobody may touch.
+ */
+.cell__inherited {
+  margin-top: auto;
   font-size: 0.5625rem;
   letter-spacing: 0.04em;
+  color: var(--colour-ink-soft);
+  opacity: 0.75;
+}
+
+/* What came with the house: a distinct muted fill with a visible edge — §5, §12. */
+.cell--inherited {
+  background: var(--colour-fabric);
+  border-color: var(--colour-fabric-edge);
+  border-style: solid;
+}
+
+/**
+ * …and a dashed edge on the ones that could still go. Dashed is the plot's way
+ * of saying "this is not settled", which is exactly what an old room is and
+ * exactly what the front door is not (§7).
+ */
+.cell--fabric {
+  border-style: dashed;
+}
+
+.cell--door {
+  border-color: var(--colour-front-door);
+}
+
+.cell--door .cell__name {
   color: var(--colour-front-door);
 }
 
-/* Inherited fabric: a distinct muted fill with a visible edge — §5, §12. */
-.cell--fabric {
-  background: var(--colour-fabric);
-  border-color: var(--colour-fabric-edge);
-  border-style: dashed;
+/**
+ * §5 — the garden. A wash behind rows 4 and 5, so the boundary is visible before
+ * a plan is chosen rather than only once the highlighting explains it.
+ *
+ * Scoped to empty, not-legal cells on purpose: the highlight and the tier
+ * colours have to win over the ground they sit on, and a bare attribute
+ * selector would outrank `.cell--legal` and quietly swallow it.
+ */
+.cell--empty[data-zone='outdoor']:not(.cell--legal) {
+  background: var(--colour-plot-garden);
 }
 
 .cell--legal {
@@ -356,12 +403,6 @@
   font-size: var(--size-observation);
   max-width: 32rem;
   margin: 0 auto;
-}
-
-.demolition__door {
-  max-width: 32rem;
-  margin: var(--space-3) auto 0;
-  color: var(--colour-ink-soft);
 }
 
 .demolition__note {

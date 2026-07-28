@@ -63,10 +63,52 @@ export type Row = (typeof ROWS)[number];
 export type CellId = `${Column}${Row}`;
 
 /**
- * §5 — row 1 is the street (north), row 5 is the garden (south), sun comes from
- * the south. Row 3 is neither, and plans placed there get no orientation line.
+ * §5 — which way a row faces. Row 1 is the street (north) and row 5 is the open
+ * garden (south), with the sun coming from the south. Not every row faces
+ * something: see `orientationOf` in `engine/grid.ts` for the map, and for why
+ * rows 2 and 4 face nothing.
  */
 export type Orientation = 'north' | 'south';
+
+/**
+ * §5 — the house, and the garden behind it.
+ *
+ * A plan belongs to one or the other and can only be placed there: a bathroom
+ * does not go in the garden and a lawn does not go in the hall. The zone a cell
+ * belongs to is decided by its row, which is why the plot reads as a building
+ * with ground behind it rather than as twenty-five interchangeable squares.
+ */
+export type Zone = 'indoor' | 'outdoor';
+
+/** A cell that was already built when the player arrived, and what it is. */
+export interface InheritedCell {
+  cell: CellId;
+  /**
+   * §12 — its own name, printed exactly as a placed plan's name is printed.
+   * "Old kitchen" reads as something that could be replaced; "Inherited" does
+   * not, which is the whole reason these are named.
+   */
+  name: string;
+}
+
+/**
+ * §5 — the plot as it stands before the first round.
+ *
+ * This is content, not geometry. A fork pointing the game at a community centre
+ * or a hospice garden inherits a different building with different rooms in it,
+ * and should be able to say so here rather than in `engine/grid.ts`.
+ */
+export interface PlotContent {
+  /**
+   * §5, §7 — the one thing about the house decided before the player arrived,
+   * and the one cell they cannot change. It is never a legal placement.
+   */
+  frontDoor: InheritedCell;
+  /** §7.2 — the old rooms. These can be placed on, which takes them down. */
+  fabric: InheritedCell[];
+  /** §5 — the first garden row. Everything from here down is outdoors. */
+  gardenFromRow: Row;
+}
 
 /* ------------------------------------------------------------------ *
  * The deck — §8.2
@@ -76,6 +118,8 @@ export interface Plan {
   id: string;
   name: string;
   tier: PlanTier;
+  /** §5 — the house or the garden. It cannot be placed in the other one. */
+  zone: Zone;
   /** Qualities this plan puts into its neighbours. */
   emits: Quality[];
   /** Qualities this plan suffers from. */
@@ -91,11 +135,12 @@ export interface Plan {
 
 /**
  * The part of a plan the core loop needs: which plan it is, what to print on the
- * block, and which tier it is drawn from. The grid and the draw never read the
- * writing, so they are typed against this rather than the whole `Plan` — which
- * also lets M1 ship a deck that has not been written yet.
+ * block, which tier it is drawn from, and which half of the plot it may go in.
+ * The grid and the draw never read the writing, so they are typed against this
+ * rather than the whole `Plan` — which also lets M1 ship a deck that has not
+ * been written yet.
  */
-export type PlanIdentity = Pick<Plan, 'id' | 'name' | 'tier'>;
+export type PlanIdentity = Pick<Plan, 'id' | 'name' | 'tier' | 'zone'>;
 
 /**
  * What the adjacency resolution in §8.6 needs: which plan it is, what it puts
@@ -191,8 +236,8 @@ export interface HouseSummary {
   placed: readonly PlacedPlan[];
   /** Inherited fabric still standing. Empty means all of it came down. */
   fabricRemaining: readonly CellId[];
-  /** Null once B2 has been demolished — §7. */
-  frontDoor: CellId | null;
+  /** §7 — fixed, and the same in every game. It came with the house. */
+  frontDoor: CellId;
   /** Strongest first, across the whole plot. */
   dominant: readonly Quality[];
   /** Is this plan anywhere on the plot? */
@@ -201,7 +246,7 @@ export interface HouseSummary {
   cellOf: (id: Plan['id']) => CellId | null;
   /** Steps between two plans, or null if either is missing. */
   distance: (a: Plan['id'], b: Plan['id']) => number | null;
-  /** Steps from the front door, or null if there is no door or no plan. */
+  /** Steps from the front door, or null if that plan was never placed. */
   fromFrontDoor: (id: Plan['id']) => number | null;
 }
 
@@ -295,10 +340,21 @@ export interface GameState {
   hand: Plan['id'][];
   selectedPlanId: Plan['id'] | null;
   placements: Placement[];
-  /** Inherited fabric still standing. Starts as B2, C2, B3, C3 — §5. */
+  /** Inherited fabric still standing. Starts as whatever `PlotContent` says. */
   fabric: CellId[];
-  /** Null once B2 has been demolished — §7. */
-  frontDoor: CellId | null;
+  /**
+   * §7 — fixed for the whole game. The front door is the one thing about this
+   * house the player cannot change, which is what makes it the house they were
+   * left rather than a plot they were given.
+   */
+  frontDoor: CellId;
+  /**
+   * §5 — the first garden row, carried here for the same reason as `frontDoor`:
+   * it is decided by content before round 1 and then fixed, and every legality
+   * check needs it. Materialising the setup into the state keeps `engine/grid.ts`
+   * pure geometry with nothing to look up.
+   */
+  gardenFromRow: Row;
   /** The one line for the placement just made, or null for silence — §8.6. */
   observation: string | null;
   /**
@@ -335,6 +391,8 @@ export interface Config {
 export interface Content {
   /** §2 — the single line explaining why the work is happening at all. */
   whyNow: string;
+  /** §5 — the building that was already there, and where the garden starts. */
+  plot: PlotContent;
   household: HouseholdMember[];
   deck: Plan[];
   pairLines: PairLine[];
