@@ -280,7 +280,9 @@ export const situations: Situation[] = [
       if (house.has('living-room') || house.has('dining-room')) {
         return 'No spare room. People will stay on the sofa, the way they always have, and leave a day earlier than they meant to.';
       }
-      return 'Nowhere for anyone to sleep and nowhere for anyone to sit. This house has been built for exactly one person, and it will get exactly one.';
+      // Deliberately "a visitor" rather than "anyone": the house may well have a
+      // bedroom, and it is yours. That is the whole answer to this situation.
+      return 'Nowhere for a visitor to sleep, and nowhere to sit that is not the kitchen. This house has been built for exactly one person, and it will get exactly one.';
     },
   },
 ];

@@ -116,29 +116,40 @@ export function consentFor(
 }
 
 /**
- * §9.3 — the obligations a finished house has taken on, for the care column.
+ * §9.3 — the obligations a finished house has taken on, worth saying first.
  *
  * Deduplicated: three householder applications are one ongoing relationship with
- * the local authority, not three. Ordered by the flag vocabulary rather than by
- * placement, so the same house always reads the same way.
+ * the local authority, not three. And ordered rather than merely collected,
+ * because the report has room for two of these and the two it picks are the two
+ * off the front of this list.
+ *
+ * The order is specific before general — the same principle §8.6 uses to rank
+ * the adjacency lines. A condition agreed on this particular house says more
+ * than the fact that an application was made, and the flag nobody had to apply
+ * for says least of all, so the flags come last and heaviest first.
+ *
+ * Never placement order. The same finished house always reads the same way,
+ * whatever sequence it was built in.
  */
 export function consentCare(
   results: readonly ConsentResult[],
   order: readonly Consent[],
   lines: Record<Consent, string>,
 ): string[] {
-  const taken = new Set(results.flatMap((result) => result.flags));
   const care: string[] = [];
+  const add = (line: string) => {
+    if (!care.includes(line)) care.push(line);
+  };
 
-  for (const flag of order) {
-    if (taken.has(flag)) care.push(lines[flag]);
+  // The obligations attached to a particular placement, in placement order.
+  for (const result of results) {
+    for (const line of result.care) add(line);
   }
 
-  // The extra obligations, in placement order, after the flags they came with.
-  for (const result of results) {
-    for (const line of result.care) {
-      if (!care.includes(line)) care.push(line);
-    }
+  // Then one per flag the house took on anywhere, heaviest first.
+  const taken = new Set(results.flatMap((result) => result.flags));
+  for (const flag of [...order].reverse()) {
+    if (taken.has(flag)) add(lines[flag]);
   }
 
   return care;

@@ -49,6 +49,17 @@ const COST_WEIGHT: Record<CostBand, number> = {
   high: 3,
 };
 
+/**
+ * §10.2 — how much of the finished house the report actually talks about.
+ *
+ * Eight pairs and five obligations is a document. Three and two is something a
+ * player reads to the end, which is the only version that works: the report is
+ * the payoff, and a payoff nobody finishes is not one. Playtesting was blunt
+ * about this — "the result is too complicate and too long".
+ */
+const REPORT_PAIRS = 3;
+const OBLIGATION_LINES = 2;
+
 /** Manhattan distance on the grid: how many cells you cross to get there. */
 function stepsBetween(a: CellId, b: CellId): number {
   const from = parseCell(a);
@@ -213,45 +224,78 @@ export function buildReport(
   const byId = new Map(deck.map((plan) => [plan.id, plan]));
   const house = summarise(state, deck, severity);
 
-  const placed = house.placed.flatMap((entry) => {
-    const plan = byId.get(entry.id);
-    return plan ? [plan] : [];
-  });
-
-  // §10.2 — the have lines in placement order. The pleasures, plainly.
-  const have = placed.map((plan) => plan.have);
-
-  /**
-   * The longest column, deliberately, and assembled in a fixed order: what each
-   * plan asks of you, then the consent the house has taken on (§9.3), then what
-   * pulling the old house down leaves behind (§7).
-   */
-  const care = placed.map((plan) => plan.care);
-
-  const taken = house.placed.flatMap((entry) => {
+  /** Every placement, with the plan behind it and the consent it took on. */
+  const made = house.placed.flatMap((entry) => {
     const plan = byId.get(entry.id);
     if (!plan) return [];
-    return [
-      consentFor(plan, entry.cell, entry.demolished, config.conservation, content),
-    ];
+    const consent = consentFor(
+      plan,
+      entry.cell,
+      entry.demolished,
+      config.conservation,
+      content,
+    );
+    return [{ entry, plan, consent }];
   });
-  care.push(...consentCare(taken, content.consentOrder, content.consentCare));
 
-  // §9.2 — under conservation, taking the old house down has already said
-  // something much longer, and it does not need saying twice.
+  const placed = made.map((one) => one.plan);
+
+  /**
+   * §10.2 — how much this one asks of you: what it cost to build, plus the
+   * weight of the heaviest consent it took on. Nothing here is shown, and it
+   * is not a score — it decides which three of the eight the report is about,
+   * and nothing else. The three that ask the most are the three that will
+   * decide what living here is like.
+   */
+  const asks = (one: (typeof made)[number]) => {
+    const flags = one.consent.flags.map((flag) => content.consentOrder.indexOf(flag));
+    return COST_WEIGHT[one.plan.cost] + Math.max(0, ...flags);
+  };
+
+  // Heaviest first, and where two ask the same, the later one — a house is more
+  // what it most recently became than what it started as.
+  const ranked = [...made].sort(
+    (a, b) => asks(b) - asks(a) || b.entry.round - a.entry.round,
+  );
+
+  const pairs = ranked.slice(0, REPORT_PAIRS).map((one) => ({
+    name: one.plan.name,
+    have: one.plan.have,
+    care: one.plan.care,
+  }));
+
+  /**
+   * §9.3 — the obligations the house itself has taken on, which belong to no
+   * single plan and so cannot be paired with anything. Two lines, off the front
+   * of an order that already puts the most specific first.
+   *
+   * `ranked` rather than `made`, so that a placement-specific obligation is
+   * ordered by how much that placement asked. Without it, two lines is not
+   * enough room to guarantee that §9.2's demolition-in-a-conservation-area
+   * obligation — the heaviest thing in the game — actually gets said: it would
+   * sit behind whatever happened to be placed earlier.
+   */
   const demolished = house.placed.some((entry) => entry.demolished);
-  if (demolished && !config.conservation) {
-    care.push(content.demolitionCare);
-  }
+  const obligations = [
+    // §7 — what taking the old house down leaves behind, which is the most
+    // particular thing about a house that did it. §9.2 — under conservation it
+    // has already been said at much greater length, and is in `consentCare`.
+    ...(demolished && !config.conservation ? [content.demolitionCare] : []),
+    ...consentCare(
+      ranked.map((one) => one.consent),
+      content.consentOrder,
+      content.consentCare,
+    ),
+  ].slice(0, OBLIGATION_LINES);
 
   // §10.4 — the situation this game opened on, answered by the plot that came
   // out of it. One line, and it is the only place the framing comes back.
   const situation = content.situations.find((entry) => entry.id === state.situationId);
 
   return {
-    have,
+    pairs,
     cost: costPhrase(placed, content.costPhrases),
-    care,
+    obligations,
     closing: closingLine(house, content.closingLines),
     answer: situation ? situation.reaction(house) : '',
   };

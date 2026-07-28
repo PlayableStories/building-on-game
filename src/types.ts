@@ -309,17 +309,45 @@ export interface HouseSummary {
   fromFrontDoor: (id: Plan['id']) => number | null;
 }
 
-/** §10.2 — the three columns, assembled. */
+/**
+ * §10.2 — one thing you gained, and what it will ask of you for as long as you
+ * have it. The unit the report is built from.
+ */
+export interface ReportPair {
+  name: string;
+  have: string;
+  care: string;
+}
+
+/**
+ * §10.2 — the report, assembled.
+ *
+ * It used to be three parallel columns, and playtesting found two problems with
+ * that: it was too long to read, and the responsibility never resolved into any
+ * felt sense of what it bought you — "I have no feeling of associating
+ * responsibility and long-term care into a balanced feeling of long-term
+ * benefit." Two lists side by side do not make a player connect item three of
+ * one to item three of the other, and there is no reason they should.
+ *
+ * So the two columns become rows of `pairs`: each thing you gained sits beside
+ * the thing it asks, and you cannot read one without the other. Three of them,
+ * because three is what fits in the head, and the three that ask the most of
+ * you, because those are the ones that will decide what living here is like.
+ *
+ * Cost was never a list, and the obligations the house took on (§9.3) are not
+ * about any single plan — both stay as short lines underneath.
+ */
 export interface Report {
-  have: string[];
+  /** Heaviest first. At most three — see `REPORT_PAIRS`. */
+  pairs: ReportPair[];
   /** A phrase, never a number. */
   cost: string;
   /**
-   * The longest column, deliberately. Plan obligations first, then the consent
-   * the house has taken on, then what demolition leaves behind — §9.3 puts
-   * consent inside this column rather than in a section of its own.
+   * §9.3 — the consent this house has taken on, condensed. Not per-plan, which
+   * is why it cannot be paired: three householder applications are one
+   * relationship with the local authority, not three.
    */
-  care: string[];
+  obligations: string[];
   closing: string;
   /** §10.4 — the situation the game opened on, answered. One line. */
   answer: string;

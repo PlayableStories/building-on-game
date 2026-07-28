@@ -1,10 +1,17 @@
 /**
  * What the house reports back — GDD §10, §14.
  *
- * Shown all at once when the eighth plan lands, in the order §10.2 fixes: what
- * you'll have, what it cost, what you'll look after. The third column is the
- * longest, deliberately — cost and benefit are what an estate agent tells you,
- * and responsibility is the thing nobody mentions.
+ * Shown all at once when the eighth plan lands. It used to be §10.2's three
+ * parallel columns, and playtesting found two problems with that: it was too
+ * long to read, and the third column never resolved into any felt sense of what
+ * it bought you — "I have no feeling of associating responsibility and
+ * long-term care into a balanced feeling of long-term benefit."
+ *
+ * Two lists side by side do not make anyone connect item three of one to item
+ * three of the other, and there is no reason they should. So they are rows now.
+ * Each thing you gained sits on the same line as the thing it asks, and the
+ * page cannot be read one column at a time. Three of them, and they are the
+ * three that ask the most of you.
  *
  * §10.1 — none of this has appeared before now. There is no score here, and the
  * cost is a phrase rather than a number.
@@ -18,36 +25,44 @@ interface ReportProps {
 export default function Report({ report }: ReportProps) {
   return (
     <section className="report">
-      <div className="report__columns">
-        <section className="report__column">
-          <h2 className="report__heading">What you&rsquo;ll have</h2>
-          <ul className="report__list">
-            {report.have.map((line, index) => (
-              // Placement order, and two plans may share a line — the index is
-              // the only stable key, and this list is never reordered.
-              <li className="report__item" key={index}>
-                {line}
-              </li>
-            ))}
-          </ul>
-        </section>
+      <div className="report__pairs">
+        <h2 className="report__heading report__heading--have">
+          What you&rsquo;ll have
+        </h2>
+        <h2 className="report__heading report__heading--care">What it asks</h2>
 
-        <section className="report__column">
-          <h2 className="report__heading">What it cost</h2>
-          <p className="report__cost">{report.cost}</p>
-        </section>
-
-        <section className="report__column report__column--care">
-          <h2 className="report__heading">What you&rsquo;ll look after</h2>
-          <ul className="report__list">
-            {report.care.map((line, index) => (
-              <li className="report__item" key={index}>
-                {line}
-              </li>
-            ))}
-          </ul>
-        </section>
+        {report.pairs.map((pair) => (
+          // The name spans both, so the row reads as one thing rather than as
+          // two entries that happen to be level with each other.
+          <article className="report__pair" key={pair.name}>
+            <h3 className="report__name">{pair.name}</h3>
+            <p className="report__have">{pair.have}</p>
+            <p className="report__care">{pair.care}</p>
+          </article>
+        ))}
       </div>
+
+      <dl className="report__notes">
+        <div className="report__note">
+          <dt className="report__note-label">Cost</dt>
+          <dd className="report__note-line">{report.cost}</dd>
+        </div>
+
+        {/* §9.3 — consent belongs to the house rather than to any one plan, so
+            it is the one thing here with nothing to be paired against. */}
+        {report.obligations.length > 0 && (
+          <div className="report__note">
+            <dt className="report__note-label">Also</dt>
+            <dd className="report__note-line">
+              {report.obligations.map((line) => (
+                <span className="report__obligation" key={line}>
+                  {line}
+                </span>
+              ))}
+            </dd>
+          </div>
+        )}
+      </dl>
 
       {/* §10.3 — what kind of house it turned out to be. Not a verdict. */}
       <p className="report__closing">{report.closing}</p>
