@@ -18,8 +18,8 @@ interface DemolitionProps {
   /** The plan about to go there. */
   planName: string;
   cell: string;
-  /** True when this is B2 — the front door goes with it (§7). */
-  isFrontDoor: boolean;
+  /** What is standing there now — 'Old scullery' rather than 'B3'. */
+  roomName: string;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -27,7 +27,7 @@ interface DemolitionProps {
 export default function Demolition({
   planName,
   cell,
-  isFrontDoor,
+  roomName,
   onConfirm,
   onCancel,
 }: DemolitionProps) {
@@ -45,16 +45,9 @@ export default function Demolition({
   return (
     <section className="demolition" role="alertdialog" aria-label="Demolition">
       <p className="demolition__line">
-        {cell} is part of the house you were left. Putting the {planName.toLowerCase()}{' '}
-        there takes it down.
+        The {roomName.toLowerCase()} at {cell} is part of the house you were left.
+        Putting the {planName.toLowerCase()} there takes it down.
       </p>
-
-      {isFrontDoor && (
-        <p className="demolition__door">
-          That cell is the front door. The house will need a new way in, and every
-          placement after this one is read against that.
-        </p>
-      )}
 
       <p className="demolition__note">This cannot be undone.</p>
 

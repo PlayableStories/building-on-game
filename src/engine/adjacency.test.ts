@@ -68,15 +68,16 @@ describe('§8.6 resolution order', () => {
     expect(observationFor(writing, plan('solar-array'), 'C1', [])).toBe(
       'A lovely gesture. Very little electricity.',
     );
-    expect(observationFor(writing, plan('home-farm'), 'B2', [])).toBe(
+    expect(observationFor(writing, plan('home-farm'), 'B4', [])).toBe(
       'Too little sun. It will be a hobby rather than a crop.',
     );
   });
 
   it('4. silence is a valid result', () => {
-    // A shed in the middle row, touching nothing that reacts to it.
-    expect(observationFor(writing, plan('shed'), 'C3', [])).toBeNull();
-    expect(observationFor(writing, plan('shed'), 'C3', beside('hall'))).toBeNull();
+    // A shed has nothing to say about which way it faces, so nowhere on the
+    // plot gives it an orientation line to fall back on.
+    expect(observationFor(writing, plan('shed'), 'B4', [])).toBeNull();
+    expect(observationFor(writing, plan('shed'), 'B5', beside('hall'))).toBeNull();
   });
 
   it('never returns more than one line', () => {

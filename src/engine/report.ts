@@ -133,7 +133,7 @@ export function summarise(
     },
     fromFrontDoor: (id) => {
       const to = cellOf(id);
-      return state.frontDoor && to ? stepsBetween(state.frontDoor, to) : null;
+      return to ? stepsBetween(state.frontDoor, to) : null;
     },
   };
 }
@@ -163,12 +163,15 @@ export function costPhrase(
  * same list as a line that only fires for a house with nothing old left in it.
  */
 export function closingLine(house: HouseSummary, lines: readonly ClosingLine[]): string {
-  const fabric =
-    house.fabricRemaining.length === 4
-      ? 'all'
-      : house.fabricRemaining.length === 0
-        ? 'none'
-        : 'some';
+  // Derived rather than counted against a constant, so that a fork inheriting a
+  // building of a different size gets the right answer without saying how big
+  // it was: nothing demolished is all of it, nothing left is none of it.
+  const tookSomethingDown = house.placed.some((entry) => entry.demolished);
+  const fabric = !tookSomethingDown
+    ? 'all'
+    : house.fabricRemaining.length === 0
+      ? 'none'
+      : 'some';
 
   // The dominant qualities that actually characterise the house — the top few,
   // not every quality that appeared once.

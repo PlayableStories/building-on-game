@@ -18,11 +18,19 @@
 
   /* ---- The plot — §12 --------------------------------------------- */
   --colour-plot-empty: #eae5da;
+  /**
+   * §5 — the garden, rows 4–5. Enough green that the boundary is legible at a
+   * glance and before any plan is chosen, and no more: it is ground, and it has
+   * to stay quieter than both the highlight and the tier colours that will sit
+   * on top of it.
+   */
+  --colour-plot-garden: #dae2cd;
   --colour-plot-legal: #e2ecdf;
   --colour-plot-legal-edge: #7d9c81;
   /* Inherited fabric: a distinct muted fill with a visible edge. */
   --colour-fabric: #cfc6b4;
   --colour-fabric-edge: #a3987f;
+  /* §7 — the front door, the one inherited cell that cannot come down. */
   --colour-front-door: #8c5a3c;
 
   /* ---- Tiers — §6 -------------------------------------------------- */

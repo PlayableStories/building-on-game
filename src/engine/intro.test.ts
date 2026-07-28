@@ -4,6 +4,7 @@ import {
   deck,
   household,
   pairLines,
+  plot,
   premise,
   qualityLines,
   qualitySeverity,
@@ -11,7 +12,12 @@ import {
 } from '../content.ts';
 import { createGame } from './game.ts';
 
-const game = createGame(deck, config, { pairLines, qualityLines, qualitySeverity });
+const game = createGame(
+  deck,
+  config,
+  { pairLines, qualityLines, qualitySeverity },
+  plot,
+);
 
 describe('the framing (§2)', () => {
   it('opens on the intro, before any placement is possible', () => {

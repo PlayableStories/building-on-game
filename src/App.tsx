@@ -18,6 +18,7 @@ import {
   demolitionCare,
   household,
   pairLines,
+  plot,
   premise,
   qualityLines,
   qualitySeverity,
@@ -25,7 +26,6 @@ import {
 } from './content.ts';
 import { flagInHand } from './engine/consent.ts';
 import { createGame } from './engine/game.ts';
-import { FRONT_DOOR_CELL } from './engine/grid.ts';
 import { buildReport } from './engine/report.ts';
 import Demolition from './components/Demolition.tsx';
 import Hand from './components/Hand.tsx';
@@ -40,7 +40,7 @@ function freshSeed(): number {
 
 export default function App() {
   const game = useMemo(
-    () => createGame(deck, config, { pairLines, qualityLines, qualitySeverity }),
+    () => createGame(deck, config, { pairLines, qualityLines, qualitySeverity }, plot),
     [],
   );
   const [seed] = useState(freshSeed);
@@ -108,6 +108,7 @@ export default function App() {
           <Plot
             state={state}
             deck={deck}
+            plot={plot}
             onPlace={(cell) => dispatch({ type: 'PLACE', cell })}
           />
 
@@ -118,7 +119,10 @@ export default function App() {
             <Demolition
               planName={selectedPlan.name}
               cell={state.pendingDemolition as string}
-              isFrontDoor={state.pendingDemolition === FRONT_DOOR_CELL}
+              roomName={
+                plot.fabric.find((room) => room.cell === state.pendingDemolition)?.name ??
+                'room'
+              }
               onConfirm={() => dispatch({ type: 'CONFIRM_DEMOLITION' })}
               onCancel={cancelDemolition}
             />
@@ -128,7 +132,11 @@ export default function App() {
             <>
               <p className="app__prompt">
                 {placing
-                  ? 'Place it anywhere touching what is already built. You cannot move it later.'
+                  ? // §5 — the prompt names the zone, because that is the rule a
+                    // player is most likely to be surprised by mid-round.
+                    selectedPlan?.zone === 'outdoor'
+                    ? 'It goes in the garden, touching what is already there. You cannot move it later.'
+                    : 'It goes in the house, touching what is already built. You cannot move it later.'
                   : 'Choose one of three. The other two are gone.'}
               </p>
 
@@ -146,7 +154,7 @@ export default function App() {
         </>
       ) : (
         <section className="finished">
-          <Plot state={state} deck={deck} onPlace={() => {}} />
+          <Plot state={state} deck={deck} plot={plot} onPlace={() => {}} />
           <p className="finished__line">The house is finished.</p>
 
           {report && <Report report={report} />}

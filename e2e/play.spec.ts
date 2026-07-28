@@ -30,6 +30,14 @@ function hand(page: Page) {
   return page.locator('.plan');
 }
 
+/**
+ * §5 — a plan in hand for one half of the plot. Tests that aim at a named cell
+ * need one that is allowed to go there.
+ */
+function handFor(page: Page, zone: 'indoor' | 'outdoor') {
+  return page.locator(`.plan[data-zone="${zone}"]`);
+}
+
 function observation(page: Page) {
   return page.locator('.observation');
 }
@@ -109,13 +117,39 @@ test.describe('the plot (§5, §12)', () => {
     expect(row5!.y).toBeLessThan(garden!.y);
   });
 
-  test('shows the inherited house as visibly different fabric (§12)', async ({ page }) => {
+  test('shows the inherited house as named rooms on different fabric (§12)', async ({
+    page,
+  }) => {
     await start(page);
 
-    for (const ref of ['B2', 'C2', 'B3', 'C3']) {
-      await expect(cell(page, ref)).toContainText('Inherited');
+    // §12 — each old room says what it is, in the same face as any placement,
+    // with "inherited" small and quiet underneath.
+    const rooms: Record<string, string> = {
+      B2: 'Old kitchen',
+      C2: 'Old sitting room',
+      B3: 'Old scullery',
+      C3: 'Old back room',
+    };
+    for (const [ref, name] of Object.entries(rooms)) {
+      await expect(cell(page, ref)).toContainText(name);
+      await expect(cell(page, ref)).toContainText('inherited');
     }
-    await expect(page.getByText('front door')).toBeVisible();
+
+    // §7 — the front door, on the street, printed like any other room.
+    await expect(cell(page, 'C1')).toContainText('Front door');
+    await expect(cell(page, 'C1')).toContainText('inherited');
+
+    // The name is the loud part and "inherited" is the quiet one, not the other
+    // way round — the emphasis this milestone exists to swap.
+    const sizes = await cell(page, 'C1').evaluate((element) => ({
+      name: parseFloat(
+        getComputedStyle(element.querySelector('.cell__name') as Element).fontSize,
+      ),
+      inherited: parseFloat(
+        getComputedStyle(element.querySelector('.cell__inherited') as Element).fontSize,
+      ),
+    }));
+    expect(sizes.inherited).toBeLessThan(sizes.name);
 
     // A distinct muted fill with a visible edge — not just a different label.
     const fabric = await background(page, '.cell--fabric');
@@ -138,31 +172,56 @@ test.describe('placement (§13)', () => {
     await expect(legalCells(page)).toHaveCount(0);
 
     const before = await background(page, '.cell--empty');
-    await hand(page).first().click();
+    await handFor(page, 'indoor').first().click();
 
-    // Four fabric cells plus the eight touching them.
-    await expect(legalCells(page)).toHaveCount(12);
+    // Four old rooms plus the six empty indoor cells touching the house. Not
+    // the front door, which is never on offer to anything.
+    await expect(legalCells(page)).toHaveCount(10);
+    await expect(cell(page, 'C1')).toBeDisabled();
 
     const after = await background(page, '.cell--legal');
     expect(after).not.toBe(before);
   });
 
+  test('offers a garden plan the garden, and nothing in the house (§5)', async ({
+    page,
+  }) => {
+    await start(page);
+
+    // The garden tier arrives late, so play on until one is dealt.
+    for (let round = 1; round <= ROUNDS; round++) {
+      if ((await handFor(page, 'outdoor').count()) > 0) {
+        await handFor(page, 'outdoor').first().click();
+
+        const refs = await legalCells(page).evaluateAll((cells) =>
+          cells.map((cell) => (cell.getAttribute('aria-label') ?? '').slice(0, 2)),
+        );
+        expect(refs.length).toBeGreaterThan(0);
+        for (const ref of refs) expect(Number(ref[1])).toBeGreaterThanOrEqual(4);
+        return;
+      }
+      await playRound(page);
+    }
+    throw new Error('no garden plan dealt in a whole game');
+  });
+
   test('places on click and cannot be undone (§7.3)', async ({ page }) => {
     await start(page);
 
-    const name = await hand(page).first().locator('.plan__name').innerText();
-    await hand(page).first().click();
-    await cell(page, 'C1').click();
+    const chosen = handFor(page, 'indoor').first();
+    const name = await chosen.locator('.plan__name').innerText();
+    await chosen.click();
+    await cell(page, 'D2').click();
 
     // The block is on the plot before the line is read — you see what you did.
-    await expect(cell(page, 'C1')).toContainText(name);
+    await expect(cell(page, 'D2')).toContainText(name);
     if ((await observation(page).count()) > 0) await observation(page).click();
 
     await expect(page.getByText(`2 of ${ROUNDS}`)).toBeVisible();
 
     // Placed cells are never offered again.
     await hand(page).first().click();
-    await expect(cell(page, 'C1')).toBeDisabled();
+    await expect(cell(page, 'D2')).toBeDisabled();
   });
 });
 
@@ -212,11 +271,12 @@ test.describe('a whole game (§15)', () => {
 });
 
 test.describe('the one confirmation (§7.2, §13)', () => {
-  /** Choose the first plan in hand and aim it at a named cell. */
+  /** Choose a plan for the house and aim it at a named cell. */
   async function aimAt(page: Page, ref: string): Promise<string> {
     await start(page);
-    const name = await hand(page).first().locator('.plan__name').innerText();
-    await hand(page).first().click();
+    const chosen = handFor(page, 'indoor').first();
+    const name = await chosen.locator('.plan__name').innerText();
+    await chosen.click();
     await cell(page, ref).click();
     return name;
   }
@@ -232,7 +292,7 @@ test.describe('the one confirmation (§7.2, §13)', () => {
   });
 
   test('does not ask for an ordinary placement', async ({ page }) => {
-    await aimAt(page, 'C1');
+    await aimAt(page, 'D2');
     await expect(demolition(page)).toHaveCount(0);
     await expect(page.locator('.cell--placed')).toHaveCount(1);
   });
@@ -273,22 +333,37 @@ test.describe('the one confirmation (§7.2, §13)', () => {
     await expect(page.locator('.cell--fabric')).toHaveCount(4);
   });
 
-  test('says what goes with the front door, and only there (§7)', async ({ page }) => {
+  test('names the room coming down rather than its grid reference (§12)', async ({
+    page,
+  }) => {
     await aimAt(page, 'B2');
-    await expect(demolition(page).locator('.demolition__door')).toBeVisible();
+    await expect(demolition(page)).toContainText(/old kitchen/i);
     await page.keyboard.press('Escape');
 
     await cell(page, 'C3').click();
-    await expect(demolition(page)).toBeVisible();
-    await expect(demolition(page).locator('.demolition__door')).toHaveCount(0);
+    await expect(demolition(page)).toContainText(/old back room/i);
   });
 
-  test('removes the front door once B2 is gone (§7)', async ({ page }) => {
-    await aimAt(page, 'B2');
-    await page.getByRole('button', { name: 'Take it down' }).click();
+  test('never asks about the front door, because it never offers it (§7)', async ({
+    page,
+  }) => {
+    await start(page);
+    await handFor(page, 'indoor').first().click();
 
-    await expect(page.getByText('front door')).toHaveCount(0);
-    await expect(page.locator('.cell--fabric')).toHaveCount(3);
+    // Not merely unhighlighted — not clickable at all. The one cell in the game
+    // that is never a decision.
+    await expect(cell(page, 'C1')).toBeDisabled();
+    await expect(demolition(page)).toHaveCount(0);
+    await expect(page.locator('.cell--placed')).toHaveCount(0);
+    await expect(page.getByText(`1 of ${ROUNDS}`)).toBeVisible();
+  });
+
+  test('keeps the front door standing through a whole game (§7)', async ({ page }) => {
+    await start(page);
+    for (let round = 1; round <= ROUNDS; round++) await playRound(page);
+
+    await expect(cell(page, 'C1')).toContainText('Front door');
+    await expect(cell(page, 'C1')).toContainText('inherited');
   });
 });
 
@@ -504,12 +579,14 @@ test.describe('screenshots', () => {
     await page.getByRole('button', { name: 'Begin' }).click();
     await page.screenshot({ path: 'e2e/screenshots/01-opening.png', fullPage: true });
 
-    // Selected but not yet placed: this is the frame that shows the highlight.
-    await hand(page).first().click();
+    // Selected but not yet placed: this is the frame that shows the highlight,
+    // and with it the zone rule — a house plan lights the house and not the
+    // garden (§5).
+    await handFor(page, 'indoor').first().click();
     await page.screenshot({ path: 'e2e/screenshots/02-selected.png', fullPage: true });
 
-    // §7.2, §13 — the one question the game asks. Aimed at the front door,
-    // because that is the version of it that carries the most.
+    // §7.2, §13 — the one question the game asks. Aimed at the old kitchen,
+    // which is the room the player is most likely to want the space of.
     await cell(page, 'B2').click();
     await page.screenshot({ path: 'e2e/screenshots/03-demolition.png', fullPage: true });
     await page.keyboard.press('Escape');

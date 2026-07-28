@@ -39,6 +39,27 @@ function handButtons() {
     .filter((button) => button.classList.contains('plan'));
 }
 
+const zoneByName = new Map(deck.map((plan) => [plan.name, plan.zone]));
+
+/**
+ * §5 — a plan in hand that goes in the given half of the plot. Tests that aim at
+ * a named cell need one that is allowed to go there; returns null when this hand
+ * has none, which is normal for the garden in an early round.
+ */
+function handButtonFor(zone: 'indoor' | 'outdoor'): HTMLElement | null {
+  return (
+    handButtons().find(
+      (button) =>
+        zoneByName.get(button.querySelector('.plan__name')?.textContent ?? '') === zone,
+    ) ?? null
+  );
+}
+
+/** The small quiet label under every cell that came with the house. */
+function inheritedCells() {
+  return within(grid()).getAllByText('inherited');
+}
+
 function observation() {
   return document.querySelector('.observation');
 }
@@ -75,20 +96,46 @@ function playRound() {
  * a click on a highlighted cell places, and that the round advances.
  */
 describe('a whole game, played through the interface', () => {
-  it('is 25 cells, with the inherited house named on the grid', () => {
+  it('is 25 cells, with every inherited room named on the grid', () => {
     renderPlaying();
     expect(cells()).toHaveLength(25);
-    expect(within(grid()).getAllByText('Inherited')).toHaveLength(4);
-    expect(within(grid()).getByText('front door')).toBeDefined();
+
+    // §12 — the old rooms say what they are, in the same face as any placement,
+    // and murmur "inherited" underneath. The front door does too, because it is
+    // inherited as well; it just cannot be taken down.
+    for (const name of ['Front door', 'Old kitchen', 'Old sitting room', 'Old scullery', 'Old back room']) {
+      expect(within(grid()).getByText(name)).toBeDefined();
+    }
+    expect(inheritedCells()).toHaveLength(5);
   });
 
   it('offers no legal cell until a plan is chosen (§13)', () => {
     renderPlaying();
     expect(legalCells()).toHaveLength(0);
 
-    fireEvent.click(handButtons()[0] as HTMLElement);
-    // The opening position: four fabric cells plus the eight touching them.
-    expect(legalCells()).toHaveLength(12);
+    // §5 — where a plan can go depends on which half of the plot it belongs to.
+    const indoors = handButtonFor('indoor');
+    if (!indoors) throw new Error('no indoor plan in the opening hand');
+    fireEvent.click(indoors);
+    // The opening position indoors: four old rooms plus the six empty cells
+    // touching the house. Not the front door, which is never on offer.
+    expect(legalCells()).toHaveLength(10);
+    expect(
+      legalCells().map((cell) => (cell.getAttribute('aria-label') ?? '').slice(0, 2)),
+    ).not.toContain('C1');
+  });
+
+  it('offers a garden plan only the garden (§5)', () => {
+    renderPlaying();
+    const outdoors = handButtonFor('outdoor');
+    // The garden tier arrives late, so an opening hand may hold none.
+    if (!outdoors) return;
+
+    fireEvent.click(outdoors);
+    for (const cell of legalCells()) {
+      const row = Number((cell.getAttribute('aria-label') ?? '')[1]);
+      expect(row).toBeGreaterThanOrEqual(4);
+    }
   });
 
   it('clears the highlighting when the plan is deselected', () => {
@@ -157,7 +204,7 @@ describe('a whole game, played through the interface', () => {
 
     expect(screen.getByText(`1 of ${config.rounds}`)).toBeDefined();
     expect(handButtons()).toHaveLength(3);
-    expect(within(grid()).getAllByText('Inherited')).toHaveLength(4);
+    expect(inheritedCells()).toHaveLength(5);
   });
 });
 
@@ -265,10 +312,15 @@ describe('the line, through the interface (§8.6, §13)', () => {
 });
 
 describe('the one confirmation (§7.2, §13)', () => {
-  /** Choose a plan and aim it at a named cell. Returns the plan chosen. */
+  /**
+   * Choose a plan for the house and aim it at a named cell. Returns the plan
+   * chosen — captured before aiming, because the hand is not on screen once the
+   * game has stopped to ask.
+   */
   function aimAt(ref: string): string {
     renderPlaying();
-    const chosen = handButtons()[0] as HTMLElement;
+    const chosen = handButtonFor('indoor');
+    if (!chosen) throw new Error('no indoor plan in the opening hand');
     const name = chosen.querySelector('.plan__name')?.textContent ?? '';
     fireEvent.click(chosen);
 
@@ -290,11 +342,11 @@ describe('the one confirmation (§7.2, §13)', () => {
     aimAt('C3');
     expect(demolition()).not.toBeNull();
     // Nothing has happened yet — the old house is still on the plot.
-    expect(within(grid()).getAllByText('Inherited')).toHaveLength(4);
+    expect(inheritedCells()).toHaveLength(5);
   });
 
   it('does not ask for any other placement', () => {
-    aimAt('C1');
+    aimAt('D2');
     expect(demolition()).toBeNull();
   });
 
@@ -303,14 +355,22 @@ describe('the one confirmation (§7.2, §13)', () => {
     expect(screen.getByText('This cannot be undone.')).toBeDefined();
   });
 
-  it('says what goes with the front door, and only for the front door (§7)', () => {
-    aimAt('B2');
-    expect(asking().querySelector('.demolition__door')).not.toBeNull();
-    expect(asking().textContent).toMatch(/new way in/);
+  it('names the room that is coming down, rather than its grid reference (§12)', () => {
+    aimAt('C3');
+    expect(asking().textContent).toMatch(/old back room/i);
 
     cleanup();
-    aimAt('C3');
-    expect(asking().querySelector('.demolition__door')).toBeNull();
+    aimAt('B2');
+    expect(asking().textContent).toMatch(/old kitchen/i);
+  });
+
+  it('never asks about the front door, because it is never on offer (§7)', () => {
+    aimAt('C1');
+    expect(demolition()).toBeNull();
+    // Still round 1, and nothing has been placed — the click did nothing at all.
+    expect(screen.getByText(`1 of ${config.rounds}`)).toBeDefined();
+    expect(inheritedCells()).toHaveLength(5);
+    expect(within(grid()).getByText('Front door')).toBeDefined();
   });
 
   it('takes it down on Take it down', () => {
@@ -318,7 +378,7 @@ describe('the one confirmation (§7.2, §13)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Take it down' }));
 
     expect(demolition()).toBeNull();
-    expect(within(grid()).getAllByText('Inherited')).toHaveLength(3);
+    expect(inheritedCells()).toHaveLength(4);
   });
 
   it('leaves it standing on Put it somewhere else, with the plan still chosen', () => {
@@ -326,7 +386,7 @@ describe('the one confirmation (§7.2, §13)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Put it somewhere else' }));
 
     expect(demolition()).toBeNull();
-    expect(within(grid()).getAllByText('Inherited')).toHaveLength(4);
+    expect(inheritedCells()).toHaveLength(5);
     expect(screen.getByText(`1 of ${config.rounds}`)).toBeDefined();
     // The plan is still in hand and still selected, so it can go elsewhere.
     expect(document.querySelector('.plan--selected .plan__name')?.textContent).toBe(
@@ -340,7 +400,7 @@ describe('the one confirmation (§7.2, §13)', () => {
     fireEvent.keyDown(window, { key: 'Escape' });
 
     expect(demolition()).toBeNull();
-    expect(within(grid()).getAllByText('Inherited')).toHaveLength(4);
+    expect(inheritedCells()).toHaveLength(5);
   });
 
   it('hides the hand while it is waiting for an answer', () => {

@@ -5,17 +5,17 @@
  * config, which is how the engine gets at content without ever importing
  * `content.ts` — the constraint the fork surface in §16 depends on.
  */
-import type { CellId, Config, GameState, Plan, PlanAdjacency } from '../types.ts';
+import type {
+  CellId,
+  Config,
+  GameState,
+  Plan,
+  PlanAdjacency,
+  PlotContent,
+} from '../types.ts';
 import { type AdjacencyContent, type Neighbour, observationFor } from './adjacency.ts';
 import { drawHand } from './deck.ts';
-import {
-  FABRIC_CELLS,
-  FRONT_DOOR_CELL,
-  isFabric,
-  isLegalCell,
-  orthogonalNeighbours,
-  placementAt,
-} from './grid.ts';
+import { isFabric, isLegalCell, orthogonalNeighbours, placementAt } from './grid.ts';
 import { createRng } from './rng.ts';
 
 export type Action =
@@ -36,8 +36,18 @@ export function createGame(
   deck: readonly PlanAdjacency[],
   config: Config,
   writing: AdjacencyContent,
+  plot: PlotContent,
 ): Game {
   const byId = new Map(deck.map((plan) => [plan.id, plan]));
+
+  /**
+   * §5 — the zone a plan may be placed in. A plan that is not in the deck has
+   * no zone, and no legal cell either, so nothing can be placed for it.
+   */
+  function zoneFor(planId: Plan['id']) {
+    return byId.get(planId)?.zone;
+  }
+
   /**
    * Deal the given round and return the hand alongside the seed the *next* deal
    * should use, so that the whole game is reproducible from one starting number
@@ -66,8 +76,9 @@ export function createGame(
       hand: first.hand,
       selectedPlanId: null,
       placements: [],
-      fabric: [...FABRIC_CELLS],
-      frontDoor: FRONT_DOOR_CELL,
+      fabric: plot.fabric.map((room) => room.cell),
+      frontDoor: plot.frontDoor.cell,
+      gardenFromRow: plot.gardenFromRow,
       observation: null,
       pendingDemolition: null,
       pool,
@@ -84,7 +95,9 @@ export function createGame(
     const planId = state.selectedPlanId;
     if (planId === null) return state;
     if (!state.hand.includes(planId)) return state;
-    if (!isLegalCell(state, cell)) return state;
+    const zone = zoneFor(planId);
+    if (zone === undefined) return state;
+    if (!isLegalCell(state, cell, zone)) return state;
 
     return isFabric(state, cell)
       ? { ...state, pendingDemolition: cell }
@@ -95,7 +108,9 @@ export function createGame(
     const planId = state.selectedPlanId;
     if (planId === null) return state;
     if (!state.hand.includes(planId)) return state;
-    if (!isLegalCell(state, cell)) return state;
+    const zone = zoneFor(planId);
+    if (zone === undefined) return state;
+    if (!isLegalCell(state, cell, zone)) return state;
 
     // §7.2 — placing onto inherited fabric demolishes it. Irreversible: §7.3
     // means there is no way back from here for the rest of the game.
@@ -108,10 +123,9 @@ export function createGame(
     const pool = state.pool.filter((id) => id !== planId);
     const fabric = demolished ? state.fabric.filter((c) => c !== cell) : state.fabric;
 
-    // §7 — demolishing B2 removes the front door, and every later placement is
-    // read against that.
-    const frontDoor =
-      demolished && cell === state.frontDoor ? null : state.frontDoor;
+    // §7 — the front door is not in `fabric` and is never a legal cell, so it
+    // survives whatever else comes down. It is the fixed point the rest of the
+    // house is decided around.
 
     const placed = {
       ...state,
@@ -119,7 +133,6 @@ export function createGame(
       pendingDemolition: null,
       placements,
       fabric,
-      frontDoor,
       pool,
     };
 
@@ -145,7 +158,9 @@ export function createGame(
       if (placement) {
         const plan = byId.get(placement.planId);
         if (plan) neighbours.push({ kind: 'plan', plan });
-      } else if (state.fabric.includes(ref)) {
+      } else if (state.fabric.includes(ref) || ref === state.frontDoor) {
+        // The front door is part of the old house too — insulation against it
+        // is insulation against a solid wall, same as any other old room.
         neighbours.push({ kind: 'fabric' });
       }
     }
