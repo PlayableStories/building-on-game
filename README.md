@@ -7,8 +7,9 @@ look after.
 
 > A home isn't a list of rooms. It's what ended up next to what.
 
-The full design is in [`GDD.md`](GDD.md). The build is staged across milestones M0–M7 in
-[`PLAN.md`](PLAN.md).
+The full design is in [`GDD.md`](GDD.md). The build is staged across milestones M0–M12 in
+[`PLAN.md`](PLAN.md), which also records what the §17 playtest found and what changed
+because of it.
 
 ## Quick start
 
@@ -29,7 +30,7 @@ npm run dev        # http://localhost:5173
 | `npm test` | Run the unit and component tests once |
 | `npm run test:watch` | Run those in watch mode |
 | `npm run test:e2e` | Play a whole game in real Chrome, and write screenshots |
-| `npm run validate` | Check the deck against the rules in GDD §16 |
+| `npm run validate` | Check the content, and the fork surface itself, against GDD §16 |
 
 `npm run test:e2e` drives the Google Chrome already on your machine (Playwright's
 `channel: 'chrome'`), so there is no browser download. It starts the dev server itself and
@@ -38,50 +39,80 @@ leaves screenshots of a full playthrough in `e2e/screenshots/`.
 ## What to fork
 
 This is a workshop sample, so remixability is a design requirement rather than a nicety.
-**Two files hold everything you would want to change:**
+**Two files hold everything you would want to change**, and `npm run validate` checks that
+this is still true rather than merely intended.
 
-- **`src/content.ts`** — the household, the "why now" line, the deck, the qualities, every
-  adjacency line, all consent flags, the report copy and the closing lines.
-- **`src/theme.css`** — every colour, fill, font and spacing value.
+### `src/content.ts` — everything anyone can read
 
-The engine — grid, hand, tier-weighted draw, adjacency lookup, report assembly — lives in
-`src/engine/` and should never need opening. It imports from `src/types.ts` only, never
-from `content.ts`; content is passed in as an argument. That is what keeps the fork
-surface honest.
+| What | Change it to |
+|---|---|
+| `plot` | The building you inherited: which cells are already standing, what each is called, which one can never be built on, and where the ground behind it starts. |
+| `deck` | The 24 plans. Each has a tier, a **zone** (`indoor`/`outdoor`), what it emits and suffers from, a consent flag, and one line each for what you'll have and what it asks. |
+| `situations` | Six circumstances, one drawn per game. Each answers the finished plot in one line. This is the single highest-leverage thing to change. |
+| `pairLines`, `qualityLines`, `causeWords` | Every observation, and the words that name what caused one. |
+| `rules`, `ui`, `premise`, `whyNow` | The objective, and every other word the interface says — button labels, headings, the prompt above the hand. |
+| `closingLines`, `costPhrases`, `consentCare` | What the report says. |
+| `config` | Round count, and the one conservation flag. |
 
-**The test:** swapping the deck for a community centre, a co-op office, a high street or a
-hospice garden should never require opening a file that isn't one of those two.
+### `src/theme.css` — everything anyone can see
+
+Every colour, fill, font size, spacing step and measure is a `:root` custom property. No
+component stylesheet hard-codes a value. (The one exception is the media-query breakpoint
+in `app.css`: CSS cannot read a custom property inside `@media`, and it is commented.)
+
+### What you should not need to open
+
+`src/engine/` — grid, draw, adjacency, consent, report. It imports `src/types.ts` and
+nothing else; content is handed to it as an argument. `npm run validate` fails if that
+stops being true, and fails again if a sentence gets written into a component where a fork
+cannot reach it. Those two checks are the fork surface: without them "you only need to
+change two files" is a claim rather than a fact.
+
+**The test:** swap the deck, the plot and the situations for a community centre, a co-op
+office, a high street or a hospice garden, change some values in `theme.css`, and nothing
+else needs opening. This is run against a real fork before each release — validator,
+type-check, build, the component suite and the whole game in Chrome, all green on content
+that describes a different building.
+
+One honest caveat about the test suites. `src/App.test.tsx` and `e2e/play.spec.ts` test
+*behaviour*, read their labels and cell references out of `content.ts`, and will pass on
+your fork unchanged. The engine tests in `src/engine/` assert particular sentences from
+this deck — that the home farm beside the kitchen says *"A short walk with wet hands"* —
+so they are fixtures rather than a contract, and you should expect to rewrite or delete
+them along with the writing they check.
 
 ### Two remix dials
 
-1. **Reskin** — swap the deck and the household. Same engine, different building,
-   different people.
-2. **Remix** — change what the third report column *is*. Replace *what you'll look after*
+1. **Reskin** — swap the plot, the deck and the situations. Same engine, different
+   building, different people, entirely different game.
+2. **Remix** — change what the second half of each report row *is*. Replace *what it asks*
    with *who this excludes*, or *what this costs the street*, and the game makes a
    completely different argument with identical code.
 
 ## Status
 
-**M5 — demolition, consent and conservation.** The game is playable end to end and every
-mechanic the design argues for is now in it. It opens with why the work is happening and
-who the house is for; then the 5×5 plot with the inherited house on B2/C2/B3/C3, a hand of
-three drawn fresh each round and weighted to the tier, and eight placements — each one
-checked against its neighbours, and each one that has something to say saying it in a
-single line.
+**M12 — the fork surface and the validator.** The game is finished to the scope §18 sets
+out, and the playtest that M7 ran has been answered in full.
 
-Placing onto the old house asks once, and only once: it is the only confirmation in the
-game, because it is the only move that cannot be taken back. Taking down B2 removes the
-front door, and the rest of the game reads against that. Every plan carries a consent flag
-in hand — a fact about the plan, never an outcome; nothing here succeeds or fails.
+It opens on why the work is happening, one situation drawn from six, and a short account
+of how the game works that stays available from the header for the whole game. Then the
+5×5 plot: the front door on C1 that came with the house and cannot be changed, four named
+old rooms behind it, and the garden across rows 4–5. Rooms go in the house and garden
+things go in the garden. Eight placements, each checked against its neighbours, and each
+one with something to say naming what caused it and lighting the two cells it is about.
 
-When the eighth plan lands the house reports back in three columns: what you'll have, what
-it cost, and what you'll look after. The third is the longest, deliberately, and it is
-where the consent obligations land. Below it, one sentence about what kind of house it
-turned out to be, and each member of the household saying one thing about living in it.
-There is no score, and the cost is a phrase rather than a number.
+Placing onto an old room asks once, and only once: the one move that cannot be taken back.
+Every plan carries a consent flag in hand — a fact about the plan, never an outcome.
+
+When the eighth plan lands, the house reports back in three rows. Each thing you gained
+sits beside the thing it will ask of you, for as long as you have it; underneath, the cost
+as a phrase and the two obligations the house itself has taken on. Then one sentence about
+what kind of house it turned out to be, and the situation you started with, answered.
+There is no score anywhere, and no number.
 
 **Play it twice.** Set `conservation: true` in `src/content.ts` and build the same house
-again. The plans are identical, the pleasures are identical, the cost is identical — and
-the obligations are not. That is the argument §9 is making, and it is one config flag.
+again. Same plans, same pleasures, same cost — and different obligations. That is the
+argument §9 is making, and it is one config flag.
 
-Not yet: the deck validator and the finished fork surface (M6), the playtest pass (M7).
+Out of scope by design: discovery (§11), placement animation and polish (§18.8), save and
+load, a seed in the URL, multiple storeys, multi-cell plans, and any score at all.

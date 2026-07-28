@@ -17,14 +17,19 @@
  * still the thing being read.
  */
 import { useEffect } from 'react';
-import type { Observation as ObservationData } from '../types.ts';
+import type { InterfaceCopy, Observation as ObservationData } from '../types.ts';
 
 interface ObservationProps {
   observation: ObservationData;
+  copy: InterfaceCopy['observation'];
   onDismiss: () => void;
 }
 
-export default function Observation({ observation, onDismiss }: ObservationProps) {
+export default function Observation({
+  observation,
+  copy,
+  onDismiss,
+}: ObservationProps) {
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.key !== ' ' && event.key !== 'Enter') return;
@@ -48,7 +53,7 @@ export default function Observation({ observation, onDismiss }: ObservationProps
       <span className="observation__line" role="status">
         {observation.line}
       </span>
-      <span className="observation__dismiss">Click, space or enter</span>
+      <span className="observation__dismiss">{copy.dismiss}</span>
     </button>
   );
 }

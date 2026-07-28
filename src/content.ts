@@ -17,6 +17,7 @@ import type {
   Config,
   ConservationOverrides,
   Consent,
+  InterfaceCopy,
   PairLine,
   Plan,
   PlotContent,
@@ -115,6 +116,72 @@ export const rules: Rules = {
     'The front door is not yours to change. It came with the house.',
     'What you build next to what is the whole game. The house will tell you when it notices something.',
   ],
+};
+
+/**
+ * §16 — every other word the interface says.
+ *
+ * The M12 audit found these hard-coded across seven components, which quietly
+ * broke the promise §16 makes: a participant pointing the game at a hospice
+ * garden has no street, is not "building on" anything, and does not "take down"
+ * a wall. None of it was reachable without opening a `.tsx` file.
+ *
+ * Unglamorous, and it is the difference between a fork and a rewrite.
+ */
+export const ui: InterfaceCopy = {
+  title: 'Building On',
+  begin: 'Begin',
+
+  rules: {
+    open: 'How this works',
+    heading: 'How this works',
+    close: 'Back to the house',
+  },
+
+  prompt: {
+    choose: 'Choose one of three. The other two are gone.',
+    // §5 — naming the zone here, because it is the rule a player is most
+    // likely to be caught out by in the middle of a round.
+    place: {
+      indoor:
+        'It goes in the house, touching what is already built. You cannot move it later.',
+      outdoor:
+        'It goes in the garden, touching what is already there. You cannot move it later.',
+    },
+  },
+
+  plot: {
+    street: 'The street',
+    garden: 'The garden',
+    sun: '· sun from the south',
+    inherited: 'inherited',
+    empty: 'empty',
+    fixed: 'cannot be taken down',
+  },
+
+  observation: {
+    dismiss: 'Click, space or enter',
+  },
+
+  demolition: {
+    line: (standing, cell, plan) =>
+      `The ${standing.toLowerCase()} at ${cell} is part of the house you were left. ` +
+      `Putting the ${plan.toLowerCase()} there takes it down.`,
+    note: 'This cannot be undone.',
+    confirm: 'Take it down',
+    cancel: 'Put it somewhere else',
+  },
+
+  report: {
+    finished: 'The house is finished.',
+    have: 'What you’ll have',
+    // §10.2's own phrase is "what you'll look after". Beside "what you'll have"
+    // on the same row, this does the same job in fewer words.
+    care: 'What it asks',
+    cost: 'Cost',
+    obligations: 'Also',
+    again: 'Build again',
+  },
 };
 
 /**
@@ -637,7 +704,21 @@ export const deck: Plan[] = [
     name: 'Air conditioning unit',
     tier: 'wildcard',
     zone: 'indoor',
-    consent: 'householder',
+    /**
+     * §9.1 — the second `sensitive` in the deck, and the answer to a finding
+     * the M7 measurements turned up: with the glass extension as its only
+     * source, the flag fired 0.4 times a game, so a player could play three
+     * games and never meet it. One flag in four doing almost nothing is content
+     * thinness rather than a design position.
+     *
+     * This is the defensible one to change. An external condenser is plant
+     * bolted to a wall that runs in the evenings — noise limits, siting and
+     * hours are exactly what a condition gets attached to. Everything else in
+     * the deck is either plainly permitted or plainly a householder
+     * application, and inflating the flag by pretending otherwise would make
+     * §9 dishonest to buy a nicer distribution.
+     */
+    consent: 'sensitive',
     have: 'One room that is bearable in the week it matters.',
     cost: 'moderate',
     care: 'A filter, a service, and a running cost that lands in the hottest month.',

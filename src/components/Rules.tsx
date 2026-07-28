@@ -13,10 +13,11 @@
  * the round underneath is exactly where it was left.
  */
 import { useEffect } from 'react';
-import type { Rules as RulesContent } from '../types.ts';
+import type { InterfaceCopy, Rules as RulesContent } from '../types.ts';
 
 interface RulesProps {
   rules: RulesContent;
+  copy: InterfaceCopy['rules'];
   /**
    * Standing open over a game in progress, rather than sitting inside the
    * intro. Only then is there anything to close it and go back to.
@@ -24,7 +25,7 @@ interface RulesProps {
   onClose?: () => void;
 }
 
-export default function Rules({ rules, onClose }: RulesProps) {
+export default function Rules({ rules, copy, onClose }: RulesProps) {
   useEffect(() => {
     if (!onClose) return;
     function onKeyDown(event: KeyboardEvent) {
@@ -40,9 +41,9 @@ export default function Rules({ rules, onClose }: RulesProps) {
   return (
     <section
       className={`rules${onClose ? ' rules--open' : ''}`}
-      aria-label="How this works"
+      aria-label={copy.heading}
     >
-      <h2 className="rules__heading">How this works</h2>
+      <h2 className="rules__heading">{copy.heading}</h2>
       <p className="rules__objective">{rules.objective}</p>
 
       <ul className="rules__list">
@@ -55,7 +56,7 @@ export default function Rules({ rules, onClose }: RulesProps) {
 
       {onClose && (
         <button type="button" className="button button--quiet" onClick={onClose} autoFocus>
-          Back to the house
+          {copy.close}
         </button>
       )}
     </section>

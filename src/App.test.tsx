@@ -5,11 +5,20 @@ import {
   config,
   consentLabels,
   deck,
+  plot,
   premise,
   rules,
   situations,
+  ui,
   whyNow,
 } from './content.ts';
+
+/** Everything standing at the start: the fixed entrance plus the old rooms. */
+const inherited = [plot.frontDoor, ...plot.fabric];
+const ROOM = plot.fabric[0]!.cell;
+const OTHER_ROOM = plot.fabric[1]!.cell;
+const DOOR = plot.frontDoor.cell;
+
 
 afterEach(cleanup);
 
@@ -18,7 +27,7 @@ const planNames = new Set(deck.map((plan) => plan.name));
 /** Render, then dismiss the framing (§2) to get to round 1. */
 function renderPlaying() {
   render(<App />);
-  fireEvent.click(screen.getByRole('button', { name: 'Begin' }));
+  fireEvent.click(screen.getByRole('button', { name: ui.begin }));
 }
 
 function grid() {
@@ -58,7 +67,7 @@ function handButtonFor(zone: 'indoor' | 'outdoor'): HTMLElement | null {
 
 /** The small quiet label under every cell that came with the house. */
 function inheritedCells() {
-  return within(grid()).getAllByText('inherited');
+  return within(grid()).getAllByText(ui.plot.inherited);
 }
 
 function observation() {
@@ -75,7 +84,7 @@ function demolition() {
  */
 function confirmDemolition() {
   const asking = demolition();
-  if (asking) fireEvent.click(screen.getByRole('button', { name: 'Take it down' }));
+  if (asking) fireEvent.click(screen.getByRole('button', { name: ui.demolition.confirm }));
 }
 
 /**
@@ -104,10 +113,10 @@ describe('a whole game, played through the interface', () => {
     // §12 — the old rooms say what they are, in the same face as any placement,
     // and murmur "inherited" underneath. The front door does too, because it is
     // inherited as well; it just cannot be taken down.
-    for (const name of ['Front door', 'Old kitchen', 'Old sitting room', 'Old scullery', 'Old back room']) {
+    for (const { name } of inherited) {
       expect(within(grid()).getByText(name)).toBeDefined();
     }
-    expect(inheritedCells()).toHaveLength(5);
+    expect(inheritedCells()).toHaveLength(inherited.length);
   });
 
   it('offers no legal cell until a plan is chosen (§13)', () => {
@@ -118,12 +127,12 @@ describe('a whole game, played through the interface', () => {
     const indoors = handButtonFor('indoor');
     if (!indoors) throw new Error('no indoor plan in the opening hand');
     fireEvent.click(indoors);
-    // The opening position indoors: four old rooms plus the six empty cells
-    // touching the house. Not the front door, which is never on offer.
-    expect(legalCells()).toHaveLength(10);
+    // The old rooms, plus every empty indoor cell touching what is standing.
+    // Never the front door, whichever cell that is.
+    expect(legalCells().length).toBeGreaterThanOrEqual(plot.fabric.length);
     expect(
-      legalCells().map((cell) => (cell.getAttribute('aria-label') ?? '').slice(0, 2)),
-    ).not.toContain('C1');
+      legalCells().map((cell) => (cell.getAttribute('aria-label') ?? '').split(',')[0]),
+    ).not.toContain(plot.frontDoor.cell);
   });
 
   it('offers a garden plan only the garden (§5)', () => {
@@ -172,7 +181,7 @@ describe('a whole game, played through the interface', () => {
     }
 
     // §15 — the game ends when the last plan is placed. No score, no verdict.
-    expect(screen.getByText('The house is finished.')).toBeDefined();
+    expect(screen.getByText(ui.report.finished)).toBeDefined();
     expect(screen.queryByText(`${config.rounds} of ${config.rounds}`)).toBeNull();
   });
 
@@ -197,15 +206,15 @@ describe('a whole game, played through the interface', () => {
       playRound();
     }
 
-    fireEvent.click(screen.getByRole('button', { name: 'Build again' }));
+    fireEvent.click(screen.getByRole('button', { name: ui.report.again }));
 
     // A new game is a new round 1, so the framing comes back with it.
     expect(screen.getByText(whyNow)).toBeDefined();
-    fireEvent.click(screen.getByRole('button', { name: 'Begin' }));
+    fireEvent.click(screen.getByRole('button', { name: ui.begin }));
 
     expect(screen.getByText(`1 of ${config.rounds}`)).toBeDefined();
     expect(handButtons()).toHaveLength(3);
-    expect(inheritedCells()).toHaveLength(5);
+    expect(inheritedCells()).toHaveLength(inherited.length);
   });
 });
 
@@ -267,7 +276,7 @@ describe('the rules, during play (§13)', () => {
   }
 
   function rulesButton() {
-    return screen.getByRole('button', { name: 'How this works' });
+    return screen.getByRole('button', { name: ui.rules.open });
   }
 
   it('is not up until it is asked for', () => {
@@ -296,7 +305,7 @@ describe('the rules, during play (§13)', () => {
     expect(rulesCard()).toBeNull();
 
     fireEvent.click(rulesButton());
-    fireEvent.click(screen.getByRole('button', { name: 'Back to the house' }));
+    fireEvent.click(screen.getByRole('button', { name: ui.rules.close }));
     expect(rulesCard()).toBeNull();
 
     fireEvent.click(rulesButton());
@@ -313,7 +322,7 @@ describe('the rules, during play (§13)', () => {
     const chosen = document.querySelector('.plan--selected .plan__name')?.textContent;
 
     fireEvent.click(rulesButton());
-    fireEvent.click(screen.getByRole('button', { name: 'Back to the house' }));
+    fireEvent.click(screen.getByRole('button', { name: ui.rules.close }));
 
     expect(screen.getByText(`1 of ${config.rounds}`)).toBeDefined();
     expect(legalCells()).toHaveLength(before);
@@ -334,15 +343,26 @@ describe('the rules, during play (§13)', () => {
 
 describe('the line, through the interface (§8.6, §13)', () => {
   /** Play until a placement actually says something, then stop on it. */
+  /**
+   * §8.6 — silence is a valid result, and about 3 games in 400 say nothing at
+   * all. The seed is fresh on every render, so one attempt would leave every
+   * test here with a small chance of failing for a reason that is not a bug.
+   */
   function playUntilLine(): Element {
-    for (let round = 1; round <= config.rounds; round++) {
-      fireEvent.click(handButtons()[0] as HTMLElement);
-      fireEvent.click(legalCells()[0] as HTMLElement);
-      confirmDemolition();
-      const line = observation();
-      if (line) return line;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      if (attempt > 1) {
+        cleanup();
+        renderPlaying();
+      }
+      for (let round = 1; round <= config.rounds; round++) {
+        fireEvent.click(handButtons()[0] as HTMLElement);
+        fireEvent.click(legalCells()[0] as HTMLElement);
+        confirmDemolition();
+        const line = observation();
+        if (line) return line;
+      }
     }
-    throw new Error('no placement in a whole game said anything');
+    throw new Error('no placement in three whole games said anything');
   }
 
   it('shows one line, and holds the round on it', () => {
@@ -437,20 +457,23 @@ describe('the line, through the interface (§8.6, §13)', () => {
   });
 
   it('lights the neighbour too, whenever a neighbour caused it', () => {
-    renderPlaying();
+    // Some games say nothing but orientation lines, which are about the row
+    // rather than about anything next door. Three fresh games rather than one,
+    // for the same reason `playUntilLine` takes three.
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      cleanup();
+      renderPlaying();
 
-    // Play until something fires that is about a neighbour rather than a row.
-    for (let round = 1; round <= config.rounds; round++) {
-      fireEvent.click(handButtons()[0] as HTMLElement);
-      fireEvent.click(legalCells()[0] as HTMLElement);
-      confirmDemolition();
+      for (let round = 1; round <= config.rounds; round++) {
+        fireEvent.click(handButtons()[0] as HTMLElement);
+        fireEvent.click(legalCells()[0] as HTMLElement);
+        confirmDemolition();
 
-      const line = observation();
-      if (line) {
+        const line = observation();
+        if (!line) continue;
+
         const causes = cells().filter((cell) => cell.classList.contains('cell--cause'));
         const cause = line.querySelector('.observation__cause')?.textContent ?? '';
-        // An orientation line is about the row, so it lights nothing next door
-        // — and says so, by naming what it faces instead of what it is beside.
         if (causes.length > 0) {
           for (const lit of causes) {
             const name = lit.querySelector('.cell__name')?.textContent ?? '';
@@ -458,10 +481,12 @@ describe('the line, through the interface (§8.6, §13)', () => {
           }
           return;
         }
+        // An orientation line lights nothing next door — and says so, by naming
+        // what it faces instead of what it is beside. Read on.
         fireEvent.click(line);
       }
     }
-    throw new Error('no line in a whole game was caused by a neighbour');
+    throw new Error('no line in three whole games was caused by a neighbour');
   });
 
   it('stops dimming the plot once the line has been read', () => {
@@ -487,12 +512,30 @@ describe('the one confirmation (§7.2, §13)', () => {
     const name = chosen.querySelector('.plan__name')?.textContent ?? '';
     fireEvent.click(chosen);
 
-    const target = cells().find((cell) =>
-      (cell.getAttribute('aria-label') ?? '').startsWith(ref),
+    const target = cells().find(
+      (cell) => (cell.getAttribute('aria-label') ?? '').split(',')[0] === ref,
     );
     if (!target) throw new Error(`no cell ${ref}`);
     fireEvent.click(target);
     return name;
+  }
+
+  /**
+   * An empty cell that is legal at the opening — somewhere an ordinary
+   * placement can go. Derived rather than named, so this reads against whatever
+   * plot `content.ts` describes.
+   */
+  function clearCell(): string {
+    renderPlaying();
+    const chosen = handButtonFor('indoor');
+    if (!chosen) throw new Error('no indoor plan in the opening hand');
+    fireEvent.click(chosen);
+    const ref = legalCells()
+      .map((cell) => (cell.getAttribute('aria-label') ?? '').split(',')[0] as string)
+      .find((one) => !plot.fabric.some((room) => room.cell === one));
+    cleanup();
+    if (!ref) throw new Error('no clear indoor cell at the opening');
+    return ref;
   }
 
   function asking() {
@@ -502,54 +545,58 @@ describe('the one confirmation (§7.2, §13)', () => {
   }
 
   it('asks before taking any of the old house down', () => {
-    aimAt('C3');
+    aimAt(ROOM);
     expect(demolition()).not.toBeNull();
     // Nothing has happened yet — the old house is still on the plot.
-    expect(inheritedCells()).toHaveLength(5);
+    expect(inheritedCells()).toHaveLength(inherited.length);
   });
 
   it('does not ask for any other placement', () => {
-    aimAt('D2');
+    aimAt(clearCell());
     expect(demolition()).toBeNull();
   });
 
   it('says plainly that it cannot be undone', () => {
-    aimAt('C3');
-    expect(screen.getByText('This cannot be undone.')).toBeDefined();
+    aimAt(ROOM);
+    expect(screen.getByText(ui.demolition.note)).toBeDefined();
   });
 
   it('names the room that is coming down, rather than its grid reference (§12)', () => {
-    aimAt('C3');
-    expect(asking().textContent).toMatch(/old back room/i);
+    aimAt(ROOM);
+    expect(asking().textContent?.toLowerCase()).toContain(
+      (plot.fabric[0] as { name: string }).name.toLowerCase(),
+    );
 
     cleanup();
-    aimAt('B2');
-    expect(asking().textContent).toMatch(/old kitchen/i);
+    aimAt(OTHER_ROOM);
+    expect(asking().textContent?.toLowerCase()).toContain(
+      (plot.fabric[1] as { name: string }).name.toLowerCase(),
+    );
   });
 
   it('never asks about the front door, because it is never on offer (§7)', () => {
-    aimAt('C1');
+    aimAt(DOOR);
     expect(demolition()).toBeNull();
     // Still round 1, and nothing has been placed — the click did nothing at all.
     expect(screen.getByText(`1 of ${config.rounds}`)).toBeDefined();
-    expect(inheritedCells()).toHaveLength(5);
-    expect(within(grid()).getByText('Front door')).toBeDefined();
+    expect(inheritedCells()).toHaveLength(inherited.length);
+    expect(within(grid()).getByText(plot.frontDoor.name)).toBeDefined();
   });
 
   it('takes it down on Take it down', () => {
-    aimAt('C3');
-    fireEvent.click(screen.getByRole('button', { name: 'Take it down' }));
+    aimAt(ROOM);
+    fireEvent.click(screen.getByRole('button', { name: ui.demolition.confirm }));
 
     expect(demolition()).toBeNull();
-    expect(inheritedCells()).toHaveLength(4);
+    expect(inheritedCells()).toHaveLength(inherited.length - 1);
   });
 
   it('leaves it standing on Put it somewhere else, with the plan still chosen', () => {
-    const chosen = aimAt('C3');
-    fireEvent.click(screen.getByRole('button', { name: 'Put it somewhere else' }));
+    const chosen = aimAt(ROOM);
+    fireEvent.click(screen.getByRole('button', { name: ui.demolition.cancel }));
 
     expect(demolition()).toBeNull();
-    expect(inheritedCells()).toHaveLength(5);
+    expect(inheritedCells()).toHaveLength(inherited.length);
     expect(screen.getByText(`1 of ${config.rounds}`)).toBeDefined();
     // The plan is still in hand and still selected, so it can go elsewhere.
     expect(document.querySelector('.plan--selected .plan__name')?.textContent).toBe(
@@ -559,15 +606,15 @@ describe('the one confirmation (§7.2, §13)', () => {
   });
 
   it('backs out on Escape', () => {
-    aimAt('C3');
+    aimAt(ROOM);
     fireEvent.keyDown(window, { key: 'Escape' });
 
     expect(demolition()).toBeNull();
-    expect(inheritedCells()).toHaveLength(5);
+    expect(inheritedCells()).toHaveLength(inherited.length);
   });
 
   it('hides the hand while it is waiting for an answer', () => {
-    aimAt('C3');
+    aimAt(ROOM);
     expect(handButtons()).toHaveLength(0);
     // The plot stays visible — you can see what you are about to take down.
     expect(cells()).toHaveLength(25);
@@ -702,7 +749,7 @@ describe('the report, when the eighth plan lands (§10)', () => {
 
   it('clears the report on Build again (§14)', () => {
     playToTheEnd();
-    fireEvent.click(screen.getByRole('button', { name: 'Build again' }));
+    fireEvent.click(screen.getByRole('button', { name: ui.report.again }));
     expect(document.querySelector('.report')).toBeNull();
   });
 });

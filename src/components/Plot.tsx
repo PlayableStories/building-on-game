@@ -17,6 +17,7 @@ import {
   ROWS,
   type CellId,
   type GameState,
+  type InterfaceCopy,
   type PlanIdentity,
   type PlotContent,
 } from '../types.ts';
@@ -27,10 +28,12 @@ interface PlotProps {
   deck: readonly PlanIdentity[];
   /** §5 — what the inherited cells are called. */
   plot: PlotContent;
+  /** §16 — every word on and around the plot. */
+  copy: InterfaceCopy['plot'];
   onPlace: (cell: CellId) => void;
 }
 
-export default function Plot({ state, deck, plot, onPlace }: PlotProps) {
+export default function Plot({ state, deck, plot, copy, onPlace }: PlotProps) {
   const byId = new Map(deck.map((plan) => [plan.id, plan]));
 
   /**
@@ -56,7 +59,7 @@ export default function Plot({ state, deck, plot, onPlace }: PlotProps) {
 
   return (
     <div className={`plot${state.observation ? ' plot--reading' : ''}`}>
-      <p className="plot__edge plot__edge--street">The street</p>
+      <p className="plot__edge plot__edge--street">{copy.street}</p>
 
       <div className="plot__frame">
         <div className="plot__grid" role="grid" aria-label="The plot">
@@ -99,15 +102,17 @@ export default function Plot({ state, deck, plot, onPlace }: PlotProps) {
                   onClick={() => onPlace(cell)}
                   aria-label={
                     name
-                      ? `${cell}, ${name}${inherited ? ', inherited' : ''}${
-                          isDoor ? ', cannot be taken down' : ''
+                      ? `${cell}, ${name}${inherited ? `, ${copy.inherited}` : ''}${
+                          isDoor ? `, ${copy.fixed}` : ''
                         }`
-                      : `${cell}, empty`
+                      : `${cell}, ${copy.empty}`
                   }
                 >
                   <span className="cell__ref">{cell}</span>
                   <span className="cell__name">{name}</span>
-                  {inherited && <span className="cell__inherited">inherited</span>}
+                  {inherited && (
+                    <span className="cell__inherited">{copy.inherited}</span>
+                  )}
                 </button>
               );
             }),
@@ -116,7 +121,7 @@ export default function Plot({ state, deck, plot, onPlace }: PlotProps) {
       </div>
 
       <p className="plot__edge plot__edge--garden">
-        The garden <span className="plot__sun">· sun from the south</span>
+        {copy.garden} <span className="plot__sun">{copy.sun}</span>
       </p>
     </div>
   );

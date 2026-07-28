@@ -12,7 +12,11 @@
  * pool by the game's seed — the framing is quieter, and what is left of it is
  * the part a player actually carries into the first placement.
  */
-import type { Rules as RulesContent, SituationIntro } from '../types.ts';
+import type {
+  InterfaceCopy,
+  Rules as RulesContent,
+  SituationIntro,
+} from '../types.ts';
 import Rules from './Rules.tsx';
 
 interface IntroProps {
@@ -20,10 +24,18 @@ interface IntroProps {
   whyNow: string;
   situation: SituationIntro | undefined;
   rules: RulesContent;
+  copy: InterfaceCopy;
   onBegin: () => void;
 }
 
-export default function Intro({ premise, whyNow, situation, rules, onBegin }: IntroProps) {
+export default function Intro({
+  premise,
+  whyNow,
+  situation,
+  rules,
+  copy,
+  onBegin,
+}: IntroProps) {
   return (
     <section className="intro">
       {/* §2 — the background, and deliberately the smallest thing here. */}
@@ -33,10 +45,10 @@ export default function Intro({ premise, whyNow, situation, rules, onBegin }: In
       {/* …and the situation, which is the part that has to survive to round 8. */}
       {situation && <p className="intro__situation">{situation.line}</p>}
 
-      <Rules rules={rules} />
+      <Rules rules={rules} copy={copy.rules} />
 
       <button type="button" className="button" onClick={onBegin} autoFocus>
-        Begin
+        {copy.begin}
       </button>
     </section>
   );

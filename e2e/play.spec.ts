@@ -1,4 +1,21 @@
 import { expect, test, type Page } from '@playwright/test';
+import { config, plot, premise, ui } from '../src/content.ts';
+
+/** Read against whatever plot `content.ts` describes, not against this one. */
+const ROOM = plot.fabric[0]!.cell;
+/** An empty cell that is legal at the opening — somewhere ordinary to build. */
+async function clearCell(page: Page): Promise<string> {
+  await handFor(page, 'indoor').first().click();
+  const refs = await legalCells(page).evaluateAll((cells) =>
+    cells.map((cell) => (cell.getAttribute('aria-label') ?? '').split(',')[0] as string),
+  );
+  const ref = refs.find((one) => !STANDING.includes(one));
+  if (!ref) throw new Error('no clear indoor cell at the opening');
+  return ref;
+}
+const OTHER_ROOM = plot.fabric[1]!.cell;
+const DOOR = plot.frontDoor.cell;
+const STANDING: string[] = [DOOR, ...plot.fabric.map((one) => one.cell)];
 
 /**
  * A whole game, in a real browser.
@@ -10,12 +27,12 @@ import { expect, test, type Page } from '@playwright/test';
  * just a disabled attribute.
  */
 
-const ROUNDS = 8;
+const ROUNDS = config.rounds;
 
 /** Load the game and dismiss the framing (§2) to reach round 1. */
 async function start(page: Page) {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Begin' }).click();
+  await page.getByRole('button', { name: ui.begin }).click();
 }
 
 function cell(page: Page, ref: string) {
@@ -52,7 +69,7 @@ function demolition(page: Page) {
  */
 async function confirmDemolition(page: Page) {
   if ((await demolition(page).count()) > 0) {
-    await page.getByRole('button', { name: 'Take it down' }).click();
+    await page.getByRole('button', { name: ui.demolition.confirm }).click();
   }
 }
 
@@ -124,24 +141,18 @@ test.describe('the plot (§5, §12)', () => {
 
     // §12 — each old room says what it is, in the same face as any placement,
     // with "inherited" small and quiet underneath.
-    const rooms: Record<string, string> = {
-      B2: 'Old kitchen',
-      C2: 'Old sitting room',
-      B3: 'Old scullery',
-      C3: 'Old back room',
-    };
-    for (const [ref, name] of Object.entries(rooms)) {
-      await expect(cell(page, ref)).toContainText(name);
-      await expect(cell(page, ref)).toContainText('inherited');
+    for (const room of plot.fabric) {
+      await expect(cell(page, room.cell)).toContainText(room.name);
+      await expect(cell(page, room.cell)).toContainText(ui.plot.inherited);
     }
 
     // §7 — the front door, on the street, printed like any other room.
-    await expect(cell(page, 'C1')).toContainText('Front door');
-    await expect(cell(page, 'C1')).toContainText('inherited');
+    await expect(cell(page, plot.frontDoor.cell)).toContainText(plot.frontDoor.name);
+    await expect(cell(page, plot.frontDoor.cell)).toContainText(ui.plot.inherited);
 
     // The name is the loud part and "inherited" is the quiet one, not the other
     // way round — the emphasis this milestone exists to swap.
-    const sizes = await cell(page, 'C1').evaluate((element) => ({
+    const sizes = await cell(page, plot.frontDoor.cell).evaluate((element) => ({
       name: parseFloat(
         getComputedStyle(element.querySelector('.cell__name') as Element).fontSize,
       ),
@@ -174,10 +185,10 @@ test.describe('placement (§13)', () => {
     const before = await background(page, '.cell--empty');
     await handFor(page, 'indoor').first().click();
 
-    // Four old rooms plus the six empty indoor cells touching the house. Not
-    // the front door, which is never on offer to anything.
-    await expect(legalCells(page)).toHaveCount(10);
-    await expect(cell(page, 'C1')).toBeDisabled();
+    // The old rooms, plus every empty indoor cell touching what is standing —
+    // never the front door, whichever cell that is.
+    expect(await legalCells(page).count()).toBeGreaterThanOrEqual(plot.fabric.length);
+    await expect(cell(page, DOOR)).toBeDisabled();
 
     const after = await background(page, '.cell--legal');
     expect(after).not.toBe(before);
@@ -208,20 +219,19 @@ test.describe('placement (§13)', () => {
   test('places on click and cannot be undone (§7.3)', async ({ page }) => {
     await start(page);
 
-    const chosen = handFor(page, 'indoor').first();
-    const name = await chosen.locator('.plan__name').innerText();
-    await chosen.click();
-    await cell(page, 'D2').click();
+    const ref = await clearCell(page);
+    const name = await handFor(page, 'indoor').first().locator('.plan__name').innerText();
+    await cell(page, ref).click();
 
     // The block is on the plot before the line is read — you see what you did.
-    await expect(cell(page, 'D2')).toContainText(name);
+    await expect(cell(page, ref)).toContainText(name);
     if ((await observation(page).count()) > 0) await observation(page).click();
 
     await expect(page.getByText(`2 of ${ROUNDS}`)).toBeVisible();
 
     // Placed cells are never offered again.
     await hand(page).first().click();
-    await expect(cell(page, 'D2')).toBeDisabled();
+    await expect(cell(page, ref)).toBeDisabled();
   });
 });
 
@@ -239,7 +249,7 @@ test.describe('a whole game (§15)', () => {
       await playRound(page);
     }
 
-    await expect(page.getByText('The house is finished.')).toBeVisible();
+    await expect(page.getByText(ui.report.finished)).toBeVisible();
     await expect(page.locator('.cell--placed')).toHaveCount(ROUNDS);
 
     // §10.1 — nothing is totalled or displayed during play.
@@ -258,15 +268,15 @@ test.describe('a whole game (§15)', () => {
       await playRound(page);
     }
 
-    await page.getByRole('button', { name: 'Build again' }).click();
+    await page.getByRole('button', { name: ui.report.again }).click();
 
     // A new game is a new round 1, so the framing comes back with it.
     await expect(page.locator('.intro')).toBeVisible();
-    await page.getByRole('button', { name: 'Begin' }).click();
+    await page.getByRole('button', { name: ui.begin }).click();
 
     await expect(page.getByText(`1 of ${ROUNDS}`)).toBeVisible();
     await expect(page.locator('.cell--placed')).toHaveCount(0);
-    await expect(page.locator('.cell--fabric')).toHaveCount(4);
+    await expect(page.locator('.cell--fabric')).toHaveCount(plot.fabric.length);
   });
 });
 
@@ -284,15 +294,16 @@ test.describe('the one confirmation (§7.2, §13)', () => {
   test('asks before taking any of the old house down, and not otherwise', async ({
     page,
   }) => {
-    await aimAt(page, 'C3');
+    await aimAt(page, ROOM);
     await expect(demolition(page)).toBeVisible();
     // Nothing has happened yet — all four cells of the old house are standing.
-    await expect(page.locator('.cell--fabric')).toHaveCount(4);
+    await expect(page.locator('.cell--fabric')).toHaveCount(plot.fabric.length);
     await expect(page.locator('.cell--placed')).toHaveCount(0);
   });
 
   test('does not ask for an ordinary placement', async ({ page }) => {
-    await aimAt(page, 'D2');
+    await start(page);
+    await aimAt(page, await clearCell(page));
     await expect(demolition(page)).toHaveCount(0);
     await expect(page.locator('.cell--placed')).toHaveCount(1);
   });
@@ -300,48 +311,52 @@ test.describe('the one confirmation (§7.2, §13)', () => {
   test('keeps the plot visible, so you can see what you are about to take down', async ({
     page,
   }) => {
-    await aimAt(page, 'C3');
+    await aimAt(page, ROOM);
     await expect(page.getByRole('gridcell')).toHaveCount(25);
     // The hand waits until it has an answer.
     await expect(hand(page)).toHaveCount(0);
   });
 
   test('takes it down on Take it down', async ({ page }) => {
-    const name = await aimAt(page, 'C3');
-    await page.getByRole('button', { name: 'Take it down' }).click();
+    const name = await aimAt(page, ROOM);
+    await page.getByRole('button', { name: ui.demolition.confirm }).click();
 
     await expect(demolition(page)).toHaveCount(0);
-    await expect(page.locator('.cell--fabric')).toHaveCount(3);
-    await expect(cell(page, 'C3')).toContainText(name);
+    await expect(page.locator('.cell--fabric')).toHaveCount(plot.fabric.length - 1);
+    await expect(cell(page, ROOM)).toContainText(name);
   });
 
   test('leaves it standing on Put it somewhere else, and on Escape', async ({ page }) => {
-    await aimAt(page, 'C3');
-    await page.getByRole('button', { name: 'Put it somewhere else' }).click();
+    await aimAt(page, ROOM);
+    await page.getByRole('button', { name: ui.demolition.cancel }).click();
 
     await expect(demolition(page)).toHaveCount(0);
-    await expect(page.locator('.cell--fabric')).toHaveCount(4);
+    await expect(page.locator('.cell--fabric')).toHaveCount(plot.fabric.length);
     await expect(page.locator('.cell--placed')).toHaveCount(0);
     // Still round 1, still holding the plan, so it can go somewhere else.
     await expect(page.getByText(`1 of ${ROUNDS}`)).toBeVisible();
     await expect(page.locator('.plan--selected')).toHaveCount(1);
 
-    await cell(page, 'C3').click();
+    await cell(page, ROOM).click();
     await expect(demolition(page)).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(demolition(page)).toHaveCount(0);
-    await expect(page.locator('.cell--fabric')).toHaveCount(4);
+    await expect(page.locator('.cell--fabric')).toHaveCount(plot.fabric.length);
   });
 
   test('names the room coming down rather than its grid reference (§12)', async ({
     page,
   }) => {
-    await aimAt(page, 'B2');
-    await expect(demolition(page)).toContainText(/old kitchen/i);
+    await aimAt(page, OTHER_ROOM);
+    await expect(demolition(page)).toContainText(
+      new RegExp(plot.fabric[1]!.name, 'i'),
+    );
     await page.keyboard.press('Escape');
 
-    await cell(page, 'C3').click();
-    await expect(demolition(page)).toContainText(/old back room/i);
+    await cell(page, ROOM).click();
+    await expect(demolition(page)).toContainText(
+      new RegExp(plot.fabric[0]!.name, 'i'),
+    );
   });
 
   test('never asks about the front door, because it never offers it (§7)', async ({
@@ -352,7 +367,7 @@ test.describe('the one confirmation (§7.2, §13)', () => {
 
     // Not merely unhighlighted — not clickable at all. The one cell in the game
     // that is never a decision.
-    await expect(cell(page, 'C1')).toBeDisabled();
+    await expect(cell(page, DOOR)).toBeDisabled();
     await expect(demolition(page)).toHaveCount(0);
     await expect(page.locator('.cell--placed')).toHaveCount(0);
     await expect(page.getByText(`1 of ${ROUNDS}`)).toBeVisible();
@@ -362,8 +377,8 @@ test.describe('the one confirmation (§7.2, §13)', () => {
     await start(page);
     for (let round = 1; round <= ROUNDS; round++) await playRound(page);
 
-    await expect(cell(page, 'C1')).toContainText('Front door');
-    await expect(cell(page, 'C1')).toContainText('inherited');
+    await expect(cell(page, DOOR)).toContainText(plot.frontDoor.name);
+    await expect(cell(page, DOOR)).toContainText(ui.plot.inherited);
   });
 });
 
@@ -473,7 +488,7 @@ test.describe('the report (§10)', () => {
     await playToTheEnd(page);
     const cost = await page
       .locator('.report__note')
-      .filter({ hasText: 'Cost' })
+      .filter({ hasText: ui.report.cost })
       .locator('.report__note-line')
       .innerText();
     expect(cost).not.toMatch(/\d/);
@@ -487,7 +502,7 @@ test.describe('the report (§10)', () => {
     // against the question rather than merely for being non-empty.
     await page.goto('/');
     const question = await page.locator('.intro__situation').innerText();
-    await page.getByRole('button', { name: 'Begin' }).click();
+    await page.getByRole('button', { name: ui.begin }).click();
     for (let round = 1; round <= ROUNDS; round++) await playRound(page);
 
     await expect(page.locator('.report__closing')).toBeVisible();
@@ -522,14 +537,14 @@ test.describe('the framing (§2, §13, §14)', () => {
     await page.goto('/');
 
     // Why the work is happening at all, and the one situation it is for.
-    await expect(page.getByText('Someone left you a house.')).toBeVisible();
+    await expect(page.getByText(premise)).toBeVisible();
     await expect(page.locator('.intro__situation')).toHaveCount(1);
 
     // Nothing to play with yet.
     await expect(page.getByRole('grid')).toHaveCount(0);
     await expect(page.locator('.plan')).toHaveCount(0);
 
-    await page.getByRole('button', { name: 'Begin' }).click();
+    await page.getByRole('button', { name: ui.begin }).click();
 
     await expect(page.getByRole('grid')).toBeVisible();
     await expect(page.locator('.intro')).toHaveCount(0);
@@ -561,7 +576,7 @@ test.describe('the framing (§2, §13, §14)', () => {
     expect(intro).toContain('no way to lose');
     expect(intro).toContain('taken down');
 
-    await page.getByRole('button', { name: 'Begin' }).click();
+    await page.getByRole('button', { name: ui.begin }).click();
     await expect(page.locator('.rules--open')).toHaveCount(0);
 
     // Mid-round, with a plan chosen: the rules open over the top and the round
@@ -569,7 +584,7 @@ test.describe('the framing (§2, §13, §14)', () => {
     await hand(page).first().click();
     const legal = await legalCells(page).count();
 
-    await page.getByRole('button', { name: 'How this works' }).click();
+    await page.getByRole('button', { name: ui.rules.open }).click();
     const card = page.locator('.rules--open');
     await expect(card).toBeVisible();
     await expect(card).toContainText('no way to lose');
@@ -587,14 +602,27 @@ test.describe('the framing (§2, §13, §14)', () => {
 
 test.describe('the line (§8.6, §13)', () => {
   /** Play until a placement actually says something, then stop on it. */
+  /**
+   * Play until a placement actually says something.
+   *
+   * §8.6 — silence is a valid result, and the M7 measurements put a completely
+   * silent playthrough at about 3 games in 400. The seed is fresh on every page
+   * load, so a single attempt would leave every test that calls this with a
+   * ~0.75% chance of failing for a reason that is not a bug. Three attempts
+   * puts that below one in a million; still bounded, so a deck that genuinely
+   * never speaks fails rather than hangs.
+   */
   async function playUntilLine(page: Page) {
-    for (let round = 1; round <= ROUNDS; round++) {
-      await hand(page).first().click();
-      await legalCells(page).first().click();
-      await confirmDemolition(page);
-      if ((await observation(page).count()) > 0) return;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      if (attempt > 1) await start(page);
+      for (let round = 1; round <= ROUNDS; round++) {
+        await hand(page).first().click();
+        await legalCells(page).first().click();
+        await confirmDemolition(page);
+        if ((await observation(page).count()) > 0) return;
+      }
     }
-    throw new Error('no placement in a whole game said anything');
+    throw new Error('no placement in three whole games said anything');
   }
 
   test('holds the round, keeps the plot visible, and reads as one sentence', async ({
@@ -702,7 +730,7 @@ test.describe('screenshots', () => {
     await page.goto('/');
     await page.screenshot({ path: 'e2e/screenshots/00-framing.png', fullPage: true });
 
-    await page.getByRole('button', { name: 'Begin' }).click();
+    await page.getByRole('button', { name: ui.begin }).click();
     await page.screenshot({ path: 'e2e/screenshots/01-opening.png', fullPage: true });
 
     // Selected but not yet placed: this is the frame that shows the highlight,
@@ -712,13 +740,13 @@ test.describe('screenshots', () => {
     await page.screenshot({ path: 'e2e/screenshots/02-selected.png', fullPage: true });
 
     // §13 — the rules looked up mid-round, over a game in progress.
-    await page.getByRole('button', { name: 'How this works' }).click();
+    await page.getByRole('button', { name: ui.rules.open }).click();
     await page.screenshot({ path: 'e2e/screenshots/02b-rules.png', fullPage: true });
     await page.keyboard.press('Escape');
 
     // §7.2, §13 — the one question the game asks. Aimed at the old kitchen,
     // which is the room the player is most likely to want the space of.
-    await cell(page, 'B2').click();
+    await cell(page, OTHER_ROOM).click();
     await page.screenshot({ path: 'e2e/screenshots/03-demolition.png', fullPage: true });
     await page.keyboard.press('Escape');
 
@@ -740,7 +768,7 @@ test.describe('screenshots', () => {
     }
     await page.screenshot({ path: 'e2e/screenshots/05-midway.png', fullPage: true });
 
-    while ((await page.getByText('The house is finished.').count()) === 0) {
+    while ((await page.getByText(ui.report.finished).count()) === 0) {
       await playRound(page);
     }
     await page.screenshot({ path: 'e2e/screenshots/06-finished.png', fullPage: true });

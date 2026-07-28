@@ -433,6 +433,70 @@ export interface Rules {
   points: string[];
 }
 
+/**
+ * Every other word the interface says — GDD §16.
+ *
+ * The M12 fork-surface audit found about twenty of these hard-coded in
+ * components, which quietly broke the promise §16 makes. A participant pointing
+ * the game at a hospice garden has no street, is not "building on" anything,
+ * and does not "take down" a wall — and none of that was reachable without
+ * opening a `.tsx` file.
+ *
+ * It is not glamorous content, but it is the difference between a fork and a
+ * rewrite. Everything a player can read now lives in `content.ts`.
+ */
+export interface InterfaceCopy {
+  /** The game's own name, in the header. */
+  title: string;
+  /** Dismisses the framing and starts round 1. */
+  begin: string;
+  /** Opens the rules from the header, and the heading on the card itself. */
+  rules: { open: string; heading: string; close: string };
+
+  /** §13 — what to do next, above the hand. */
+  prompt: {
+    choose: string;
+    /** One per zone: where this plan is allowed to go. */
+    place: Record<Zone, string>;
+  };
+
+  /** §5, §12 — the labels on and around the plot. */
+  plot: {
+    street: string;
+    garden: string;
+    /** The aside after the garden label — '· sun from the south'. */
+    sun: string;
+    /** The quiet label under every cell that came with the building. */
+    inherited: string;
+    /** For screen readers: how to describe a cell that holds nothing. */
+    empty: string;
+    /** …and the one cell that can never be built on (§7). */
+    fixed: string;
+  };
+
+  /** §8.6 — how to dismiss the line. */
+  observation: { dismiss: string };
+
+  /** §7.2, §13 — the only confirmation in the game. */
+  demolition: {
+    /** What is about to happen, given what is there and what is going there. */
+    line: (standing: string, cell: CellId, plan: string) => string;
+    note: string;
+    confirm: string;
+    cancel: string;
+  };
+
+  /** §10, §15 — the payoff, and the way back to a new game. */
+  report: {
+    finished: string;
+    have: string;
+    care: string;
+    cost: string;
+    obligations: string;
+    again: string;
+  };
+}
+
 /* ------------------------------------------------------------------ *
  * Game state
  * ------------------------------------------------------------------ */

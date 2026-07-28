@@ -13,13 +13,15 @@
  * The player keeps their selected plan and can put it somewhere else.
  */
 import { useEffect } from 'react';
+import type { CellId, InterfaceCopy } from '../types.ts';
 
 interface DemolitionProps {
   /** The plan about to go there. */
   planName: string;
-  cell: string;
+  cell: CellId;
   /** What is standing there now — 'Old scullery' rather than 'B3'. */
   roomName: string;
+  copy: InterfaceCopy['demolition'];
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -28,6 +30,7 @@ export default function Demolition({
   planName,
   cell,
   roomName,
+  copy,
   onConfirm,
   onCancel,
 }: DemolitionProps) {
@@ -44,19 +47,16 @@ export default function Demolition({
 
   return (
     <section className="demolition" role="alertdialog" aria-label="Demolition">
-      <p className="demolition__line">
-        The {roomName.toLowerCase()} at {cell} is part of the house you were left.
-        Putting the {planName.toLowerCase()} there takes it down.
-      </p>
+      <p className="demolition__line">{copy.line(roomName, cell, planName)}</p>
 
-      <p className="demolition__note">This cannot be undone.</p>
+      <p className="demolition__note">{copy.note}</p>
 
       <div className="demolition__choices">
         <button type="button" className="button" onClick={onConfirm} autoFocus>
-          Take it down
+          {copy.confirm}
         </button>
         <button type="button" className="button button--quiet" onClick={onCancel}>
-          Put it somewhere else
+          {copy.cancel}
         </button>
       </div>
     </section>

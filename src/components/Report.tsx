@@ -16,20 +16,19 @@
  * §10.1 — none of this has appeared before now. There is no score here, and the
  * cost is a phrase rather than a number.
  */
-import type { Report as ReportData } from '../types.ts';
+import type { InterfaceCopy, Report as ReportData } from '../types.ts';
 
 interface ReportProps {
   report: ReportData;
+  copy: InterfaceCopy['report'];
 }
 
-export default function Report({ report }: ReportProps) {
+export default function Report({ report, copy }: ReportProps) {
   return (
     <section className="report">
       <div className="report__pairs">
-        <h2 className="report__heading report__heading--have">
-          What you&rsquo;ll have
-        </h2>
-        <h2 className="report__heading report__heading--care">What it asks</h2>
+        <h2 className="report__heading report__heading--have">{copy.have}</h2>
+        <h2 className="report__heading report__heading--care">{copy.care}</h2>
 
         {report.pairs.map((pair) => (
           // The name spans both, so the row reads as one thing rather than as
@@ -44,7 +43,7 @@ export default function Report({ report }: ReportProps) {
 
       <dl className="report__notes">
         <div className="report__note">
-          <dt className="report__note-label">Cost</dt>
+          <dt className="report__note-label">{copy.cost}</dt>
           <dd className="report__note-line">{report.cost}</dd>
         </div>
 
@@ -52,7 +51,7 @@ export default function Report({ report }: ReportProps) {
             it is the one thing here with nothing to be paired against. */}
         {report.obligations.length > 0 && (
           <div className="report__note">
-            <dt className="report__note-label">Also</dt>
+            <dt className="report__note-label">{copy.obligations}</dt>
             <dd className="report__note-line">
               {report.obligations.map((line) => (
                 <span className="report__obligation" key={line}>
