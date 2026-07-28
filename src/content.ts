@@ -17,12 +17,13 @@ import type {
   Config,
   ConservationOverrides,
   Consent,
-  HouseholdMember,
   PairLine,
   Plan,
   PlotContent,
   Quality,
   QualityLine,
+  Rules,
+  Situation,
 } from './types.ts';
 
 export const config: Config = {
@@ -89,107 +90,197 @@ export const premise = 'Someone left you a house.';
 export const whyNow = 'The roof failed in February. You can’t put it off any longer.';
 
 /**
- * §2 [Open] — alternatives to test. Each changes what the player prioritises
- * without changing a rule. Swap one in above and play it twice.
+ * §13, §14 — what the game is, for someone who has never played it.
  *
- *   'Your mother is moving in next spring.'
- *   'You both work from home now, and there is one desk.'
- *   'The lease on the flat ends in August.'
+ * Playtesting found two things a first-time player did not know, and both are
+ * the game's fault rather than theirs. They did not know what they were being
+ * asked to *do* — a no-fail game has no failure to teach through, so it has to
+ * say. And they did not know the old rooms could be taken down at all, which is
+ * the single most interesting decision in the design going unnoticed.
+ *
+ * So: the objective in one sentence, then only the rules that cannot be worked
+ * out from the board. Shown before round 1 and available from the header for
+ * the rest of the game, because a rule you can only read once is a rule you
+ * have to remember rather than one you can check.
  */
+export const rules: Rules = {
+  objective:
+    'Eight rounds. Turn the house you were left into one that works for the situation you are in. There is no score, and no way to lose.',
+
+  points: [
+    'Each round you are dealt three plans. Choose one — the other two are gone.',
+    'It has to touch something already built, and you can never move it afterwards.',
+    'Rooms go in the house, rows 1–3. Garden things go in the garden, rows 4–5.',
+    'The old rooms can be taken down. Put a plan on one and it goes, for good.',
+    'The front door is not yours to change. It came with the house.',
+    'What you build next to what is the whole game. The house will tell you when it notices something.',
+  ],
+};
 
 /**
- * §2 — who this house is for. Two or three people, one sentence each.
+ * §2, §10.4 — why this house has to change. One per game, drawn by the seed.
  *
- * The household is never scored and never mentioned again during play. It comes
- * back only in the report (§10.4), where each person says one line about the
- * finished house. That is the motivation the game needs and the only one it can
- * afford: the player now has someone to satisfy, and the game never measures
- * whether they did.
+ * The prototype opened with a fixed three-person household — you, a daughter
+ * who played drums, a mother with bad knees. Playtesting killed it: all three
+ * were forgotten by round three, and the specifics were doing none of the work.
+ * What replaces them is one circumstance per game, out of six that most people
+ * have either been in or watched happen to someone. It is remembered because
+ * there is only one of it, and it is a far better replay driver than three
+ * fixed people ever were — the same deck answered against a different situation
+ * is a different house.
  *
- * It is also the cleanest replay driver in the design. Same deck, different
- * household, entirely different house — so this is the first thing to change
- * when forking (§16, rung 1).
+ * The situation is never scored, and never mentioned during play. It comes back
+ * once, in the report, and what it says is a reaction rather than a verdict:
+ * nothing here says the house is good or bad, only what it will be like to live
+ * in it in these circumstances.
+ *
+ * This is the first thing to change when forking (§16, rung 1). Six situations
+ * a community centre actually faces will re-point the whole game on their own.
  */
-export const household: HouseholdMember[] = [
+export const situations: Situation[] = [
   {
-    id: 'you',
-    name: 'You',
-    line: 'You work from home three days a week and have never had a door to close.',
+    id: 'door',
+    line: 'You work from home now, and there has never been a door you could close.',
 
     /**
-     * §10.4 — you, on whether you got the door you can close. A study is the
-     * plan that was actually promised; a spare room is the compromise everyone
-     * makes and nobody admits to.
+     * A study is the thing that was actually promised. A spare room is the
+     * compromise everybody makes and nobody admits to making.
      */
     reaction: (house) => {
       if (house.has('study')) {
-        const near = house.distance('study', 'kitchen');
-        if (near !== null && near <= 1) {
-          return 'You have your door. It opens onto the kitchen, so you will hear every kettle, but it closes.';
+        const noisy = ['kitchen', 'living-room', 'utility-room']
+          .map((id) => house.distance('study', id))
+          .filter((steps): steps is number => steps !== null);
+        if (noisy.length > 0 && Math.min(...noisy) <= 1) {
+          return 'You have the door. It opens onto the busiest part of the house, so you will hear everything — but it closes, and that turns out to be most of it.';
         }
-        return 'You have the door. Three days a week, you will shut it and nobody will think anything of it.';
+        return 'You have the door, and it is far enough from everything that closing it means something. You will use it every day and stop noticing you have it.';
       }
       if (house.has('spare-room')) {
-        return 'No study. You will work in the spare room, and it will be a spare room again whenever anyone visits.';
+        return 'No study. You will work in the spare room, and it will be a spare room again the moment anybody comes to stay.';
       }
-      return 'You still have no door to close. You will work at the table, as you always have, and mind it more now.';
+      return 'You still have nowhere to close a door on. You will work at the table, as you always have, and mind it more now that the house was rebuilt around you not minding it.';
     },
   },
   {
-    id: 'daughter',
-    name: 'Your daughter, 14',
-    line: 'She plays drums. She has been promised this will be better than the flat.',
+    id: 'stairs',
+    line: 'Someone is moving in who manages one flight of stairs on a good day.',
 
     /**
-     * §10.4 — the drummer, on where her room ended up relative to everyone
-     * else's. Distance is the whole reaction: the further the bedroom sits from
-     * where people sit, the longer she gets to play.
-     */
-    reaction: (house) => {
-      if (!house.has('bedroom')) {
-        return 'There is no room that is hers. She has not said anything about it yet.';
-      }
-      const toLiving = house.distance('bedroom', 'living-room');
-      const toStudy = house.distance('bedroom', 'study');
-      const nearest = [toLiving, toStudy].filter((steps): steps is number => steps !== null);
-      if (nearest.length === 0) {
-        return 'Her room is off on its own. She has worked out that nobody can hear her from there, and she is right.';
-      }
-      const closest = Math.min(...nearest);
-      if (closest <= 1) {
-        return 'Her room shares a wall with where everyone sits. She has done the arithmetic on that already.';
-      }
-      if (closest === 2) {
-        return 'Her room is far enough that it will be about volume rather than about whether at all.';
-      }
-      return 'Her room is at the other end of the house. She has stopped asking what time she has to stop.';
-    },
-  },
-  {
-    id: 'mother',
-    name: 'Your mother',
-    line: 'Moving in next spring. She manages one flight of stairs on a good day.',
-
-    /**
-     * §10.4 — your mother, on the distance from the front door to the bathroom.
-     * The door is fixed now (§7), so there is always something to measure from
-     * and the "there is no front door" answer this used to have is gone.
+     * Distance from the front door, in steps. This is the situation that turns
+     * the whole plot into a question about where things are relative to the one
+     * cell the player never chose.
      */
     reaction: (house) => {
       const wc = house.has('downstairs-wc');
       const steps = house.fromFrontDoor('bathroom');
       if (steps === null) {
         return wc
-          ? 'No bathroom, but there is a WC by the door. She says that will do for now, in the voice she uses.'
-          : 'She has not mentioned the bathroom. She has noticed there isn’t one.';
+          ? 'No bathroom, but there is a WC by the door. That will do, and everybody has agreed it will do, and nobody quite believes it.'
+          : 'There is no bathroom on this floor and no WC either. Every day here will begin with the stairs.';
       }
       if (steps <= 2) {
-        return 'From the front door to the bathroom is a few steps. She will not have to plan the journey.';
+        return 'From the front door to the bathroom is a few steps on the flat. Nobody will have to plan the journey, which is the entire thing they were worried about.';
       }
       if (wc) {
-        return 'The bathroom is right across the house. The WC by the door is what she will actually use.';
+        return 'The bathroom is right across the house, so the WC by the door is what actually gets used. It works. It is not what anyone pictured.';
       }
-      return 'The bathroom is a long way from the front door. She has counted, and she will count again every time.';
+      return 'The bathroom is at the far end from the door. The distance has been counted once already, and it will be counted again every single day.';
+    },
+  },
+  {
+    id: 'loud',
+    line: 'Somebody in this house needs to be able to make a noise, and there is nowhere to do it.',
+
+    /**
+     * Distance between where the noise is and where people sit. Nothing here
+     * says loud is bad; it says how far apart the two things ended up.
+     */
+    reaction: (house) => {
+      const loud = ['bedroom', 'gym', 'shed'].filter((id) => house.has(id));
+      if (loud.length === 0) {
+        return 'Nothing here is anybody’s in particular. The noise will happen in the middle of the house, at everyone, as it always has.';
+      }
+      const quiet = ['living-room', 'study', 'dining-room'].filter((id) => house.has(id));
+      const gaps = loud.flatMap((a) =>
+        quiet.map((b) => house.distance(a, b)).filter((steps): steps is number => steps !== null),
+      );
+      if (gaps.length === 0) {
+        return 'There is a room for it, and nothing settled anywhere near enough to complain. Nobody has said out loud how well that has worked out.';
+      }
+      const closest = Math.min(...gaps);
+      if (closest <= 1) {
+        return 'It shares a wall with where everyone sits. The arithmetic on that has already been done, by both sides, separately.';
+      }
+      if (closest === 2) {
+        return 'Far enough that the argument will be about volume rather than about whether at all. That is a better argument to be having.';
+      }
+      return 'It is at the other end of the house from where anyone sits. The question of what time to stop has quietly stopped being asked.';
+    },
+  },
+  {
+    id: 'baby',
+    line: 'There will be a baby in this house by the spring.',
+
+    /**
+     * Two things matter and neither is the nursery: where the washing happens,
+     * and how far the bedroom is from the bathroom at four in the morning.
+     */
+    reaction: (house) => {
+      const utility = house.has('utility-room');
+      const night = house.distance('bedroom', 'bathroom');
+      if (night !== null && night <= 1) {
+        return utility
+          ? 'The bathroom is next to where you sleep and the washing has a room of its own. Whoever planned this had been through it before.'
+          : 'The bathroom is next to where you sleep, which is the part that matters at four in the morning. The washing will have to happen in the kitchen, at the worst possible hour.';
+      }
+      if (night !== null) {
+        return 'The bathroom is a walk from the bedroom. For about a year that walk will happen in the dark, several times a night, and it will feel much longer than it is.';
+      }
+      return utility
+        ? 'No bedroom and no bathroom yet, but the washing has somewhere to go — and for the first year there is a startling amount of washing.'
+        : 'The house is not ready and the spring is coming anyway. It will be done in the wrong order, at speed, like everybody else does it.';
+    },
+  },
+  {
+    id: 'cooks',
+    line: 'Two of you cook. One of you tidies. This has been the arrangement for years.',
+
+    /** Everything hangs off the kitchen and what ended up beside it. */
+    reaction: (house) => {
+      if (!house.has('kitchen')) {
+        return 'There is still no kitchen. Whatever else this house turned into, the argument you were trying to settle is exactly where it was.';
+      }
+      const dining = house.distance('kitchen', 'dining-room');
+      const utility = house.distance('kitchen', 'utility-room');
+      if (utility !== null && utility <= 1) {
+        return 'The kitchen has somewhere to put everything that is not cooking. The tidying stops being a second job, which is what was actually being asked for.';
+      }
+      if (dining !== null && dining <= 1) {
+        return 'The kitchen opens straight onto the table. Meals will be easy and the mess will be visible from where everyone sits, which settles nothing.';
+      }
+      return 'The kitchen is on its own. Whoever is cooking will be on their own in it too, and the tidying will still happen afterwards, by the same person.';
+    },
+  },
+  {
+    id: 'visitors',
+    line: 'You are here on your own, and people come to stay.',
+
+    /** A house for one, that has to become a house for four twice a year. */
+    reaction: (house) => {
+      const spare = house.has('spare-room');
+      const bathroom = house.has('bathroom');
+      const wc = house.has('downstairs-wc');
+      if (spare && (bathroom || wc)) {
+        return 'There is a room for people and somewhere for them to wash. Twice a year this house will be full, and the rest of the time it will be yours, which is the correct proportion.';
+      }
+      if (spare) {
+        return 'There is a room for people to stay in, and one bathroom’s worth of nothing to go with it. They will come anyway, and it will be fine, and it will be a bit close.';
+      }
+      if (house.has('living-room') || house.has('dining-room')) {
+        return 'No spare room. People will stay on the sofa, the way they always have, and leave a day earlier than they meant to.';
+      }
+      return 'Nowhere for anyone to sleep and nowhere for anyone to sit. This house has been built for exactly one person, and it will get exactly one.';
     },
   },
 ];

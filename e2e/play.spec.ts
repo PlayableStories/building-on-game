@@ -451,21 +451,25 @@ test.describe('the report (§10)', () => {
     expect(cost.length).toBeGreaterThan('What it cost'.length);
   });
 
-  test('closes on a line, and the household answers it (§10.3, §10.4)', async ({
+  test('closes on a line, and answers the situation it opened on (§10.3, §10.4)', async ({
     page,
   }) => {
-    await playToTheEnd(page);
+    // §2 — capture the situation before it goes, so the answer can be checked
+    // against the question rather than merely for being non-empty.
+    await page.goto('/');
+    const question = await page.locator('.intro__situation').innerText();
+    await page.getByRole('button', { name: 'Begin' }).click();
+    for (let round = 1; round <= ROUNDS; round++) await playRound(page);
 
     await expect(page.locator('.report__closing')).toBeVisible();
     const closing = await page.locator('.report__closing').innerText();
     expect(closing.trim().length).toBeGreaterThan(0);
 
-    const people = page.locator('.report .household__person');
-    await expect(people).toHaveCount(3);
-    for (let index = 0; index < 3; index++) {
-      const line = await people.nth(index).locator('.household__line').innerText();
-      expect(line.trim().length).toBeGreaterThan(0);
-    }
+    // One answer, not three — and a reaction to the house, not the setup line.
+    await expect(page.locator('.report__answer')).toHaveCount(1);
+    const answer = await page.locator('.report__answer').innerText();
+    expect(answer.trim().length).toBeGreaterThan(0);
+    expect(answer.trim()).not.toBe(question.trim());
   });
 
   test('shows none of it before the last plan lands, with a clean console (§10.1)', async ({
@@ -484,13 +488,13 @@ test.describe('the report (§10)', () => {
   });
 });
 
-test.describe('the framing (§2, §14)', () => {
+test.describe('the framing (§2, §13, §14)', () => {
   test('comes before the plot, and does not come back', async ({ page }) => {
     await page.goto('/');
 
-    // Who the house is for, and why the work is happening at all.
+    // Why the work is happening at all, and the one situation it is for.
     await expect(page.getByText('Someone left you a house.')).toBeVisible();
-    await expect(page.locator('.household__person')).toHaveCount(3);
+    await expect(page.locator('.intro__situation')).toHaveCount(1);
 
     // Nothing to play with yet.
     await expect(page.getByRole('grid')).toHaveCount(0);
@@ -503,9 +507,52 @@ test.describe('the framing (§2, §14)', () => {
 
     // §2 — never mentioned again during play.
     for (let round = 1; round <= ROUNDS; round++) {
-      await expect(page.locator('.household')).toHaveCount(0);
+      await expect(page.locator('.intro__situation')).toHaveCount(0);
       await playRound(page);
     }
+  });
+
+  test('draws a different situation from game to game (§2)', async ({ page }) => {
+    // The whole argument for replacing the fixed household. A stuck draw would
+    // be the old three-people problem with fewer people.
+    const seen = new Set<string>();
+    for (let attempt = 0; attempt < 12; attempt++) {
+      await page.goto('/');
+      seen.add((await page.locator('.intro__situation').innerText()).trim());
+      if (seen.size > 1) break;
+    }
+    expect(seen.size).toBeGreaterThan(1);
+  });
+
+  test('says how the game works, and keeps saying it (§13)', async ({ page }) => {
+    await page.goto('/');
+
+    // The two things playtesting found a first-time player did not know.
+    const intro = (await page.locator('.intro').innerText()).toLowerCase();
+    expect(intro).toContain('no way to lose');
+    expect(intro).toContain('taken down');
+
+    await page.getByRole('button', { name: 'Begin' }).click();
+    await expect(page.locator('.rules--open')).toHaveCount(0);
+
+    // Mid-round, with a plan chosen: the rules open over the top and the round
+    // underneath is untouched when they close.
+    await hand(page).first().click();
+    const legal = await legalCells(page).count();
+
+    await page.getByRole('button', { name: 'How this works' }).click();
+    const card = page.locator('.rules--open');
+    await expect(card).toBeVisible();
+    await expect(card).toContainText('no way to lose');
+    await expect(card).toContainText('taken down');
+    // The plot stays visible behind it — this is a lookup, not a screen change.
+    await expect(page.getByRole('grid')).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await expect(card).toHaveCount(0);
+    await expect(page.getByText(`1 of ${ROUNDS}`)).toBeVisible();
+    await expect(legalCells(page)).toHaveCount(legal);
+    await expect(page.locator('.plan--selected')).toHaveCount(1);
   });
 });
 
@@ -584,6 +631,11 @@ test.describe('screenshots', () => {
     // garden (§5).
     await handFor(page, 'indoor').first().click();
     await page.screenshot({ path: 'e2e/screenshots/02-selected.png', fullPage: true });
+
+    // §13 — the rules looked up mid-round, over a game in progress.
+    await page.getByRole('button', { name: 'How this works' }).click();
+    await page.screenshot({ path: 'e2e/screenshots/02b-rules.png', fullPage: true });
+    await page.keyboard.press('Escape');
 
     // §7.2, §13 — the one question the game asks. Aimed at the old kitchen,
     // which is the room the player is most likely to want the space of.

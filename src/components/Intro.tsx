@@ -1,37 +1,39 @@
 /**
- * The framing — GDD §2, §14.
+ * The framing — GDD §2, §13, §14.
  *
- * Shown once, before round 1, and never returned to. It does two jobs in about
- * forty words: it says why the work is happening at all, which is what justifies
- * eight rounds and a front door the player did not choose; and it says who the
- * house is for, which is the only motivation a no-fail game can afford.
+ * Shown once, before round 1. It does three jobs and keeps each of them short:
+ * why the work is happening at all, which is what justifies eight rounds and a
+ * front door nobody chose; who it is happening for, which is the only motivation
+ * a no-fail game can afford; and how the game is played, which it turns out it
+ * has to say out loud.
  *
- * Nothing here is scored, and none of it is mentioned again during play. The
- * household comes back once, in the report (§10.4).
+ * There used to be three people here, introduced one after another. All three
+ * were forgotten by round three, so there is one situation now, drawn from the
+ * pool by the game's seed — the framing is quieter, and what is left of it is
+ * the part a player actually carries into the first placement.
  */
-import type { HouseholdIntro } from '../types.ts';
+import type { Rules as RulesContent, SituationIntro } from '../types.ts';
+import Rules from './Rules.tsx';
 
 interface IntroProps {
   premise: string;
   whyNow: string;
-  household: readonly HouseholdIntro[];
+  situation: SituationIntro | undefined;
+  rules: RulesContent;
   onBegin: () => void;
 }
 
-export default function Intro({ premise, whyNow, household, onBegin }: IntroProps) {
+export default function Intro({ premise, whyNow, situation, rules, onBegin }: IntroProps) {
   return (
     <section className="intro">
+      {/* §2 — the background, and deliberately the smallest thing here. */}
       <p className="intro__premise">{premise}</p>
       <p className="intro__why">{whyNow}</p>
 
-      <dl className="household">
-        {household.map((person) => (
-          <div className="household__person" key={person.id}>
-            <dt className="household__name">{person.name}</dt>
-            <dd className="household__line">{person.line}</dd>
-          </div>
-        ))}
-      </dl>
+      {/* …and the situation, which is the part that has to survive to round 8. */}
+      {situation && <p className="intro__situation">{situation.line}</p>}
+
+      <Rules rules={rules} />
 
       <button type="button" className="button" onClick={onBegin} autoFocus>
         Begin

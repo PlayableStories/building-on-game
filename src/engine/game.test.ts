@@ -4,6 +4,7 @@ import {
   deck,
   pairLines,
   plot,
+  situations,
   qualityLines,
   qualitySeverity,
 } from '../content.ts';
@@ -17,6 +18,7 @@ const game = createGame(
   config,
   { pairLines, qualityLines, qualitySeverity },
   plot,
+  situations.map((situation) => situation.id),
 );
 const byId = new Map(deck.map((plan) => [plan.id, plan]));
 
