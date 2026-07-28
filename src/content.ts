@@ -757,6 +757,41 @@ export const qualityLines: QualityLine[] = [
 ];
 
 /**
+ * §8.6 — the few connecting words that name what caused a line.
+ *
+ * The line itself says what the relationship is like. This says which two
+ * things are in it, and it exists because playtesting found the line reading as
+ * atmosphere: a player who does not know that *this* sentence is about *that*
+ * placement and *that* neighbour has not seen the mechanic at all, however good
+ * the sentence is.
+ *
+ * Small enough to be worth having on the fork surface anyway. A game about a
+ * hospice garden may have no street to face, and "beside" is not the only way
+ * two things can be related.
+ */
+export const causeWords = {
+  beside: 'beside',
+  and: 'and',
+  /** What the old house is called when it is the neighbour rather than a room. */
+  fabric: 'the old house',
+
+  /**
+   * §5 — where it is standing, for an orientation line. One per band of the
+   * plot, not one per compass direction: row 1 and row 4 both face north, and
+   * "facing the street" is a lie about a terrace at the bottom of the garden.
+   * The middle of the house never fires an orientation line, but it is written
+   * here anyway so a fork changing the row map does not find a gap.
+   */
+  facing: {
+    street: 'facing the street',
+    middle: 'in the middle of the house',
+    back: 'at the back, onto the garden',
+    shadow: 'in the shadow of the house',
+    garden: 'at the bottom of the garden',
+  },
+};
+
+/**
  * §8.6 — strongest first. When several quality matches fire on one placement,
  * this decides which one is worth saying, and the other lines stay silent.
  *

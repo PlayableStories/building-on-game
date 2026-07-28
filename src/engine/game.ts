@@ -9,6 +9,7 @@ import type {
   CellId,
   Config,
   GameState,
+  Observation,
   Plan,
   PlanAdjacency,
   PlotContent,
@@ -168,11 +169,11 @@ export function createGame(
       const placement = placementAt(state, ref);
       if (placement) {
         const plan = byId.get(placement.planId);
-        if (plan) neighbours.push({ kind: 'plan', plan });
+        if (plan) neighbours.push({ kind: 'plan', cell: ref, plan });
       } else if (state.fabric.includes(ref) || ref === state.frontDoor) {
         // The front door is part of the old house too — insulation against it
         // is insulation against a solid wall, same as any other old room.
-        neighbours.push({ kind: 'fabric' });
+        neighbours.push({ kind: 'fabric', cell: ref });
       }
     }
 
@@ -183,7 +184,7 @@ export function createGame(
     state: GameState,
     planId: Plan['id'],
     cell: CellId,
-  ): string | null {
+  ): Observation | null {
     const plan = byId.get(planId);
     if (!plan) return null;
     return observationFor(writing, plan, cell, neighboursOf(state, cell));

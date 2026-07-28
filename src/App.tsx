@@ -7,6 +7,7 @@
  */
 import { useCallback, useMemo, useReducer, useState } from 'react';
 import {
+  causeWords,
   closingLines,
   config,
   conservationOverrides,
@@ -46,7 +47,7 @@ export default function App() {
       createGame(
         deck,
         config,
-        { pairLines, qualityLines, qualitySeverity },
+        { pairLines, qualityLines, qualitySeverity, causeWords },
         plot,
         situations.map((situation) => situation.id),
       ),
@@ -65,7 +66,6 @@ export default function App() {
 
   const situation = situations.find((entry) => entry.id === state.situationId);
   const placing = state.selectedPlanId !== null;
-  const reading = state.observation !== null;
   // §7.2, §13 — waiting to hear whether part of the old house is coming down.
   const demolishing = state.pendingDemolition !== null;
 
@@ -159,8 +159,8 @@ export default function App() {
               onConfirm={() => dispatch({ type: 'CONFIRM_DEMOLITION' })}
               onCancel={cancelDemolition}
             />
-          ) : reading ? (
-            <Observation line={state.observation as string} onDismiss={dismiss} />
+          ) : state.observation !== null ? (
+            <Observation observation={state.observation} onDismiss={dismiss} />
           ) : (
             <>
               <p className="app__prompt">

@@ -71,6 +71,18 @@ export type CellId = `${Column}${Row}`;
 export type Orientation = 'north' | 'south';
 
 /**
+ * §5 — where in the plot a row sits, front to back. Five bands, and they mean
+ * five different things to stand in. See `positionOf` in `engine/grid.ts`.
+ *
+ * Not the same idea as `Orientation`, and this is the distinction: the street
+ * and the strip of garden the house shadows both face north, and they are not
+ * the same place. The deck's writing is keyed on the compass, because what the
+ * sun does is the same in both. A cause phrase has to name the band, because
+ * "facing the street" is a lie about a terrace at the bottom of the garden.
+ */
+export type Position = 'street' | 'middle' | 'back' | 'shadow' | 'garden';
+
+/**
  * §5 — the house, and the garden behind it.
  *
  * A plan belongs to one or the other and can only be placed there: a bathroom
@@ -188,6 +200,53 @@ export interface PairLine {
 export interface QualityLine {
   quality: Quality;
   line: string;
+}
+
+/**
+ * §8.6 — one line, and everything needed to show what caused it.
+ *
+ * Playtesting found the mechanic the whole prototype exists to test landing as
+ * atmosphere rather than as consequence: "I do not aware the line is directly
+ * related to my placement and/or the neighbour." The resolution always knew
+ * which neighbour fired — it threw the answer away and returned a sentence.
+ *
+ * So `cause` is the phrase shown above the line, and `because` is what the plot
+ * lights underneath it. They are the same fact said two ways, which is the
+ * point: the player reads the relationship and sees it at the same moment.
+ */
+export interface Observation {
+  line: string;
+  /** Which of §8.6's three steps produced it. */
+  kind: 'pair' | 'quality' | 'orientation';
+  /** The cell just placed. Always lit. */
+  cell: CellId;
+  /**
+   * The neighbours that caused it. Empty for an orientation line, where the
+   * cause is which row it landed in rather than anything next to it.
+   */
+  because: CellId[];
+  /** 'Kitchen beside the bin store' · 'Terrace, facing the garden' */
+  cause: string;
+}
+
+/**
+ * §8.6 — the connecting words that turn a resolved relationship into a phrase.
+ * On the fork surface with the rest of the writing: a game about a hospice
+ * garden says "beside" differently, and may not have a street to face.
+ */
+export interface CauseWords {
+  /** Joins the placed plan to what it is being read against. */
+  beside: string;
+  /** Joins two neighbours when both fired. */
+  and: string;
+  /** What to call the inherited fabric when it is the neighbour. */
+  fabric: string;
+  /**
+   * How to describe standing in each band — 'facing the street', 'in the shadow
+   * of the house'. Keyed on `Position` rather than `Orientation` because two
+   * bands face north and they are not the same place to be.
+   */
+  facing: Record<Position, string>;
 }
 
 /**
@@ -389,8 +448,14 @@ export interface GameState {
    * pure geometry with nothing to look up.
    */
   gardenFromRow: Row;
-  /** The one line for the placement just made, or null for silence — §8.6. */
-  observation: string | null;
+  /**
+   * §8.6 — the line for the placement just made, or null for silence.
+   *
+   * Not a string: it carries what caused it as well as what it says, so the
+   * plot can light the cells the sentence is about while the sentence is being
+   * read. See `Observation` in `engine/adjacency.ts`.
+   */
+  observation: Observation | null;
   /**
    * §7.2, §13 — the fabric cell a placement is waiting on confirmation for.
    * Demolition is the only irreversible move in the game and the only one that

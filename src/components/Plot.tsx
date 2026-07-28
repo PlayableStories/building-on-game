@@ -33,6 +33,15 @@ interface PlotProps {
 export default function Plot({ state, deck, plot, onPlace }: PlotProps) {
   const byId = new Map(deck.map((plan) => [plan.id, plan]));
 
+  /**
+   * §8.6 — while a line is up, the cells it is about. The placement that caused
+   * it, and whatever it was read against. This is the load-bearing half of the
+   * fix for "I do not aware the line is directly related to my placement": the
+   * sentence names the relationship, and the plot shows it in the same moment.
+   */
+  const subject = state.observation?.cell;
+  const causes = state.observation?.because ?? [];
+
   // §5 — the highlight answers "where can *this* go", so it needs the selected
   // plan's zone. With nothing selected there is no question and no highlight.
   const selected = state.selectedPlanId === null ? undefined : byId.get(state.selectedPlanId);
@@ -46,7 +55,7 @@ export default function Plot({ state, deck, plot, onPlace }: PlotProps) {
   };
 
   return (
-    <div className="plot">
+    <div className={`plot${state.observation ? ' plot--reading' : ''}`}>
       <p className="plot__edge plot__edge--street">The street</p>
 
       <div className="plot__frame">
@@ -72,6 +81,9 @@ export default function Plot({ state, deck, plot, onPlace }: PlotProps) {
               if (inherited && !isDoor) classes.push('cell--fabric');
               if (isDoor) classes.push('cell--door');
               if (isLegal) classes.push('cell--legal');
+              // §8.6 — the two ends of the relationship the line is about.
+              if (cell === subject) classes.push('cell--subject');
+              if (causes.includes(cell)) classes.push('cell--cause');
 
               const name = plan?.name ?? inherited ?? '';
 

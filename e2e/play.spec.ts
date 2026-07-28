@@ -585,6 +585,56 @@ test.describe('the line (§8.6, §13)', () => {
     expect(text.trim().length).toBeGreaterThan(0);
   });
 
+  /**
+   * §8.6 — the fix for the line landing as atmosphere. jsdom can prove the
+   * classes are on the right cells; only a real browser can prove the dimming
+   * actually paints, which is the whole mechanism.
+   */
+  test('names its cause and lights the cells it is about (§8.6)', async ({ page }) => {
+    await start(page);
+    await playUntilLine(page);
+
+    // The cause, above the line and quieter than it.
+    const cause = await observation(page).locator('.observation__cause').innerText();
+    expect(cause.trim().length).toBeGreaterThan(0);
+
+    // Exactly one placement is the subject, and it is named in the cause.
+    const subject = page.locator('.cell--subject');
+    await expect(subject).toHaveCount(1);
+    await expect(subject).toHaveClass(/cell--placed/);
+    const name = await subject.locator('.cell__name').innerText();
+    expect(cause).toContain(name);
+
+    // …and everything the line is not about is actually dimmed on screen.
+    const opacity = await page.evaluate(() => {
+      const lit = document.querySelector('.cell--subject') as Element;
+      const other = document.querySelector(
+        '.cell:not(.cell--subject):not(.cell--cause)',
+      ) as Element;
+      return {
+        lit: Number(getComputedStyle(lit).opacity),
+        other: Number(getComputedStyle(other).opacity),
+      };
+    });
+    expect(opacity.lit).toBe(1);
+    expect(opacity.other).toBeLessThan(1);
+  });
+
+  test('stops dimming the plot once the line has been read (§8.6)', async ({ page }) => {
+    await start(page);
+    await playUntilLine(page);
+    await observation(page).click();
+
+    await expect(page.locator('.plot--reading')).toHaveCount(0);
+    await expect(page.locator('.cell--subject')).toHaveCount(0);
+
+    const opacity = await page
+      .locator('.cell')
+      .first()
+      .evaluate((cell) => Number(getComputedStyle(cell).opacity));
+    expect(opacity).toBe(1);
+  });
+
   test('is dismissed by click, Space and Enter (§13)', async ({ page }) => {
     for (const dismiss of ['click', 'Space', 'Enter'] as const) {
       await start(page);

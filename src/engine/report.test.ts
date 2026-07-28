@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  causeWords,
   closingLines,
   config,
   conservationOverrides,
@@ -30,7 +31,7 @@ import {
 const game = createGame(
   deck,
   config,
-  { pairLines, qualityLines, qualitySeverity },
+  { pairLines, qualityLines, qualitySeverity, causeWords },
   plot,
   situations.map((situation) => situation.id),
 );

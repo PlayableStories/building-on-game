@@ -44,14 +44,29 @@ export function zoneOf(cell: CellId, gardenFromRow: Row): Zone {
 }
 
 /**
- * §5 — which way a cell faces. The sun is in the south, so `north` means the
+ * §5 — where in the plot a row sits, front to back. Five bands, and they mean
+ * five different things to stand in.
+ */
+export const POSITIONS = ['street', 'middle', 'back', 'shadow', 'garden'] as const;
+export type Position = (typeof POSITIONS)[number];
+
+const POSITION_BY_ROW: Record<Row, Position> = {
+  1: 'street',
+  2: 'middle',
+  3: 'back',
+  4: 'shadow',
+  5: 'garden',
+};
+
+/**
+ * §5 — which way each band faces. The sun is in the south, so `north` is the
  * cold side and `south` the bright one, in both halves of the plot:
  *
- *   1  north  the street elevation, and the shaded front of the house
- *   2  —      the middle of the house, facing nothing in particular
- *   3  south  the back of the house, onto the garden
- *   4  north  garden, but under the shadow the building casts behind it
- *   5  south  open garden, and the sun from lunchtime onwards
+ *   1  street  north  the street elevation, and the shaded front of the house
+ *   2  middle  —      the middle of the house, facing nothing in particular
+ *   3  back    south  the back of the house, onto the garden
+ *   4  shadow  north  garden, but under the shadow the building casts behind it
+ *   5  garden  south  open garden, and the sun from lunchtime onwards
  *
  * Row 4 is north-facing for the same reason row 1 is: the thing to its north is
  * what it spends the day behind. Indoors that is the street; outdoors it is the
@@ -61,12 +76,26 @@ export function zoneOf(cell: CellId, gardenFromRow: Row): Zone {
  * Row 2 faces nothing on purpose. Every zone needs somewhere that is simply
  * inside it, or an orientation line fires on nearly every placement and stops
  * being worth reading.
+ *
+ * Position and orientation are two views of one map rather than two maps: the
+ * compass is what the deck's writing is keyed on, and the band is what a cause
+ * phrase has to name, because "facing the street" and "in the shadow of the
+ * house" are both north and are not the same place to be standing.
  */
+const FACING: Record<Position, Orientation | null> = {
+  street: 'north',
+  middle: null,
+  back: 'south',
+  shadow: 'north',
+  garden: 'south',
+};
+
+export function positionOf(cell: CellId): Position {
+  return POSITION_BY_ROW[parseCell(cell).row];
+}
+
 export function orientationOf(cell: CellId): Orientation | null {
-  const { row } = parseCell(cell);
-  if (row === 1 || row === 4) return 'north';
-  if (row === 3 || row === 5) return 'south';
-  return null;
+  return FACING[positionOf(cell)];
 }
 
 /**
@@ -79,7 +108,7 @@ export function orientationOf(cell: CellId): Orientation | null {
  * and §9.2's rule about openings is about the street rather than about the sun.
  */
 export function isStreetElevation(cell: CellId): boolean {
-  return parseCell(cell).row === 1;
+  return positionOf(cell) === 'street';
 }
 
 /** Orthogonal only. Diagonals are not neighbours — §7.1. */
