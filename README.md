@@ -62,17 +62,26 @@ hospice garden should never require opening a file that isn't one of those two.
 
 ## Status
 
-**M4 — the report.** The game is now playable end to end. It opens with why the work is
-happening and who the house is for; then the 5×5 plot with the inherited house on
-B2/C2/B3/C3, a hand of three drawn fresh each round and weighted to the tier, and eight
-placements — each one checked against its neighbours, and each one that has something to
-say saying it in a single line.
+**M5 — demolition, consent and conservation.** The game is playable end to end and every
+mechanic the design argues for is now in it. It opens with why the work is happening and
+who the house is for; then the 5×5 plot with the inherited house on B2/C2/B3/C3, a hand of
+three drawn fresh each round and weighted to the tier, and eight placements — each one
+checked against its neighbours, and each one that has something to say saying it in a
+single line.
+
+Placing onto the old house asks once, and only once: it is the only confirmation in the
+game, because it is the only move that cannot be taken back. Taking down B2 removes the
+front door, and the rest of the game reads against that. Every plan carries a consent flag
+in hand — a fact about the plan, never an outcome; nothing here succeeds or fails.
 
 When the eighth plan lands the house reports back in three columns: what you'll have, what
-it cost, and what you'll look after. The third is the longest, deliberately. Below it, one
-sentence about what kind of house it turned out to be, and each member of the household
-saying one thing about living in it. There is no score, and the cost is a phrase rather
-than a number.
+it cost, and what you'll look after. The third is the longest, deliberately, and it is
+where the consent obligations land. Below it, one sentence about what kind of house it
+turned out to be, and each member of the household saying one thing about living in it.
+There is no score, and the cost is a phrase rather than a number.
 
-Not yet: demolition confirmation and consent flags (M5), the validator and the finished
-fork surface (M6).
+**Play it twice.** Set `conservation: true` in `src/content.ts` and build the same house
+again. The plans are identical, the pleasures are identical, the cost is identical — and
+the obligations are not. That is the argument §9 is making, and it is one config flag.
+
+Not yet: the deck validator and the finished fork surface (M6), the playtest pass (M7).

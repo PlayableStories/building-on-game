@@ -106,11 +106,12 @@ export type PlanAdjacency = PlanIdentity &
   Pick<Plan, 'emits' | 'sensitive' | 'orientation'>;
 
 /**
- * Everything the report in §10 needs on top of that: the pleasure, the cost
- * band and the obligation. Still short of a full `Plan` by its consent flag,
- * which is M5's business.
+ * With M5 the deck is a full `Plan` — there is no field left to stage. The two
+ * narrower types above are not scaffolding left over from that staging: the
+ * grid, the draw and the adjacency resolution genuinely do not read the report
+ * writing or the consent flag, and typing them against what they use is what
+ * keeps a content change from being able to break them.
  */
-export type PlanReport = PlanAdjacency & Pick<Plan, 'have' | 'cost' | 'care'>;
 
 /* ------------------------------------------------------------------ *
  * Writing — §8.6
@@ -209,10 +210,41 @@ export interface Report {
   have: string[];
   /** A phrase, never a number. */
   cost: string;
-  /** The longest column, deliberately. */
+  /**
+   * The longest column, deliberately. Plan obligations first, then the consent
+   * the house has taken on, then what demolition leaves behind — §9.3 puts
+   * consent inside this column rather than in a section of its own.
+   */
   care: string[];
   closing: string;
   household: { name: string; reaction: string }[];
+}
+
+/* ------------------------------------------------------------------ *
+ * Preservation — §9.2
+ * ------------------------------------------------------------------ */
+
+/**
+ * §9.2 — the four deltas behind `conservation: true`. One config flag changes
+ * the character of the whole game without the engine knowing what a
+ * conservation area is: it asks content what changes and applies it.
+ *
+ * A participant forking the game gets the same lever for free. Point these at
+ * whatever their building is actually constrained by.
+ */
+export interface ConservationOverrides {
+  /**
+   * A plan with a street-facing opening, placed in the north rows. Its own
+   * consent flag stands; this is taken on as well.
+   */
+  northOpening: { consent: Consent; care: string };
+  /** Taking any of the old house down. Replaces the ordinary demolition line. */
+  demolition: { consent: Consent; care: string };
+  /**
+   * Per-plan deltas: a different flag, an extra obligation, or both. The GDD
+   * names two — the heat pump's outdoor unit and the glass extension's ridge.
+   */
+  plans: Record<Plan['id'], { consent?: Consent; care?: string }>;
 }
 
 /* ------------------------------------------------------------------ *
@@ -269,6 +301,12 @@ export interface GameState {
   frontDoor: CellId | null;
   /** The one line for the placement just made, or null for silence — §8.6. */
   observation: string | null;
+  /**
+   * §7.2, §13 — the fabric cell a placement is waiting on confirmation for.
+   * Demolition is the only irreversible move in the game and the only one that
+   * asks. Null the rest of the time, which is nearly always.
+   */
+  pendingDemolition: CellId | null;
   /** Plan ids not yet placed. */
   pool: Plan['id'][];
   seed: number;
@@ -281,7 +319,11 @@ export interface GameState {
 export interface Config {
   /** §6 [Open] — playtest 6 against 8 before settling. */
   rounds: number;
-  /** §9.2 — one flag that changes the character of the whole game. */
+  /**
+   * §9.2 — one flag that changes the character of the whole game. What it
+   * changes is `conservationOverrides`, which is content, so the engine never
+   * learns what a conservation area is.
+   */
   conservation: boolean;
 }
 
@@ -304,4 +346,6 @@ export interface Content {
   closingLines: ClosingLine[];
   /** §9.3 — consent lands inside 'what you'll look after', not its own section. */
   consentCare: Record<Consent, string>;
+  /** §9.2 — what `conservation: true` changes. */
+  conservationOverrides: ConservationOverrides;
 }

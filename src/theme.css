@@ -47,6 +47,22 @@
   --colour-observation: #efeadd;
   --colour-observation-edge: #8d8577;
 
+  /* ---- Consent — §9.1, §14 ---------------------------------------- */
+  /**
+   * §9.1 — flags, never outcomes. These read as a scale of process rather than
+   * as a traffic light: nothing here is a warning, and nothing is a refusal.
+   */
+  --colour-consent: #6b6459;
+  --colour-consent-permitted: #8d9c85;
+  --colour-consent-householder: #8d8577;
+  --colour-consent-sensitive: #a08a6a;
+  --colour-consent-demolition: #8c5a3c;
+
+  /* ---- Demolition — §7.2, §13 ------------------------------------- */
+  --colour-demolition: #f1e8e0;
+  --colour-demolition-edge: #8c5a3c;
+  --colour-button-quiet: #6b6459;
+
   /* ---- The report — §10 ------------------------------------------- */
   --colour-report-heading: #6b6459;
   /* The third column is the longest and the point of the game — §10.2. */

@@ -1,7 +1,14 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import App from './App.tsx';
-import { config, deck, household, premise, whyNow } from './content.ts';
+import {
+  config,
+  consentLabels,
+  deck,
+  household,
+  premise,
+  whyNow,
+} from './content.ts';
 
 afterEach(cleanup);
 
@@ -36,13 +43,28 @@ function observation() {
   return document.querySelector('.observation');
 }
 
+function demolition() {
+  return document.querySelector('.demolition');
+}
+
 /**
- * One round: choose a plan, place it, and read past the line if there is one.
- * §8.6 — silence is a valid result, so there is not always a line to dismiss.
+ * §7.2, §13 — a placement onto the old house stops and asks. Say yes, so that
+ * demolition is exercised by these tests rather than avoided by them.
+ */
+function confirmDemolition() {
+  const asking = demolition();
+  if (asking) fireEvent.click(screen.getByRole('button', { name: 'Take it down' }));
+}
+
+/**
+ * One round: choose a plan, place it, answer for it if it was the old house, and
+ * read past the line if there is one. §8.6 — silence is a valid result, so there
+ * is not always a line to dismiss.
  */
 function playRound() {
   fireEvent.click(handButtons()[0] as HTMLElement);
   fireEvent.click(legalCells()[0] as HTMLElement);
+  confirmDemolition();
   const line = observation();
   if (line) fireEvent.click(line);
 }
@@ -95,6 +117,7 @@ describe('a whole game, played through the interface', () => {
       const legal = legalCells();
       expect(legal.length).toBeGreaterThan(0);
       fireEvent.click(legal[0] as HTMLElement);
+      confirmDemolition();
 
       const line = observation();
       if (line) fireEvent.click(line);
@@ -180,6 +203,7 @@ describe('the line, through the interface (§8.6, §13)', () => {
     for (let round = 1; round <= config.rounds; round++) {
       fireEvent.click(handButtons()[0] as HTMLElement);
       fireEvent.click(legalCells()[0] as HTMLElement);
+      confirmDemolition();
       const line = observation();
       if (line) return line;
     }
@@ -237,6 +261,118 @@ describe('the line, through the interface (§8.6, §13)', () => {
 
     expect(grid()).toBeDefined();
     expect(cells()).toHaveLength(25);
+  });
+});
+
+describe('the one confirmation (§7.2, §13)', () => {
+  /** Choose a plan and aim it at a named cell. Returns the plan chosen. */
+  function aimAt(ref: string): string {
+    renderPlaying();
+    const chosen = handButtons()[0] as HTMLElement;
+    const name = chosen.querySelector('.plan__name')?.textContent ?? '';
+    fireEvent.click(chosen);
+
+    const target = cells().find((cell) =>
+      (cell.getAttribute('aria-label') ?? '').startsWith(ref),
+    );
+    if (!target) throw new Error(`no cell ${ref}`);
+    fireEvent.click(target);
+    return name;
+  }
+
+  function asking() {
+    const found = demolition();
+    if (!found) throw new Error('the game did not ask');
+    return found;
+  }
+
+  it('asks before taking any of the old house down', () => {
+    aimAt('C3');
+    expect(demolition()).not.toBeNull();
+    // Nothing has happened yet — the old house is still on the plot.
+    expect(within(grid()).getAllByText('Inherited')).toHaveLength(4);
+  });
+
+  it('does not ask for any other placement', () => {
+    aimAt('C1');
+    expect(demolition()).toBeNull();
+  });
+
+  it('says plainly that it cannot be undone', () => {
+    aimAt('C3');
+    expect(screen.getByText('This cannot be undone.')).toBeDefined();
+  });
+
+  it('says what goes with the front door, and only for the front door (§7)', () => {
+    aimAt('B2');
+    expect(asking().querySelector('.demolition__door')).not.toBeNull();
+    expect(asking().textContent).toMatch(/new way in/);
+
+    cleanup();
+    aimAt('C3');
+    expect(asking().querySelector('.demolition__door')).toBeNull();
+  });
+
+  it('takes it down on Take it down', () => {
+    aimAt('C3');
+    fireEvent.click(screen.getByRole('button', { name: 'Take it down' }));
+
+    expect(demolition()).toBeNull();
+    expect(within(grid()).getAllByText('Inherited')).toHaveLength(3);
+  });
+
+  it('leaves it standing on Put it somewhere else, with the plan still chosen', () => {
+    const chosen = aimAt('C3');
+    fireEvent.click(screen.getByRole('button', { name: 'Put it somewhere else' }));
+
+    expect(demolition()).toBeNull();
+    expect(within(grid()).getAllByText('Inherited')).toHaveLength(4);
+    expect(screen.getByText(`1 of ${config.rounds}`)).toBeDefined();
+    // The plan is still in hand and still selected, so it can go elsewhere.
+    expect(document.querySelector('.plan--selected .plan__name')?.textContent).toBe(
+      chosen,
+    );
+    expect(legalCells().length).toBeGreaterThan(0);
+  });
+
+  it('backs out on Escape', () => {
+    aimAt('C3');
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    expect(demolition()).toBeNull();
+    expect(within(grid()).getAllByText('Inherited')).toHaveLength(4);
+  });
+
+  it('hides the hand while it is waiting for an answer', () => {
+    aimAt('C3');
+    expect(handButtons()).toHaveLength(0);
+    // The plot stays visible — you can see what you are about to take down.
+    expect(cells()).toHaveLength(25);
+  });
+});
+
+describe('the consent flag on each plan in hand (§9.1, §14)', () => {
+  it('shows one flag per plan, in words rather than as a warning', () => {
+    renderPlaying();
+
+    const flags = handButtons().map(
+      (button) => button.querySelector('.plan__consent')?.textContent ?? '',
+    );
+    expect(flags).toHaveLength(3);
+    for (const flag of flags) {
+      expect(Object.values(consentLabels)).toContain(flag);
+    }
+  });
+
+  it('never says an application succeeded or failed (§9.1)', () => {
+    renderPlaying();
+
+    for (let round = 1; round <= config.rounds; round++) {
+      expect(document.body.textContent ?? '').not.toMatch(
+        /\brefus|\bapproved\b|\bgranted\b|\brejected\b|\bdenied\b/i,
+      );
+      playRound();
+    }
   });
 });
 

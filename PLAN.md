@@ -282,7 +282,7 @@ than an accident of the writing. The closing line is checked for determinism *an
 independence from build order — the same house reached by a different route says the same
 thing about itself.
 
-## M5 — Demolition, consent, conservation (§18.5)
+## M5 — Demolition, consent, conservation (§18.5) ✅
 
 **Goal:** the only irreversible decision in the game, and the obligations it creates.
 
@@ -302,6 +302,43 @@ thing about itself.
 
 **Done when:** a house can be built by demolishing, and playing the same deck twice —
 once with `conservation: true` — produces visibly different obligations.
+
+**Two readings of the GDD that had to be settled, both flagged rather than silently
+chosen:**
+
+1. **"Demolition of any fabric cell becomes `sensitive`" (§9.2).** Read as a *replacement*
+   it would make conservation weaken the obligation — `sensitive` is a lighter flag than
+   `demolition` — which contradicts the same sentence asking for a much longer care line.
+   So it is read as an *addition*: a demolition under conservation carries both. A
+   placement therefore carries a set of flags, not one. The single flag §14 asks for on a
+   plan in hand is unaffected: that is the plan's own, because where it lands and what it
+   lands on are exactly what the player has not decided yet.
+2. **"New openings in the north (street) elevation" (§9.2)** needed a definition of an
+   opening. A plan has one on an elevation if it has orientation writing for it — §8.3's
+   orientation lines are precisely the writing about light, view and exposure, so a plan
+   with a north line is a plan with a window on the street. This makes the rule
+   placement-dependent, which is right: the same bedroom on the street and in the garden
+   are not the same application.
+
+**Also:** consent obligations are deduplicated. Three householder applications are one
+ongoing relationship with the local authority, not three — §9.3's design note is explicit
+that planning is a relationship rather than a cost paid once, and the care column would
+read as a tally if it repeated. They are ordered by the flag vocabulary rather than by
+placement, so the same house always reads the same way.
+
+The deck is a full `Plan` from here — the staged plan types are gone. `PlanIdentity` and
+`PlanAdjacency` stay, because the grid, the draw and the adjacency resolution genuinely do
+not read the report writing or the consent flag, and typing them against what they use is
+what stops a content change breaking them.
+
+**Verified:** 160 unit and component tests · 26 end-to-end tests in Chrome · `tsc -b` clean ·
+`vite build` clean. The confirmation is asserted from both sides — that it appears for
+fabric and for nothing else, that backing out leaves the plot untouched and the plan still
+selected so it can go elsewhere, and that nothing else in the game can happen while it is
+waiting. §9.2 is tested as an exclusion as well as an inclusion: for every plan the
+overrides do not name, away from the street, conservation changes nothing at all. And the
+same finished plot is reported both ways and compared — identical plans, identical
+pleasures, identical cost, and an obligation list that grows from twelve lines to fourteen.
 
 ## M6 — Fork surface and validator (§18.6)
 

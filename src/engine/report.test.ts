@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   closingLines,
   config,
+  conservationOverrides,
+  consentCare,
+  consentOrder,
   costPhrases,
   deck,
   demolitionCare,
@@ -10,7 +13,7 @@ import {
   qualityLines,
   qualitySeverity,
 } from '../content.ts';
-import type { GameState, PlanReport, Report } from '../types.ts';
+import type { GameState, Plan, Report } from '../types.ts';
 import { QUALITIES } from '../types.ts';
 import { createGame } from './game.ts';
 import { legalCells } from './grid.ts';
@@ -24,10 +27,18 @@ import {
 } from './report.ts';
 
 const game = createGame(deck, config, { pairLines, qualityLines, qualitySeverity });
-const content: ReportContent = { household, costPhrases, closingLines, demolitionCare };
+const content: ReportContent = {
+  household,
+  costPhrases,
+  closingLines,
+  demolitionCare,
+  consentCare,
+  consentOrder,
+  conservationOverrides,
+};
 const byId = new Map(deck.map((plan) => [plan.id, plan]));
 
-function plan(id: string): PlanReport {
+function plan(id: string): Plan {
   const found = byId.get(id);
   if (!found) throw new Error(`no plan "${id}" in the deck`);
   return found;
@@ -43,7 +54,13 @@ function playThrough(seed: number): GameState {
     const selected = game.reducer(state, { type: 'SELECT_PLAN', planId });
     const cell = legalCells(selected)[0];
     if (cell === undefined) throw new Error('no legal cell');
-    const placed = game.reducer(selected, { type: 'PLACE', cell });
+    // §7.2, §13 — say yes to the confirmation, so that demolition is exercised
+    // by the report tests rather than avoided by them.
+    const proposed = game.reducer(selected, { type: 'PLACE', cell });
+    const placed =
+      proposed.pendingDemolition === null
+        ? proposed
+        : game.reducer(proposed, { type: 'CONFIRM_DEMOLITION' });
     state =
       placed.observation === null ? placed : game.reducer(placed, { type: 'DISMISS' });
   }
@@ -52,7 +69,7 @@ function playThrough(seed: number): GameState {
 }
 
 function reportFor(seed: number): Report {
-  return buildReport(playThrough(seed), deck, content, qualitySeverity);
+  return buildReport(playThrough(seed), deck, content, qualitySeverity, config);
 }
 
 /* ------------------------------------------------------------------ *
@@ -62,19 +79,29 @@ function reportFor(seed: number): Report {
 describe('the three columns (§10.2)', () => {
   it('lists what you will have, in placement order', () => {
     const state = playThrough(11);
-    const report = buildReport(state, deck, content, qualitySeverity);
+    const report = buildReport(state, deck, content, qualitySeverity, config);
     expect(report.have).toEqual(
       state.placements.map((placement) => plan(placement.planId).have),
     );
   });
 
-  it('gives one have line and one care line per placement', () => {
+  it('gives one have line per placement, and rather more care than that', () => {
     for (let seed = 1; seed <= 30; seed++) {
       const state = playThrough(seed);
-      const report = buildReport(state, deck, content, qualitySeverity);
-      const demolished = state.placements.some((placement) => placement.demolished);
+      const report = buildReport(state, deck, content, qualitySeverity, config);
+
       expect(report.have).toHaveLength(config.rounds);
-      expect(report.care).toHaveLength(config.rounds + (demolished ? 1 : 0));
+
+      // One obligation per plan, then whatever consent the house has taken on
+      // (§9.3), then demolition (§7). Never a repeat.
+      const demolished = state.placements.some((placement) => placement.demolished);
+      expect(report.care.length).toBeGreaterThanOrEqual(
+        config.rounds + 1 + (demolished ? 1 : 0),
+      );
+      expect(report.care.slice(0, config.rounds)).toEqual(
+        state.placements.map((placement) => plan(placement.planId).care),
+      );
+      expect(new Set(report.care).size).toBe(report.care.length);
     }
   });
 
@@ -116,10 +143,10 @@ describe('the three columns (§10.2)', () => {
       })),
     };
 
-    expect(buildReport(untouched, deck, content, qualitySeverity).care).not.toContain(
+    expect(buildReport(untouched, deck, content, qualitySeverity, config).care).not.toContain(
       demolitionCare,
     );
-    const after = buildReport(razed, deck, content, qualitySeverity).care;
+    const after = buildReport(razed, deck, content, qualitySeverity, config).care;
     expect(after).toContain(demolitionCare);
     // §10.2 — the obligations of the plans first, then what taking the old house
     // down leaves you with.
@@ -131,6 +158,124 @@ describe('the three columns (§10.2)', () => {
       const report = reportFor(seed);
       const words = (lines: string[]) => lines.join(' ').split(/\s+/).length;
       expect(words(report.care)).toBeGreaterThan(words(report.have));
+    }
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * Consent, inside the care column — §9.3
+ * ------------------------------------------------------------------ */
+
+describe('consent lands inside what you’ll look after (§9.3)', () => {
+  it('is not a section of its own', () => {
+    const report = reportFor(11);
+    const somewhereElse = [...report.have, report.cost, report.closing];
+
+    for (const line of Object.values(consentCare)) {
+      expect(report.care.includes(line) || !somewhereElse.includes(line)).toBe(true);
+    }
+    // Whatever the house was, it took something on.
+    expect(
+      report.care.some((line) => Object.values(consentCare).includes(line)),
+    ).toBe(true);
+  });
+
+  it('comes after the plans’ own obligations and before demolition', () => {
+    const state = playThrough(11);
+    const razed: GameState = {
+      ...state,
+      placements: state.placements.map((placement, index) => ({
+        ...placement,
+        demolished: index === 0,
+      })),
+    };
+    const care = buildReport(razed, deck, content, qualitySeverity, config).care;
+
+    const firstConsent = care.findIndex((line) =>
+      Object.values(consentCare).includes(line),
+    );
+    expect(firstConsent).toBe(config.rounds);
+    expect(care[care.length - 1]).toBe(demolitionCare);
+  });
+
+  it('says an obligation once, however many plans took it on', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const care = reportFor(seed).care;
+      expect(new Set(care).size).toBe(care.length);
+    }
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * Preservation, played twice — §9.2
+ * ------------------------------------------------------------------ */
+
+describe('the same house, with conservation on (§9.2)', () => {
+  const preserved = { ...config, conservation: true };
+
+  /** The identical plot, reported both ways. */
+  function bothWays(seed: number) {
+    const state = playThrough(seed);
+    return {
+      ordinary: buildReport(state, deck, content, qualitySeverity, config),
+      preserved: buildReport(state, deck, content, qualitySeverity, preserved),
+    };
+  }
+
+  it('is the same house — same plans, same pleasures, same cost', () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const { ordinary, preserved: after } = bothWays(seed);
+      expect(after.have).toEqual(ordinary.have);
+      expect(after.cost).toBe(ordinary.cost);
+      expect(after.closing).toBe(ordinary.closing);
+    }
+  });
+
+  it('and different obligations — that is the whole argument of §9', () => {
+    // Somewhere across twenty games, conservation has to bite. If it never did,
+    // the flag would be decoration.
+    let changed = 0;
+    for (let seed = 1; seed <= 20; seed++) {
+      const { ordinary, preserved: after } = bothWays(seed);
+      if (after.care.join('\n') !== ordinary.care.join('\n')) changed++;
+    }
+    expect(changed).toBeGreaterThan(0);
+  });
+
+  it('never takes an obligation away', () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const { ordinary, preserved: after } = bothWays(seed);
+      // The one substitution §9.2 asks for: the longer demolition line replaces
+      // the ordinary one rather than joining it.
+      const dropped = ordinary.care.filter((line) => !after.care.includes(line));
+      expect(dropped.every((line) => line === demolitionCare)).toBe(true);
+    }
+  });
+
+  it('says much more about taking the old house down', () => {
+    const state = playThrough(11);
+    const razed: GameState = {
+      ...state,
+      placements: state.placements.map((placement, index) => ({
+        ...placement,
+        demolished: index === 0,
+      })),
+    };
+
+    const ordinary = buildReport(razed, deck, content, qualitySeverity, config).care;
+    const after = buildReport(razed, deck, content, qualitySeverity, preserved).care;
+
+    expect(ordinary).toContain(demolitionCare);
+    expect(after).not.toContain(demolitionCare);
+    expect(after).toContain(conservationOverrides.demolition.care);
+    expect(after.join(' ').length).toBeGreaterThan(ordinary.join(' ').length);
+  });
+
+  it('is still not a score — no number reaches the report either way', () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const { preserved: after } = bothWays(seed);
+      expect(after.cost).not.toMatch(/\d/);
+      expect(after.care.join(' ')).not.toMatch(/\bscore[ds]?\b|\bpoints\b|\btotal\b/i);
     }
   });
 });
@@ -153,16 +298,16 @@ describe('the closing line (§10.3)', () => {
 
   it('is deterministic for a given board', () => {
     const state = playThrough(5);
-    const first = buildReport(state, deck, content, qualitySeverity);
-    const second = buildReport(state, deck, content, qualitySeverity);
+    const first = buildReport(state, deck, content, qualitySeverity, config);
+    const second = buildReport(state, deck, content, qualitySeverity, config);
     expect(second.closing).toBe(first.closing);
   });
 
   it('does not depend on the order the same house was built in', () => {
     const state = playThrough(5);
     const reversed: GameState = { ...state, placements: [...state.placements].reverse() };
-    expect(buildReport(reversed, deck, content, qualitySeverity).closing).toBe(
-      buildReport(state, deck, content, qualitySeverity).closing,
+    expect(buildReport(reversed, deck, content, qualitySeverity, config).closing).toBe(
+      buildReport(state, deck, content, qualitySeverity, config).closing,
     );
   });
 
@@ -248,7 +393,7 @@ describe('the finished house (§10.4)', () => {
   it('reacts to a house with no front door rather than falling over', () => {
     const state = playThrough(11);
     const doorless: GameState = { ...state, frontDoor: null, fabric: [] };
-    for (const person of buildReport(doorless, deck, content, qualitySeverity)
+    for (const person of buildReport(doorless, deck, content, qualitySeverity, config)
       .household) {
       expect(person.reaction.length).toBeGreaterThan(0);
     }

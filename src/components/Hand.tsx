@@ -2,17 +2,32 @@
  * The hand — GDD §6, §13, §14.
  *
  * Three plans, drawn fresh each round. Click one to select it; the legal cells
- * on the plot highlight. The consent flag on each plan arrives in M5.
+ * on the plot highlight.
+ *
+ * §14 — each plan carries its consent flag. §9.1 means that flag is never an
+ * outcome, so it is shown flatly, in the same weight as the tier: it is a fact
+ * about the plan, not a warning about it.
  */
-import type { GameState, Plan, PlanIdentity } from '../types.ts';
+import type { Consent, GameState, Plan, PlanIdentity } from '../types.ts';
+
+type HandPlan = PlanIdentity & Pick<Plan, 'consent'>;
 
 interface HandProps {
   state: GameState;
-  deck: readonly PlanIdentity[];
+  deck: readonly HandPlan[];
+  /** The flag as this game reads it — conservation can change it (§9.2). */
+  consentOf: (plan: HandPlan) => Consent;
+  consentLabels: Record<Consent, string>;
   onSelect: (planId: Plan['id']) => void;
 }
 
-export default function Hand({ state, deck, onSelect }: HandProps) {
+export default function Hand({
+  state,
+  deck,
+  consentOf,
+  consentLabels,
+  onSelect,
+}: HandProps) {
   const byId = new Map(deck.map((plan) => [plan.id, plan]));
 
   return (
@@ -21,6 +36,7 @@ export default function Hand({ state, deck, onSelect }: HandProps) {
         const plan = byId.get(planId);
         if (!plan) return null;
         const selected = state.selectedPlanId === planId;
+        const consent = consentOf(plan);
 
         return (
           <li key={planId}>
@@ -28,11 +44,13 @@ export default function Hand({ state, deck, onSelect }: HandProps) {
               type="button"
               className={`plan${selected ? ' plan--selected' : ''}`}
               data-tier={plan.tier}
+              data-consent={consent}
               aria-pressed={selected}
               onClick={() => onSelect(planId)}
             >
               <span className="plan__name">{plan.name}</span>
               <span className="plan__tier">{plan.tier}</span>
+              <span className="plan__consent">{consentLabels[consent]}</span>
             </button>
           </li>
         );
