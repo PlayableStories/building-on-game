@@ -397,6 +397,80 @@ describe('the line, through the interface (§8.6, §13)', () => {
     expect(grid()).toBeDefined();
     expect(cells()).toHaveLength(25);
   });
+
+  /**
+   * §8.6 — the fix for "I do not aware the line is directly related to my
+   * placement and/or the neighbour". Every line names its cause above itself,
+   * and the plot lights the cells that cause is about.
+   */
+  it('names what caused it, above the line', () => {
+    renderPlaying();
+    const line = playUntilLine();
+
+    const cause = line.querySelector('.observation__cause')?.textContent ?? '';
+    expect(cause.trim().length).toBeGreaterThan(0);
+
+    // It names the plan that was just placed — the last one on the plot.
+    const placed = cells().filter((cell) => cell.classList.contains('cell--placed'));
+    const justPlaced = placed[placed.length - 1] as HTMLElement;
+    const name = justPlaced.querySelector('.cell__name')?.textContent ?? '';
+    expect(cause).toContain(name);
+  });
+
+  it('lights the placement the line is about, and dims the rest', () => {
+    renderPlaying();
+    playUntilLine();
+
+    expect(document.querySelector('.plot--reading')).not.toBeNull();
+    const lit = cells().filter((cell) => cell.classList.contains('cell--subject'));
+    expect(lit).toHaveLength(1);
+
+    // …and it is a placement, not an empty cell — the thing that just moved.
+    const subject = lit[0] as HTMLElement;
+    expect(subject.classList.contains('cell--placed')).toBe(true);
+
+    // The cause above the line names it, so the words and the board agree.
+    const cause =
+      document.querySelector('.observation__cause')?.textContent ?? '';
+    expect(cause).toContain(subject.querySelector('.cell__name')?.textContent);
+  });
+
+  it('lights the neighbour too, whenever a neighbour caused it', () => {
+    renderPlaying();
+
+    // Play until something fires that is about a neighbour rather than a row.
+    for (let round = 1; round <= config.rounds; round++) {
+      fireEvent.click(handButtons()[0] as HTMLElement);
+      fireEvent.click(legalCells()[0] as HTMLElement);
+      confirmDemolition();
+
+      const line = observation();
+      if (line) {
+        const causes = cells().filter((cell) => cell.classList.contains('cell--cause'));
+        const cause = line.querySelector('.observation__cause')?.textContent ?? '';
+        // An orientation line is about the row, so it lights nothing next door
+        // — and says so, by naming what it faces instead of what it is beside.
+        if (causes.length > 0) {
+          for (const lit of causes) {
+            const name = lit.querySelector('.cell__name')?.textContent ?? '';
+            expect(cause).toContain(name);
+          }
+          return;
+        }
+        fireEvent.click(line);
+      }
+    }
+    throw new Error('no line in a whole game was caused by a neighbour');
+  });
+
+  it('stops dimming the plot once the line has been read', () => {
+    renderPlaying();
+    fireEvent.click(playUntilLine());
+
+    expect(document.querySelector('.plot--reading')).toBeNull();
+    expect(document.querySelector('.cell--subject')).toBeNull();
+    expect(document.querySelector('.cell--cause')).toBeNull();
+  });
 });
 
 describe('the one confirmation (§7.2, §13)', () => {

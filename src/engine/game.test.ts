@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  causeWords,
   config,
   deck,
   pairLines,
@@ -8,7 +9,7 @@ import {
   qualityLines,
   qualitySeverity,
 } from '../content.ts';
-import type { GameState } from '../types.ts';
+import type { GameState, Observation } from '../types.ts';
 import { tierForRound } from './deck.ts';
 import { createGame } from './game.ts';
 import { legalCells } from './grid.ts';
@@ -16,7 +17,7 @@ import { legalCells } from './grid.ts';
 const game = createGame(
   deck,
   config,
-  { pairLines, qualityLines, qualitySeverity },
+  { pairLines, qualityLines, qualitySeverity, causeWords },
   plot,
   situations.map((situation) => situation.id),
 );
@@ -62,10 +63,10 @@ function indoorInHand(state: GameState): string {
 function playThrough(seed: number): {
   final: GameState;
   steps: GameState[];
-  lines: (string | null)[];
+  lines: (Observation | null)[];
 } {
   const steps: GameState[] = [];
-  const lines: (string | null)[] = [];
+  const lines: (Observation | null)[] = [];
   let state = startGame(seed);
 
   while (state.phase === 'play') {
@@ -146,9 +147,12 @@ describe('the line, and the pause for it (§8.6, §13)', () => {
     // The glass extension on the street elevation fires its north line.
     const placed = placeInto(1, 'glass-extension', 'B1');
 
-    expect(placed.observation).toBe(
+    expect(placed.observation?.line).toBe(
       'The light is even and cold. You will heat this room more than any other.',
     );
+    // §8.6 — and it says what caused it, so the plot can light it.
+    expect(placed.observation?.cause).toBe('Glass-roofed extension, facing the street');
+    expect(placed.observation?.cell).toBe('B1');
     expect(placed.round).toBe(1);
     expect(placed.placements).toHaveLength(1);
   });

@@ -329,6 +329,44 @@
   background: var(--colour-tier-wildcard);
 }
 
+/**
+ * §8.6 — the two ends of the relationship the line is about, lit while it is
+ * being read.
+ *
+ * This is the load-bearing half of the fix for "I do not aware the line is
+ * directly related to my placement and/or the neighbour". The sentence names
+ * the relationship; this shows it, in the same moment, on the board the player
+ * is already looking at.
+ *
+ * The rest of the plot is dimmed rather than these being brightened. Turning
+ * everything else down is what makes two cells read as *the* two cells — an
+ * outline on the pair would have to compete with the tier colours, the garden
+ * band and the fabric edges all at once, and would lose.
+ *
+ * Last in the file on purpose: this has to win over every fill above it.
+ */
+.plot--reading .cell {
+  opacity: 0.4;
+  transition: opacity 120ms ease-out;
+}
+
+.plot--reading .cell--subject,
+.plot--reading .cell--cause {
+  opacity: 1;
+}
+
+.plot--reading .cell--subject {
+  border-color: var(--colour-observation-edge);
+  border-style: solid;
+  box-shadow: 0 0 0 2px var(--colour-observation-edge);
+}
+
+/* The neighbour is in the relationship, but it is not the thing that moved. */
+.plot--reading .cell--cause {
+  border-color: var(--colour-observation-edge);
+  border-style: solid;
+}
+
 /* ---- The line — §8.6, §13 ------------------------------------------- */
 
 .observation {
@@ -347,6 +385,20 @@
   font-family: var(--font-body);
   cursor: pointer;
   text-align: center;
+}
+
+/**
+ * §8.6 — what the line is about: 'Kitchen beside the bin store'.
+ *
+ * Set in the small UI face, above the sentence and quieter than it. It is a
+ * label rather than writing, and the line is still the thing being read — the
+ * label exists so the player knows what the line is *of*, which playtesting
+ * found they did not.
+ */
+.observation__cause {
+  font-family: var(--font-ui);
+  font-size: var(--size-small);
+  color: var(--colour-observation-edge);
 }
 
 .observation__line {

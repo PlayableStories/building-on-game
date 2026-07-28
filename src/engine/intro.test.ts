@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  causeWords,
   config,
   deck,
   pairLines,
@@ -16,7 +17,7 @@ import { createGame } from './game.ts';
 const game = createGame(
   deck,
   config,
-  { pairLines, qualityLines, qualitySeverity },
+  { pairLines, qualityLines, qualitySeverity, causeWords },
   plot,
   situations.map((situation) => situation.id),
 );

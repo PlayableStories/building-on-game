@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  causeWords,
   config,
   deck,
   pairLines,
@@ -18,7 +19,7 @@ import {
   zoneOf,
 } from './grid.ts';
 
-const game = createGame(deck, config, { pairLines, qualityLines, qualitySeverity }, plot, situations.map((s) => s.id));
+const game = createGame(deck, config, { pairLines, qualityLines, qualitySeverity, causeWords }, plot, situations.map((s) => s.id));
 const opening = game.reducer(game.initialState(1), { type: 'BEGIN' });
 
 const FABRIC = plot.fabric.map((room) => room.cell);
