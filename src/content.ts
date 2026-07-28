@@ -15,9 +15,11 @@
 import type {
   ClosingLine,
   Config,
+  ConservationOverrides,
+  Consent,
   HouseholdMember,
   PairLine,
-  PlanReport,
+  Plan,
   Quality,
   QualityLine,
 } from './types.ts';
@@ -172,12 +174,13 @@ export const household: HouseholdMember[] = [
  * type attached to the house. A heat pump needs somewhere to stand, and it makes
  * noise.
  */
-export const deck: PlanReport[] = [
+export const deck: Plan[] = [
   /* ---- §6 Threshold — rounds 1–2 --------------------------------- */
   {
     id: 'porch',
     name: 'Porch',
     tier: 'threshold',
+    consent: 'permitted',
     have: 'Somewhere to stand while you find your keys, out of the rain.',
     cost: 'low',
     care: 'Gutters, a light that keeps failing, and a step that collects leaves.',
@@ -192,6 +195,7 @@ export const deck: PlanReport[] = [
     id: 'hall',
     name: 'Hall',
     tier: 'threshold',
+    consent: 'householder',
     have: 'A place to arrive, rather than walking straight into a room.',
     cost: 'moderate',
     care: 'The floor takes everything the outside brings in. It goes first.',
@@ -205,6 +209,7 @@ export const deck: PlanReport[] = [
     id: 'boot-room',
     name: 'Boot room',
     tier: 'threshold',
+    consent: 'householder',
     have: 'Wet coats and muddy boots stop at the door.',
     cost: 'low',
     care: 'It only works if you keep it emptied. Most people don’t.',
@@ -215,6 +220,7 @@ export const deck: PlanReport[] = [
     id: 'downstairs-wc',
     name: 'Downstairs WC',
     tier: 'threshold',
+    consent: 'householder',
     have: 'Nobody has to go upstairs, which matters more than it sounds.',
     cost: 'moderate',
     care: 'A macerator or a long drain run. Whichever it is, it will block.',
@@ -225,6 +231,7 @@ export const deck: PlanReport[] = [
     id: 'bin-store',
     name: 'Bin store',
     tier: 'threshold',
+    consent: 'permitted',
     have: 'The bins are somewhere, rather than beside the back door.',
     cost: 'very-low',
     care: 'Rinsing it out, and a lid that stops closing by the second winter.',
@@ -238,6 +245,7 @@ export const deck: PlanReport[] = [
     id: 'kitchen',
     name: 'Kitchen',
     tier: 'daily',
+    consent: 'householder',
     have: 'The room everyone ends up in, whatever you intended.',
     cost: 'high',
     care: 'Extraction, drains, and the slow replacement of everything in it.',
@@ -251,6 +259,7 @@ export const deck: PlanReport[] = [
     id: 'living-room',
     name: 'Living room',
     tier: 'daily',
+    consent: 'householder',
     have: 'Somewhere to sit that is not the kitchen.',
     cost: 'moderate',
     care: 'The room you will redecorate, and the room you will argue about redecorating.',
@@ -264,6 +273,7 @@ export const deck: PlanReport[] = [
     id: 'dining-room',
     name: 'Dining room',
     tier: 'daily',
+    consent: 'householder',
     have: 'A table that stays laid, and meals that take longer.',
     cost: 'moderate',
     care: 'Used twice a week, heated seven days. You will notice that eventually.',
@@ -274,6 +284,7 @@ export const deck: PlanReport[] = [
     id: 'utility-room',
     name: 'Utility room',
     tier: 'daily',
+    consent: 'householder',
     have: 'The washing happens somewhere that is not the kitchen.',
     cost: 'moderate',
     care: 'Plumbing, a floor that has to survive a leak, and a door kept shut.',
@@ -285,6 +296,7 @@ export const deck: PlanReport[] = [
     id: 'glass-extension',
     name: 'Glass-roofed extension',
     tier: 'daily',
+    consent: 'sensitive',
     have: 'A bright room that changes with the weather.',
     cost: 'high',
     care: 'Glass to clean, blinds to fit, and a room that is never quite the right temperature.',
@@ -302,6 +314,7 @@ export const deck: PlanReport[] = [
     id: 'bedroom',
     name: 'Bedroom',
     tier: 'private',
+    consent: 'householder',
     have: 'A room with a door, and a window you decide about.',
     cost: 'moderate',
     care: 'Nothing at all, for years. Then the window, the corner, and the floor.',
@@ -315,6 +328,7 @@ export const deck: PlanReport[] = [
     id: 'bathroom',
     name: 'Bathroom',
     tier: 'private',
+    consent: 'householder',
     have: 'A bath, and somewhere to be alone at seven in the morning.',
     cost: 'high',
     care: 'Sealant, extraction, and tiles that outlast the taste for them by twenty years.',
@@ -326,6 +340,7 @@ export const deck: PlanReport[] = [
     id: 'study',
     name: 'Study',
     tier: 'private',
+    consent: 'permitted',
     have: 'A door you can close on the rest of the house.',
     cost: 'low',
     care: 'Only stays a study if the household agrees it is one.',
@@ -336,6 +351,7 @@ export const deck: PlanReport[] = [
     id: 'gym',
     name: 'Gym',
     tier: 'private',
+    consent: 'permitted',
     have: 'No membership, and no excuse.',
     cost: 'low',
     care: 'It becomes storage inside two years unless somebody defends it.',
@@ -346,6 +362,7 @@ export const deck: PlanReport[] = [
     id: 'spare-room',
     name: 'Spare room',
     tier: 'private',
+    consent: 'householder',
     have: 'Somewhere for people to stay, and for everything else to go.',
     cost: 'low',
     care: 'Whatever you meant it to be, it will be full of things by Christmas.',
@@ -358,6 +375,7 @@ export const deck: PlanReport[] = [
     id: 'vegetable-garden',
     name: 'Vegetable garden',
     tier: 'outside',
+    consent: 'permitted',
     have: 'Something to pick in August, and beds to look at in February.',
     cost: 'very-low',
     care: 'Watering, netting, and the fortnight in summer when you go away.',
@@ -372,6 +390,7 @@ export const deck: PlanReport[] = [
     id: 'terrace',
     name: 'Terrace',
     tier: 'outside',
+    consent: 'permitted',
     have: 'Somewhere to sit outside without standing on the grass.',
     cost: 'moderate',
     care: 'Weeds between the slabs, and a jet wash you will buy and use twice.',
@@ -386,6 +405,7 @@ export const deck: PlanReport[] = [
     id: 'shed',
     name: 'Shed',
     tier: 'outside',
+    consent: 'permitted',
     have: 'The things that were in the hall are now in the shed.',
     cost: 'low',
     care: 'A felt roof with about ten years in it, and a lock worth the money.',
@@ -396,6 +416,7 @@ export const deck: PlanReport[] = [
     id: 'lawn',
     name: 'Lawn',
     tier: 'outside',
+    consent: 'permitted',
     have: 'Green, soft, and somewhere to put a chair.',
     cost: 'very-low',
     care: 'Cutting it, March to October, whether or not you feel like it.',
@@ -410,6 +431,7 @@ export const deck: PlanReport[] = [
     id: 'home-farm',
     name: 'Home farm',
     tier: 'outside',
+    consent: 'permitted',
     have: 'Food you grew, and a reason to be outside every day.',
     cost: 'very-low',
     care: 'Twenty minutes a day, every day, forever. This is the largest commitment on the plot.',
@@ -426,6 +448,7 @@ export const deck: PlanReport[] = [
     id: 'heat-pump',
     name: 'Air-source heat pump',
     tier: 'wildcard',
+    consent: 'permitted',
     have: 'Heat without a gas bill, and a house that runs warm and slow.',
     cost: 'high',
     care: 'An annual service, radiators sized for it, and a hum you stop hearing after a month.',
@@ -436,6 +459,7 @@ export const deck: PlanReport[] = [
     id: 'solar-array',
     name: 'Solar array',
     tier: 'wildcard',
+    consent: 'permitted',
     have: 'Some of your electricity, on the days you need least of it.',
     cost: 'high',
     care: 'An inverter with fifteen years in it, and panels somebody has to climb up to.',
@@ -450,6 +474,7 @@ export const deck: PlanReport[] = [
     id: 'wall-insulation',
     name: 'Internal wall insulation',
     tier: 'wildcard',
+    consent: 'permitted',
     have: 'Rooms that hold their heat, in a house that never has.',
     cost: 'moderate',
     care: 'Every wall is thicker now, and every fixing has to find the one behind.',
@@ -460,6 +485,7 @@ export const deck: PlanReport[] = [
     id: 'air-conditioning',
     name: 'Air conditioning unit',
     tier: 'wildcard',
+    consent: 'householder',
     have: 'One room that is bearable in the week it matters.',
     cost: 'moderate',
     care: 'A filter, a service, and a running cost that lands in the hottest month.',
@@ -692,3 +718,85 @@ export const closingLines: ClosingLine[] = [
  */
 export const demolitionCare =
   'Part of the old house is gone. What stands there now is new, and new is what you will be looking after.';
+
+/* ------------------------------------------------------------------ *
+ * Consent and preservation — §9
+ * ------------------------------------------------------------------ */
+
+/**
+ * §9.3 — one obligation per flag, and they land inside "what you'll look after"
+ * rather than in a section of their own.
+ *
+ * §9.1 — flags, never outcomes. Nothing here says an application succeeded or
+ * failed, because nothing in the game rolls for it. Planning is not a cost paid
+ * once; it is a relationship the household now has with the local authority, and
+ * these lines are written as ongoing rather than as a hurdle cleared.
+ */
+export const consentCare: Record<Consent, string> = {
+  permitted:
+    'Some of this needed nobody’s permission. Keep the drawings anyway — a buyer’s solicitor will ask one day.',
+  householder:
+    'An application, a fee, and the neighbours consulted. Weeks of it, and a decision notice to keep somewhere safe.',
+  sensitive:
+    'A condition on the decision, or a request to change something. You will be agreeing details with an officer, and then living with what you agreed.',
+  demolition:
+    'A heavier process, and a longer one. What comes down has to be recorded, and what replaces it has to answer for it.',
+};
+
+/**
+ * §14 — the flag as it appears on a plan in hand. Two or three words, because it
+ * sits under the plan's name on a small block.
+ *
+ * §9.1 again: none of these is an outcome. "Application" is not "approval", and
+ * "conditions likely" is not "refusal".
+ */
+export const consentLabels: Record<Consent, string> = {
+  permitted: 'no application',
+  householder: 'application',
+  sensitive: 'conditions likely',
+  demolition: 'demolition',
+};
+
+/**
+ * §9.1 — the order the obligations are read in, and it is the order they arrive
+ * in real life: the things nobody had to approve, then the application, then the
+ * condition attached to it, then the demolition that made all of it heavier.
+ */
+export const consentOrder: Consent[] = [
+  'permitted',
+  'householder',
+  'sensitive',
+  'demolition',
+];
+
+/**
+ * §9.2 — what `conservation: true` changes. Four deltas, and the same deck.
+ *
+ * This is the cheapest playtest in the game and the one most worth running: play
+ * a house, then play the same house with this switched on in `config` above. The
+ * plans are identical and the obligations are not, which is the whole argument
+ * §9 is making.
+ */
+export const conservationOverrides: ConservationOverrides = {
+  /** New openings in the north (street) elevation. */
+  northOpening: {
+    consent: 'sensitive',
+    care: 'A new opening on the street, in a place where the street is the reason for the designation. Expect to agree the frame, the glazing bar and the reveal, and to keep agreeing them.',
+  },
+
+  /** Taking any of the old house down, here. */
+  demolition: {
+    consent: 'sensitive',
+    care: 'You took down part of a building the area is designated for. That is recorded, and it is the first thing anyone reads about this house. What replaces it has to answer for it in materials, in proportion and in every application you make from now on — and the carbon that was already in those walls is spent, whatever you build.',
+  },
+
+  /** The two the GDD names by plan. */
+  plans: {
+    'heat-pump': {
+      consent: 'householder',
+    },
+    'glass-extension': {
+      care: 'The ridge has to sit below the eaves of the original house. Whatever you wanted the roof to do, it does it lower down.',
+    },
+  },
+};

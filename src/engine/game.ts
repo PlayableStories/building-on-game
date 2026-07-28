@@ -22,6 +22,8 @@ export type Action =
   | { type: 'BEGIN' }
   | { type: 'SELECT_PLAN'; planId: Plan['id'] }
   | { type: 'PLACE'; cell: CellId }
+  | { type: 'CONFIRM_DEMOLITION' }
+  | { type: 'CANCEL_DEMOLITION' }
   | { type: 'DISMISS' }
   | { type: 'RESTART'; seed: number };
 
@@ -67,9 +69,26 @@ export function createGame(
       fabric: [...FABRIC_CELLS],
       frontDoor: FRONT_DOOR_CELL,
       observation: null,
+      pendingDemolition: null,
       pool,
       seed: first.seed,
     };
+  }
+
+  /**
+   * §7.2, §13 — a placement onto inherited fabric demolishes it, and that is the
+   * one move the game asks about before making it. Everything else lands on the
+   * click.
+   */
+  function propose(state: GameState, cell: CellId): GameState {
+    const planId = state.selectedPlanId;
+    if (planId === null) return state;
+    if (!state.hand.includes(planId)) return state;
+    if (!isLegalCell(state, cell)) return state;
+
+    return isFabric(state, cell)
+      ? { ...state, pendingDemolition: cell }
+      : place(state, cell);
   }
 
   function place(state: GameState, cell: CellId): GameState {
@@ -78,8 +97,8 @@ export function createGame(
     if (!state.hand.includes(planId)) return state;
     if (!isLegalCell(state, cell)) return state;
 
-    // §7.2 — placing onto inherited fabric demolishes it. The confirmation this
-    // move deserves, and the consequences it carries, arrive in M5.
+    // §7.2 — placing onto inherited fabric demolishes it. Irreversible: §7.3
+    // means there is no way back from here for the rest of the game.
     const demolished = isFabric(state, cell);
 
     const placements = [
@@ -97,6 +116,7 @@ export function createGame(
     const placed = {
       ...state,
       selectedPlanId: null,
+      pendingDemolition: null,
       placements,
       fabric,
       frontDoor,
@@ -174,8 +194,10 @@ export function createGame(
 
       case 'SELECT_PLAN': {
         if (state.phase !== 'play') return state;
-        // Nothing else happens while a line is being read.
+        // Nothing else happens while a line is being read, or while the game is
+        // waiting to hear whether the old house is coming down.
         if (state.observation !== null) return state;
+        if (state.pendingDemolition !== null) return state;
         if (!state.hand.includes(action.planId)) return state;
         // Clicking the selected plan again deselects it.
         const selectedPlanId =
@@ -186,7 +208,22 @@ export function createGame(
       case 'PLACE': {
         if (state.phase !== 'play') return state;
         if (state.observation !== null) return state;
-        return place(state, action.cell);
+        if (state.pendingDemolition !== null) return state;
+        return propose(state, action.cell);
+      }
+
+      case 'CONFIRM_DEMOLITION': {
+        // §13 — the only confirmation in the game. There is nothing to confirm
+        // unless a demolition has actually been proposed.
+        if (state.pendingDemolition === null) return state;
+        return place(state, state.pendingDemolition);
+      }
+
+      case 'CANCEL_DEMOLITION': {
+        // The plan stays selected, so backing out returns the player to exactly
+        // where they were rather than to the start of the round.
+        if (state.pendingDemolition === null) return state;
+        return { ...state, pendingDemolition: null };
       }
 
       case 'DISMISS': {

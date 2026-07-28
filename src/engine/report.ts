@@ -12,19 +12,21 @@
 import type {
   CellId,
   ClosingLine,
+  Config,
+  Consent,
   CostBand,
   GameState,
   HouseSummary,
   HouseholdMember,
   PlacedPlan,
   Plan,
-  PlanReport,
   Quality,
   Report,
 } from '../types.ts';
+import { type ConsentContent, consentCare, consentFor } from './consent.ts';
 import { parseCell } from './grid.ts';
 
-export interface ReportContent {
+export interface ReportContent extends ConsentContent {
   household: readonly HouseholdMember[];
   /**
    * §10.2 — one phrase per band of total cost, cheapest first. The last is used
@@ -34,6 +36,8 @@ export interface ReportContent {
   closingLines: readonly ClosingLine[];
   /** §7 — added to the care column when any of the old house came down. */
   demolitionCare: string;
+  /** §9.1 — the flag vocabulary, in the order obligations should be read. */
+  consentOrder: readonly Consent[];
 }
 
 /** How much each band weighs when the total is turned into a phrase. */
@@ -63,7 +67,7 @@ function stepsBetween(a: CellId, b: CellId): number {
  * stable for a given house rather than dependent on placement order.
  */
 export function dominantQualities(
-  placed: readonly PlanReport[],
+  placed: readonly Plan[],
   severity: readonly Quality[],
 ): Quality[] {
   const counts = new Map<Quality, number>();
@@ -88,7 +92,7 @@ export function dominantQualities(
  */
 export function summarise(
   state: GameState,
-  deck: readonly PlanReport[],
+  deck: readonly Plan[],
   severity: readonly Quality[],
 ): HouseSummary {
   const byId = new Map(deck.map((plan) => [plan.id, plan]));
@@ -139,7 +143,7 @@ export function summarise(
  * and never shown before the end.
  */
 export function costPhrase(
-  placed: readonly PlanReport[],
+  placed: readonly Plan[],
   phrases: readonly string[],
 ): string {
   if (phrases.length === 0) return '';
@@ -197,9 +201,10 @@ export function closingLine(house: HouseSummary, lines: readonly ClosingLine[]):
  */
 export function buildReport(
   state: GameState,
-  deck: readonly PlanReport[],
+  deck: readonly Plan[],
   content: ReportContent,
   severity: readonly Quality[],
+  config: Config,
 ): Report {
   const byId = new Map(deck.map((plan) => [plan.id, plan]));
   const house = summarise(state, deck, severity);
@@ -212,9 +217,26 @@ export function buildReport(
   // §10.2 — the have lines in placement order. The pleasures, plainly.
   const have = placed.map((plan) => plan.have);
 
-  // The longest column, deliberately. Consent obligations join it in M5 (§9.3).
+  /**
+   * The longest column, deliberately, and assembled in a fixed order: what each
+   * plan asks of you, then the consent the house has taken on (§9.3), then what
+   * pulling the old house down leaves behind (§7).
+   */
   const care = placed.map((plan) => plan.care);
-  if (house.placed.some((entry) => entry.demolished)) {
+
+  const taken = house.placed.flatMap((entry) => {
+    const plan = byId.get(entry.id);
+    if (!plan) return [];
+    return [
+      consentFor(plan, entry.cell, entry.demolished, config.conservation, content),
+    ];
+  });
+  care.push(...consentCare(taken, content.consentOrder, content.consentCare));
+
+  // §9.2 — under conservation, taking the old house down has already said
+  // something much longer, and it does not need saying twice.
+  const demolished = house.placed.some((entry) => entry.demolished);
+  if (demolished && !config.conservation) {
     care.push(content.demolitionCare);
   }
 

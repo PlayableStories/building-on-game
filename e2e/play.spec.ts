@@ -34,13 +34,29 @@ function observation(page: Page) {
   return page.locator('.observation');
 }
 
+function demolition(page: Page) {
+  return page.locator('.demolition');
+}
+
 /**
- * One round: choose a plan, place it, and read past the line if there is one.
- * §8.6 — silence is a valid result, so there is not always a line to dismiss.
+ * §7.2, §13 — a placement onto the old house stops and asks. Say yes, so that
+ * demolition is exercised by these tests rather than avoided by them.
+ */
+async function confirmDemolition(page: Page) {
+  if ((await demolition(page).count()) > 0) {
+    await page.getByRole('button', { name: 'Take it down' }).click();
+  }
+}
+
+/**
+ * One round: choose a plan, place it, answer for it if it was the old house, and
+ * read past the line if there is one. §8.6 — silence is a valid result, so there
+ * is not always a line to dismiss.
  */
 async function playRound(page: Page) {
   await hand(page).first().click();
   await legalCells(page).first().click();
+  await confirmDemolition(page);
   if ((await observation(page).count()) > 0) await observation(page).click();
 }
 
@@ -195,6 +211,118 @@ test.describe('a whole game (§15)', () => {
   });
 });
 
+test.describe('the one confirmation (§7.2, §13)', () => {
+  /** Choose the first plan in hand and aim it at a named cell. */
+  async function aimAt(page: Page, ref: string): Promise<string> {
+    await start(page);
+    const name = await hand(page).first().locator('.plan__name').innerText();
+    await hand(page).first().click();
+    await cell(page, ref).click();
+    return name;
+  }
+
+  test('asks before taking any of the old house down, and not otherwise', async ({
+    page,
+  }) => {
+    await aimAt(page, 'C3');
+    await expect(demolition(page)).toBeVisible();
+    // Nothing has happened yet — all four cells of the old house are standing.
+    await expect(page.locator('.cell--fabric')).toHaveCount(4);
+    await expect(page.locator('.cell--placed')).toHaveCount(0);
+  });
+
+  test('does not ask for an ordinary placement', async ({ page }) => {
+    await aimAt(page, 'C1');
+    await expect(demolition(page)).toHaveCount(0);
+    await expect(page.locator('.cell--placed')).toHaveCount(1);
+  });
+
+  test('keeps the plot visible, so you can see what you are about to take down', async ({
+    page,
+  }) => {
+    await aimAt(page, 'C3');
+    await expect(page.getByRole('gridcell')).toHaveCount(25);
+    // The hand waits until it has an answer.
+    await expect(hand(page)).toHaveCount(0);
+  });
+
+  test('takes it down on Take it down', async ({ page }) => {
+    const name = await aimAt(page, 'C3');
+    await page.getByRole('button', { name: 'Take it down' }).click();
+
+    await expect(demolition(page)).toHaveCount(0);
+    await expect(page.locator('.cell--fabric')).toHaveCount(3);
+    await expect(cell(page, 'C3')).toContainText(name);
+  });
+
+  test('leaves it standing on Put it somewhere else, and on Escape', async ({ page }) => {
+    await aimAt(page, 'C3');
+    await page.getByRole('button', { name: 'Put it somewhere else' }).click();
+
+    await expect(demolition(page)).toHaveCount(0);
+    await expect(page.locator('.cell--fabric')).toHaveCount(4);
+    await expect(page.locator('.cell--placed')).toHaveCount(0);
+    // Still round 1, still holding the plan, so it can go somewhere else.
+    await expect(page.getByText(`1 of ${ROUNDS}`)).toBeVisible();
+    await expect(page.locator('.plan--selected')).toHaveCount(1);
+
+    await cell(page, 'C3').click();
+    await expect(demolition(page)).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(demolition(page)).toHaveCount(0);
+    await expect(page.locator('.cell--fabric')).toHaveCount(4);
+  });
+
+  test('says what goes with the front door, and only there (§7)', async ({ page }) => {
+    await aimAt(page, 'B2');
+    await expect(demolition(page).locator('.demolition__door')).toBeVisible();
+    await page.keyboard.press('Escape');
+
+    await cell(page, 'C3').click();
+    await expect(demolition(page)).toBeVisible();
+    await expect(demolition(page).locator('.demolition__door')).toHaveCount(0);
+  });
+
+  test('removes the front door once B2 is gone (§7)', async ({ page }) => {
+    await aimAt(page, 'B2');
+    await page.getByRole('button', { name: 'Take it down' }).click();
+
+    await expect(page.getByText('front door')).toHaveCount(0);
+    await expect(page.locator('.cell--fabric')).toHaveCount(3);
+  });
+});
+
+test.describe('the consent flag in hand (§9.1, §14)', () => {
+  test('shows one flag per plan, in words', async ({ page }) => {
+    await start(page);
+
+    const flags = page.locator('.plan__consent');
+    await expect(flags).toHaveCount(3);
+    for (let index = 0; index < 3; index++) {
+      const text = await flags.nth(index).innerText();
+      expect(text.trim().length).toBeGreaterThan(0);
+    }
+  });
+
+  test('never reads as an outcome, through a whole game (§9.1)', async ({ page }) => {
+    await start(page);
+
+    for (let round = 1; round <= ROUNDS; round++) {
+      const text = (await page.locator('body').innerText()).toLowerCase();
+      for (const forbidden of ['refused', 'approved', 'granted', 'rejected', 'denied']) {
+        expect(text).not.toContain(forbidden);
+      }
+      await playRound(page);
+    }
+
+    // Including the report, where the obligations are actually written out.
+    const finished = (await page.locator('body').innerText()).toLowerCase();
+    for (const forbidden of ['refused', 'approved', 'granted', 'rejected', 'denied']) {
+      expect(finished).not.toContain(forbidden);
+    }
+  });
+});
+
 test.describe('the report (§10)', () => {
   async function playToTheEnd(page: Page) {
     await start(page);
@@ -312,6 +440,7 @@ test.describe('the line (§8.6, §13)', () => {
     for (let round = 1; round <= ROUNDS; round++) {
       await hand(page).first().click();
       await legalCells(page).first().click();
+      await confirmDemolition(page);
       if ((await observation(page).count()) > 0) return;
     }
     throw new Error('no placement in a whole game said anything');
@@ -354,6 +483,7 @@ test.describe('the line (§8.6, §13)', () => {
     for (let round = 1; round <= ROUNDS; round++) {
       await hand(page).first().click();
       await legalCells(page).first().click();
+      await confirmDemolition(page);
       if ((await observation(page).count()) > 0) {
         spoken++;
         await observation(page).click();
@@ -378,7 +508,14 @@ test.describe('screenshots', () => {
     await hand(page).first().click();
     await page.screenshot({ path: 'e2e/screenshots/02-selected.png', fullPage: true });
 
+    // §7.2, §13 — the one question the game asks. Aimed at the front door,
+    // because that is the version of it that carries the most.
+    await cell(page, 'B2').click();
+    await page.screenshot({ path: 'e2e/screenshots/03-demolition.png', fullPage: true });
+    await page.keyboard.press('Escape');
+
     await legalCells(page).first().click();
+    await confirmDemolition(page);
     if ((await observation(page).count()) > 0) await observation(page).click();
 
     // Play on until something is actually said, and capture that — the line is
@@ -386,17 +523,18 @@ test.describe('screenshots', () => {
     for (let round = 2; round <= ROUNDS; round++) {
       await hand(page).first().click();
       await legalCells(page).first().click();
+      await confirmDemolition(page);
       if ((await observation(page).count()) > 0) {
-        await page.screenshot({ path: 'e2e/screenshots/03-line.png', fullPage: true });
+        await page.screenshot({ path: 'e2e/screenshots/04-line.png', fullPage: true });
         await observation(page).click();
         break;
       }
     }
-    await page.screenshot({ path: 'e2e/screenshots/04-midway.png', fullPage: true });
+    await page.screenshot({ path: 'e2e/screenshots/05-midway.png', fullPage: true });
 
     while ((await page.getByText('The house is finished.').count()) === 0) {
       await playRound(page);
     }
-    await page.screenshot({ path: 'e2e/screenshots/05-finished.png', fullPage: true });
+    await page.screenshot({ path: 'e2e/screenshots/06-finished.png', fullPage: true });
   });
 });

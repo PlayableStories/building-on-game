@@ -16,6 +16,17 @@ function startGame(seed: number): GameState {
   return game.reducer(game.initialState(seed), { type: 'BEGIN' });
 }
 
+/**
+ * §7.2, §13 — a placement onto fabric stops and asks. This says yes, which is
+ * what the helpers below want: a game that keeps moving, and demolition
+ * exercised rather than avoided.
+ */
+function settle(state: GameState): GameState {
+  return state.pendingDemolition === null
+    ? state
+    : game.reducer(state, { type: 'CONFIRM_DEMOLITION' });
+}
+
 /** Play a whole game, always taking the first plan and the first legal cell. */
 function playThrough(seed: number): {
   final: GameState;
@@ -34,7 +45,7 @@ function playThrough(seed: number): {
     const cell = legalCells(selected)[0];
     if (cell === undefined) throw new Error('no legal cell');
 
-    const placed = game.reducer(selected, { type: 'PLACE', cell });
+    const placed = settle(game.reducer(selected, { type: 'PLACE', cell }));
     lines.push(placed.observation);
     state =
       placed.observation === null ? placed : game.reducer(placed, { type: 'DISMISS' });
@@ -97,7 +108,7 @@ describe('the line, and the pause for it (§8.6, §13)', () => {
     const state = startGame(seed);
     // The hand is drawn, so put the plan we want to test into it directly.
     const rigged: GameState = { ...state, hand: [planId], selectedPlanId: planId };
-    return game.reducer(rigged, { type: 'PLACE', cell });
+    return settle(game.reducer(rigged, { type: 'PLACE', cell }));
   }
 
   it('holds the round open while there is a line to read', () => {
@@ -207,7 +218,7 @@ describe('placement (§7)', () => {
     const opening = startGame(5);
     const planId = opening.hand[0] as string;
     const selected = game.reducer(opening, { type: 'SELECT_PLAN', planId });
-    const placed = game.reducer(selected, { type: 'PLACE', cell: 'C3' });
+    const placed = settle(game.reducer(selected, { type: 'PLACE', cell: 'C3' }));
 
     expect(placed.placements[0]?.demolished).toBe(true);
     expect(placed.fabric).not.toContain('C3');
@@ -217,7 +228,7 @@ describe('placement (§7)', () => {
     const opening = startGame(5);
     const planId = opening.hand[0] as string;
     const selected = game.reducer(opening, { type: 'SELECT_PLAN', planId });
-    const placed = game.reducer(selected, { type: 'PLACE', cell: 'B2' });
+    const placed = settle(game.reducer(selected, { type: 'PLACE', cell: 'B2' }));
 
     expect(placed.frontDoor).toBeNull();
   });
@@ -230,6 +241,97 @@ describe('placement (§7)', () => {
 
     expect(placed.frontDoor).toBe('B2');
     expect(placed.placements[0]?.demolished).toBe(false);
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * The one confirmation — §7.2, §13
+ * ------------------------------------------------------------------ */
+
+describe('the demolition confirmation (§7.2, §13)', () => {
+  /** Select the first plan in hand and aim it at a cell. */
+  function aim(seed: number, cell: 'C3' | 'B2' | 'C1') {
+    const opening = startGame(seed);
+    const planId = opening.hand[0] as string;
+    const selected = game.reducer(opening, { type: 'SELECT_PLAN', planId });
+    return { selected, proposed: game.reducer(selected, { type: 'PLACE', cell }) };
+  }
+
+  it('asks before taking any of the old house down', () => {
+    const { proposed } = aim(5, 'C3');
+
+    expect(proposed.pendingDemolition).toBe('C3');
+    // Nothing has happened yet. The plan is still in hand, still selected.
+    expect(proposed.placements).toEqual([]);
+    expect(proposed.fabric).toContain('C3');
+    expect(proposed.selectedPlanId).not.toBeNull();
+  });
+
+  it('is the only confirmation in the game (§13)', () => {
+    const { proposed } = aim(5, 'C1');
+
+    expect(proposed.pendingDemolition).toBeNull();
+    expect(proposed.placements).toHaveLength(1);
+  });
+
+  it('takes it down when confirmed', () => {
+    const { proposed } = aim(5, 'C3');
+    const done = game.reducer(proposed, { type: 'CONFIRM_DEMOLITION' });
+
+    expect(done.pendingDemolition).toBeNull();
+    expect(done.placements[0]?.demolished).toBe(true);
+    expect(done.fabric).not.toContain('C3');
+  });
+
+  it('leaves the old house standing when it is not, and keeps the plan in hand', () => {
+    const { selected, proposed } = aim(5, 'C3');
+    const backedOut = game.reducer(proposed, { type: 'CANCEL_DEMOLITION' });
+
+    expect(backedOut.pendingDemolition).toBeNull();
+    expect(backedOut.placements).toEqual([]);
+    expect(backedOut.fabric).toEqual(selected.fabric);
+    // Backing out returns the player to exactly where they were, not to the
+    // start of the round.
+    expect(backedOut.selectedPlanId).toBe(selected.selectedPlanId);
+    expect(backedOut.hand).toEqual(selected.hand);
+    expect(backedOut.round).toBe(selected.round);
+  });
+
+  it('lets a cancelled plan go somewhere else', () => {
+    const { proposed } = aim(5, 'C3');
+    const elsewhere = game.reducer(
+      game.reducer(proposed, { type: 'CANCEL_DEMOLITION' }),
+      { type: 'PLACE', cell: 'C1' },
+    );
+
+    expect(elsewhere.placements).toHaveLength(1);
+    expect(elsewhere.placements[0]?.cell).toBe('C1');
+    expect(elsewhere.placements[0]?.demolished).toBe(false);
+  });
+
+  it('accepts nothing else while it is waiting for an answer', () => {
+    const { proposed } = aim(5, 'C3');
+    const otherPlan = deck[0]?.id as string;
+
+    expect(game.reducer(proposed, { type: 'SELECT_PLAN', planId: otherPlan })).toBe(
+      proposed,
+    );
+    expect(game.reducer(proposed, { type: 'PLACE', cell: 'C1' })).toBe(proposed);
+  });
+
+  it('does nothing when answered with no question asked', () => {
+    const opening = startGame(5);
+    expect(game.reducer(opening, { type: 'CONFIRM_DEMOLITION' })).toBe(opening);
+    expect(game.reducer(opening, { type: 'CANCEL_DEMOLITION' })).toBe(opening);
+  });
+
+  it('asks about the front door like any other cell, and then removes it (§7)', () => {
+    const { proposed } = aim(5, 'B2');
+    expect(proposed.pendingDemolition).toBe('B2');
+    expect(proposed.frontDoor).toBe('B2');
+
+    const done = game.reducer(proposed, { type: 'CONFIRM_DEMOLITION' });
+    expect(done.frontDoor).toBeNull();
   });
 });
 

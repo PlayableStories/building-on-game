@@ -299,6 +299,88 @@
   opacity: 0.7;
 }
 
+/**
+ * §14 — the consent flag on each plan in hand. §9.1 makes it a fact about the
+ * plan rather than a warning about it, so it is set in the same quiet weight as
+ * the tier, with a dot for the flag rather than a coloured panel.
+ */
+.plan__consent {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: auto;
+  font-size: var(--size-small);
+  color: var(--colour-consent);
+}
+
+.plan__consent::before {
+  content: '';
+  width: 0.5em;
+  height: 0.5em;
+  border-radius: 50%;
+  background: var(--consent-dot, var(--colour-consent));
+}
+
+.plan[data-consent='permitted'] {
+  --consent-dot: var(--colour-consent-permitted);
+}
+.plan[data-consent='householder'] {
+  --consent-dot: var(--colour-consent-householder);
+}
+.plan[data-consent='sensitive'] {
+  --consent-dot: var(--colour-consent-sensitive);
+}
+.plan[data-consent='demolition'] {
+  --consent-dot: var(--colour-consent-demolition);
+}
+
+.plan--selected .plan__consent {
+  color: var(--colour-selected-ink);
+  opacity: 0.85;
+}
+
+/* ---- The one confirmation — §7.2, §13 -------------------------------- */
+
+.demolition {
+  width: 100%;
+  margin-top: var(--space-3);
+  padding: var(--space-4) var(--space-3);
+  border: 1px solid var(--colour-rule);
+  border-left: var(--space-1) solid var(--colour-demolition-edge);
+  border-radius: var(--radius);
+  background: var(--colour-demolition);
+  text-align: center;
+}
+
+.demolition__line {
+  font-size: var(--size-observation);
+  max-width: 32rem;
+  margin: 0 auto;
+}
+
+.demolition__door {
+  max-width: 32rem;
+  margin: var(--space-3) auto 0;
+  color: var(--colour-ink-soft);
+}
+
+.demolition__note {
+  font-family: var(--font-ui);
+  font-size: var(--size-small);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--colour-demolition-edge);
+  margin: var(--space-3) 0 0;
+}
+
+.demolition__choices {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
 /* ---- Finished — §15 -------------------------------------------------- */
 
 .finished {
@@ -396,4 +478,15 @@
   font-family: var(--font-ui);
   font-size: var(--size-body);
   cursor: pointer;
+}
+
+/**
+ * §7 — the second choice in the confirmation. Backing out is not the lesser
+ * option, so it is not styled as one: it is quieter because it is the ordinary
+ * thing to do, not because the game prefers it.
+ */
+.button--quiet {
+  background: transparent;
+  color: var(--colour-button-quiet);
+  border: 1px solid var(--colour-rule);
 }

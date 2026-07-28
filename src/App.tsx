@@ -9,6 +9,10 @@ import { useCallback, useMemo, useReducer, useState } from 'react';
 import {
   closingLines,
   config,
+  conservationOverrides,
+  consentCare,
+  consentLabels,
+  consentOrder,
   costPhrases,
   deck,
   demolitionCare,
@@ -19,8 +23,11 @@ import {
   qualitySeverity,
   whyNow,
 } from './content.ts';
+import { flagInHand } from './engine/consent.ts';
 import { createGame } from './engine/game.ts';
+import { FRONT_DOOR_CELL } from './engine/grid.ts';
 import { buildReport } from './engine/report.ts';
+import Demolition from './components/Demolition.tsx';
 import Hand from './components/Hand.tsx';
 import Intro from './components/Intro.tsx';
 import Observation from './components/Observation.tsx';
@@ -41,6 +48,8 @@ export default function App() {
 
   const placing = state.selectedPlanId !== null;
   const reading = state.observation !== null;
+  // §7.2, §13 — waiting to hear whether part of the old house is coming down.
+  const demolishing = state.pendingDemolition !== null;
 
   // §10.1 — assembled once, on the last placement. Nothing here is computed for
   // display while the game is being played.
@@ -50,15 +59,31 @@ export default function App() {
         ? buildReport(
             state,
             deck,
-            { household, costPhrases, closingLines, demolitionCare },
+            {
+              household,
+              costPhrases,
+              closingLines,
+              demolitionCare,
+              consentCare,
+              consentOrder,
+              conservationOverrides,
+            },
             qualitySeverity,
+            config,
           )
         : null,
     [state],
   );
 
-  // Stable, so Observation's key handler is not torn down and rebuilt each render.
+  // Stable, so the key handlers in Observation and Demolition are not torn down
+  // and rebuilt on every render.
   const dismiss = useCallback(() => dispatch({ type: 'DISMISS' }), []);
+  const cancelDemolition = useCallback(
+    () => dispatch({ type: 'CANCEL_DEMOLITION' }),
+    [],
+  );
+
+  const selectedPlan = deck.find((plan) => plan.id === state.selectedPlanId);
 
   return (
     <main className="app">
@@ -86,9 +111,18 @@ export default function App() {
             onPlace={(cell) => dispatch({ type: 'PLACE', cell })}
           />
 
-          {/* While there is a line to read, it has the floor — the hand for the
-              next round arrives once it is dismissed (§8.6, §13). */}
-          {reading ? (
+          {/* §7.2, §13 — the one question the game asks. It takes precedence
+              over everything, because nothing else can happen until it is
+              answered. Then the line, which has the floor until it is read. */}
+          {demolishing && selectedPlan ? (
+            <Demolition
+              planName={selectedPlan.name}
+              cell={state.pendingDemolition as string}
+              isFrontDoor={state.pendingDemolition === FRONT_DOOR_CELL}
+              onConfirm={() => dispatch({ type: 'CONFIRM_DEMOLITION' })}
+              onCancel={cancelDemolition}
+            />
+          ) : reading ? (
             <Observation line={state.observation as string} onDismiss={dismiss} />
           ) : (
             <>
@@ -101,6 +135,10 @@ export default function App() {
               <Hand
                 state={state}
                 deck={deck}
+                consentOf={(plan) =>
+                  flagInHand(plan, config.conservation, conservationOverrides)
+                }
+                consentLabels={consentLabels}
                 onSelect={(planId) => dispatch({ type: 'SELECT_PLAN', planId })}
               />
             </>
