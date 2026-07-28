@@ -240,6 +240,101 @@ describe('the line, through the interface (§8.6, §13)', () => {
   });
 });
 
+describe('the report, when the eighth plan lands (§10)', () => {
+  /** Play the whole game and stop on the report. */
+  function playToTheEnd() {
+    renderPlaying();
+    for (let round = 1; round <= config.rounds; round++) {
+      playRound();
+    }
+  }
+
+  function column(heading: string) {
+    const found = screen
+      .getAllByRole('heading', { level: 2 })
+      .find((element) => (element.textContent ?? '') === heading);
+    if (!found?.parentElement) throw new Error(`no "${heading}" column`);
+    return found.parentElement;
+  }
+
+  it('shows all three columns at once, in the order §10.2 fixes', () => {
+    playToTheEnd();
+
+    const headings = screen
+      .getAllByRole('heading', { level: 2 })
+      .map((element) => element.textContent);
+    expect(headings).toEqual([
+      'What you’ll have',
+      'What it cost',
+      'What you’ll look after',
+    ]);
+  });
+
+  it('gives one have line per placement', () => {
+    playToTheEnd();
+    expect(column('What you’ll have').querySelectorAll('.report__item')).toHaveLength(
+      config.rounds,
+    );
+  });
+
+  it('makes what you will look after the longest column (§10.2)', () => {
+    playToTheEnd();
+    const words = (element: Element) => (element.textContent ?? '').split(/\s+/).length;
+    expect(words(column('What you’ll look after'))).toBeGreaterThan(
+      words(column('What you’ll have')),
+    );
+  });
+
+  it('describes the cost in words, never a number (§10.2)', () => {
+    playToTheEnd();
+    const cost = column('What it cost').textContent ?? '';
+    expect(cost.length).toBeGreaterThan('What it cost'.length);
+    expect(cost).not.toMatch(/\d/);
+  });
+
+  it('closes on one sentence about what kind of house it is (§10.3)', () => {
+    playToTheEnd();
+    const closing = document.querySelector('.report__closing');
+    expect(closing).not.toBeNull();
+    expect((closing?.textContent ?? '').trim().length).toBeGreaterThan(0);
+  });
+
+  it('gives every member of the household one line about it (§10.4)', () => {
+    playToTheEnd();
+
+    const report = document.querySelector('.report');
+    if (!report) throw new Error('no report');
+    const people = report.querySelectorAll('.household__person');
+    expect(people).toHaveLength(household.length);
+
+    for (const [index, person] of household.entries()) {
+      const shown = people[index] as HTMLElement;
+      expect(shown.querySelector('.household__name')?.textContent).toBe(person.name);
+      // A reaction to the finished house, not the setup line from the intro.
+      const reaction = shown.querySelector('.household__line')?.textContent ?? '';
+      expect(reaction.length).toBeGreaterThan(0);
+      expect(reaction).not.toBe(person.line);
+    }
+  });
+
+  it('shows none of it until the last plan is placed (§10.1)', () => {
+    renderPlaying();
+
+    for (let round = 1; round <= config.rounds; round++) {
+      expect(document.querySelector('.report')).toBeNull();
+      playRound();
+    }
+
+    expect(document.querySelector('.report')).not.toBeNull();
+  });
+
+  it('clears the report on Build again (§14)', () => {
+    playToTheEnd();
+    fireEvent.click(screen.getByRole('button', { name: 'Build again' }));
+    expect(document.querySelector('.report')).toBeNull();
+  });
+});
+
 describe('what the interface must not show (§10.1, §14)', () => {
   it('shows no score, cost or timer at any point during play', () => {
     renderPlaying();

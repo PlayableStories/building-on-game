@@ -195,6 +195,92 @@ test.describe('a whole game (§15)', () => {
   });
 });
 
+test.describe('the report (§10)', () => {
+  async function playToTheEnd(page: Page) {
+    await start(page);
+    for (let round = 1; round <= ROUNDS; round++) {
+      await playRound(page);
+    }
+    await expect(page.locator('.report')).toBeVisible();
+  }
+
+  function column(page: Page, heading: string) {
+    return page.locator('.report__column').filter({ hasText: heading });
+  }
+
+  test('shows all three columns at once, side by side (§10.2)', async ({ page }) => {
+    await page.setViewportSize({ width: 1100, height: 1200 });
+    await playToTheEnd(page);
+
+    const columns = page.locator('.report__column');
+    await expect(columns).toHaveCount(3);
+
+    // All three visible together — the payoff arrives in one moment, not as a
+    // sequence of screens.
+    const boxes = await columns.evaluateAll((elements) =>
+      elements.map((element) => {
+        const box = element.getBoundingClientRect();
+        return { x: Math.round(box.x), y: Math.round(box.y) };
+      }),
+    );
+    // On a wide screen they sit in a row: same top, increasing left.
+    expect(new Set(boxes.map((box) => box.y)).size).toBe(1);
+    expect(boxes[0]!.x).toBeLessThan(boxes[1]!.x);
+    expect(boxes[1]!.x).toBeLessThan(boxes[2]!.x);
+  });
+
+  test('gives what you will look after the most room (§10.2)', async ({ page }) => {
+    await page.setViewportSize({ width: 1100, height: 1200 });
+    await playToTheEnd(page);
+
+    const widths = await page
+      .locator('.report__column')
+      .evaluateAll((elements) =>
+        elements.map((element) => element.getBoundingClientRect().width),
+      );
+    expect(widths[2]!).toBeGreaterThan(widths[0]!);
+  });
+
+  test('describes the cost in words, never a number (§10.2)', async ({ page }) => {
+    await playToTheEnd(page);
+    const cost = await column(page, 'What it cost').innerText();
+    expect(cost).not.toMatch(/\d/);
+    expect(cost.length).toBeGreaterThan('What it cost'.length);
+  });
+
+  test('closes on a line, and the household answers it (§10.3, §10.4)', async ({
+    page,
+  }) => {
+    await playToTheEnd(page);
+
+    await expect(page.locator('.report__closing')).toBeVisible();
+    const closing = await page.locator('.report__closing').innerText();
+    expect(closing.trim().length).toBeGreaterThan(0);
+
+    const people = page.locator('.report .household__person');
+    await expect(people).toHaveCount(3);
+    for (let index = 0; index < 3; index++) {
+      const line = await people.nth(index).locator('.household__line').innerText();
+      expect(line.trim().length).toBeGreaterThan(0);
+    }
+  });
+
+  test('shows none of it before the last plan lands, with a clean console (§10.1)', async ({
+    page,
+  }) => {
+    const errors = watchForErrors(page);
+    await start(page);
+
+    for (let round = 1; round <= ROUNDS; round++) {
+      await expect(page.locator('.report')).toHaveCount(0);
+      await playRound(page);
+    }
+
+    await expect(page.locator('.report')).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+});
+
 test.describe('the framing (§2, §14)', () => {
   test('comes before the plot, and does not come back', async ({ page }) => {
     await page.goto('/');

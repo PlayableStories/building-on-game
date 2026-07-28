@@ -62,10 +62,17 @@ hospice garden should never require opening a file that isn't one of those two.
 
 ## Status
 
-**M3 — adjacency lines.** The game now does the thing it exists to do: every placement is
-checked against its neighbours and may say one short line about what has just been put next
-to what. Opens with why the work is happening and who the house is for; then the 5×5 plot
-with the inherited house on B2/C2/B3/C3, a hand of three drawn fresh each round and
-weighted to the tier, eight placements, and a finish.
+**M4 — the report.** The game is now playable end to end. It opens with why the work is
+happening and who the house is for; then the 5×5 plot with the inherited house on
+B2/C2/B3/C3, a hand of three drawn fresh each round and weighted to the tier, and eight
+placements — each one checked against its neighbours, and each one that has something to
+say saying it in a single line.
 
-Not yet: the report (M4), demolition confirmation and consent flags (M5).
+When the eighth plan lands the house reports back in three columns: what you'll have, what
+it cost, and what you'll look after. The third is the longest, deliberately. Below it, one
+sentence about what kind of house it turned out to be, and each member of the household
+saying one thing about living in it. There is no score, and the cost is a phrase rather
+than a number.
+
+Not yet: demolition confirmation and consent flags (M5), the validator and the finished
+fork surface (M6).

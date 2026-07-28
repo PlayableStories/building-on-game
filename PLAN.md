@@ -235,7 +235,7 @@ strongest quality winning when several fire, and silence when nothing does. Two 
 checks are worth keeping: every sensitivity in the deck is emitted by something (otherwise
 it is dead weight), and no line is written twice.
 
-## M4 — The report (§18.4)
+## M4 — The report (§18.4) ✅
 
 **Goal:** the payoff. Three columns, no numbers.
 
@@ -256,6 +256,31 @@ given board.
 
 **Done when:** the eighth placement shows all three columns at once, a closing line, and
 three household reactions — and no score, cost or counter has appeared at any point (§10.1).
+
+**Two things the build settled that the plan had left vague:**
+
+1. **The household reactions needed a way to ask questions of the finished plot** without
+   `content.ts` importing engine code — which is the constraint the whole fork surface
+   rests on. `HouseSummary` is the answer: `has`, `cellOf`, `distance`, `fromFrontDoor`,
+   `dominant`, `fabricRemaining`, `frontDoor`. A `reaction` is now `(house) => string`, so
+   a forked household can measure whatever its own building cares about.
+2. **`closingLines` needed two axes, not one.** The plan said "selected from dominant
+   qualities", but two of §10.3's own four examples are about how much of the old house
+   survived, not about qualities. `ClosingLine` is `{ line, dominant?, fabric? }`, resolved
+   most-specific-wins, with exactly one unconditional fallback.
+
+**Also:** cost is banded by *share of the dearest house the same number of plans could have
+been*, then indexed into `costPhrases`. Adding a fourth phrase makes the scale finer without
+the engine knowing how many there are — and there is never a number to show.
+
+**Verified:** 116 unit and component tests · 17 end-to-end tests in Chrome · `tsc -b` clean ·
+`vite build` clean. The §10.1 guarantee is asserted twice over: no digit reaches the cost
+column across thirty seeded games, and `.report` does not exist in the DOM until the eighth
+plan lands. The care column is measured against the have column in words, in both jsdom and
+a real browser, because "the longest column, deliberately" is a design requirement rather
+than an accident of the writing. The closing line is checked for determinism *and* for
+independence from build order — the same house reached by a different route says the same
+thing about itself.
 
 ## M5 — Demolition, consent, conservation (§18.5)
 

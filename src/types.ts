@@ -105,6 +105,13 @@ export type PlanIdentity = Pick<Plan, 'id' | 'name' | 'tier'>;
 export type PlanAdjacency = PlanIdentity &
   Pick<Plan, 'emits' | 'sensitive' | 'orientation'>;
 
+/**
+ * Everything the report in §10 needs on top of that: the pleasure, the cost
+ * band and the obligation. Still short of a full `Plan` by its consent flag,
+ * which is M5's business.
+ */
+export type PlanReport = PlanAdjacency & Pick<Plan, 'have' | 'cost' | 'care'>;
+
 /* ------------------------------------------------------------------ *
  * Writing — §8.6
  * ------------------------------------------------------------------ */
@@ -137,11 +144,75 @@ export interface QualityLine {
   line: string;
 }
 
-/** §10.3 — a closing line and the quality profile that selects it. */
+/**
+ * §10.3 — one sentence naming what kind of house it turned out to be, and the
+ * conditions that make it the right one. Derived from what is on the plot, not
+ * from a score.
+ *
+ * Both axes are here because the GDD's own four examples use both: two are about
+ * dominant qualities ("A house that asks a lot of you in spring"), and two are
+ * about how much of the old house survived ("There is very little of the old
+ * house left").
+ *
+ * A line with no conditions at all is a fallback, and there must be one.
+ */
 export interface ClosingLine {
   line: string;
-  /** Dominant qualities across the plot that make this line the right one. */
-  dominant: Quality[];
+  /** Every quality named here must be among the plot's dominant ones. */
+  dominant?: Quality[];
+  /** How much inherited fabric is still standing. */
+  fabric?: 'all' | 'some' | 'none';
+}
+
+/* ------------------------------------------------------------------ *
+ * The report — §10
+ * ------------------------------------------------------------------ */
+
+export interface PlacedPlan {
+  id: Plan['id'];
+  name: string;
+  cell: CellId;
+  round: number;
+  /** This placement went onto inherited fabric — §7.2. */
+  demolished: boolean;
+}
+
+/**
+ * The finished house, prepared for content to read.
+ *
+ * The household's reactions in §10.4 need to know things about the plot — how
+ * far the bathroom is from the front door, whether a door that closes exists at
+ * all. Handing them a summary keeps `content.ts` free of engine imports, which
+ * is what makes the fork surface in §16 a real boundary rather than a habit.
+ */
+export interface HouseSummary {
+  /** Every placement, in the order it was made. */
+  placed: readonly PlacedPlan[];
+  /** Inherited fabric still standing. Empty means all of it came down. */
+  fabricRemaining: readonly CellId[];
+  /** Null once B2 has been demolished — §7. */
+  frontDoor: CellId | null;
+  /** Strongest first, across the whole plot. */
+  dominant: readonly Quality[];
+  /** Is this plan anywhere on the plot? */
+  has: (id: Plan['id']) => boolean;
+  /** Where it went, or null if it was never placed. */
+  cellOf: (id: Plan['id']) => CellId | null;
+  /** Steps between two plans, or null if either is missing. */
+  distance: (a: Plan['id'], b: Plan['id']) => number | null;
+  /** Steps from the front door, or null if there is no door or no plan. */
+  fromFrontDoor: (id: Plan['id']) => number | null;
+}
+
+/** §10.2 — the three columns, assembled. */
+export interface Report {
+  have: string[];
+  /** A phrase, never a number. */
+  cost: string;
+  /** The longest column, deliberately. */
+  care: string[];
+  closing: string;
+  household: { name: string; reaction: string }[];
 }
 
 /* ------------------------------------------------------------------ *
@@ -154,8 +225,12 @@ export interface HouseholdMember {
   name: string;
   /** The one-sentence setup shown before round 1. */
   line: string;
-  /** §10.4 — a reaction to the finished house. Not a verdict. */
-  reaction: (state: GameState) => string;
+  /**
+   * §10.4 — one line about the finished house. A reaction, not a verdict:
+   * nobody says the house is good or bad, they say what it will be like to
+   * live in it.
+   */
+  reaction: (house: HouseSummary) => string;
 }
 
 /**
