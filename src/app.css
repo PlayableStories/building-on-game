@@ -310,6 +310,83 @@
   margin: var(--space-4) 0 var(--space-2);
 }
 
+/* ---- The report — §10 ----------------------------------------------- */
+
+.report {
+  max-width: 46rem;
+  margin: var(--space-5) auto 0;
+  text-align: left;
+}
+
+/**
+ * §10.2 — the three columns, in order. They stack on a narrow screen, which
+ * keeps the reading order the same as the column order: have, cost, care.
+ */
+.report__columns {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 48rem) {
+  .report__columns {
+    /* The care column is given the most room, because it has the most in it. */
+    grid-template-columns: 1fr 1fr 1.4fr;
+  }
+}
+
+.report__column {
+  border-top: 1px solid var(--colour-rule);
+  padding-top: var(--space-3);
+}
+
+.report__heading {
+  font-family: var(--font-ui);
+  font-size: var(--size-small);
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--colour-report-heading);
+  margin: 0 0 var(--space-3);
+}
+
+.report__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.report__item {
+  margin-bottom: var(--space-3);
+}
+
+.report__item:last-child {
+  margin-bottom: 0;
+}
+
+.report__cost {
+  margin: 0;
+}
+
+/* §10.2 — the longest column, deliberately, and the one that reads darkest. */
+.report__column--care .report__item {
+  color: var(--colour-report-care);
+  border-left: 2px solid var(--colour-report-care-mark);
+  padding-left: var(--space-3);
+}
+
+/* §10.3 — what kind of house it turned out to be. */
+.report__closing {
+  font-size: var(--size-closing);
+  text-align: center;
+  color: var(--colour-closing);
+  margin: var(--space-5) 0;
+}
+
+.report .household {
+  margin-bottom: var(--space-5);
+}
+
 .button {
   padding: var(--space-2) var(--space-4);
   border: none;

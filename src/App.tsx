@@ -7,8 +7,11 @@
  */
 import { useCallback, useMemo, useReducer, useState } from 'react';
 import {
+  closingLines,
   config,
+  costPhrases,
   deck,
+  demolitionCare,
   household,
   pairLines,
   premise,
@@ -17,10 +20,12 @@ import {
   whyNow,
 } from './content.ts';
 import { createGame } from './engine/game.ts';
+import { buildReport } from './engine/report.ts';
 import Hand from './components/Hand.tsx';
 import Intro from './components/Intro.tsx';
 import Observation from './components/Observation.tsx';
 import Plot from './components/Plot.tsx';
+import Report from './components/Report.tsx';
 
 function freshSeed(): number {
   return Math.floor(Math.random() * 2 ** 32);
@@ -36,6 +41,21 @@ export default function App() {
 
   const placing = state.selectedPlanId !== null;
   const reading = state.observation !== null;
+
+  // §10.1 — assembled once, on the last placement. Nothing here is computed for
+  // display while the game is being played.
+  const report = useMemo(
+    () =>
+      state.phase === 'report'
+        ? buildReport(
+            state,
+            deck,
+            { household, costPhrases, closingLines, demolitionCare },
+            qualitySeverity,
+          )
+        : null,
+    [state],
+  );
 
   // Stable, so Observation's key handler is not torn down and rebuilt each render.
   const dismiss = useCallback(() => dispatch({ type: 'DISMISS' }), []);
@@ -90,12 +110,9 @@ export default function App() {
         <section className="finished">
           <Plot state={state} deck={deck} onPlace={() => {}} />
           <p className="finished__line">The house is finished.</p>
-          <p className="app__prompt">
-            {/* §10 — the three columns, the closing line and the household's
-                reactions arrive in M4. */}
-            What you&rsquo;ll have, what it cost and what you&rsquo;ll look after are
-            still to come.
-          </p>
+
+          {report && <Report report={report} />}
+
           <button
             type="button"
             className="button"

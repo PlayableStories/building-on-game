@@ -47,10 +47,18 @@
   --colour-observation: #efeadd;
   --colour-observation-edge: #8d8577;
 
+  /* ---- The report — §10 ------------------------------------------- */
+  --colour-report-heading: #6b6459;
+  /* The third column is the longest and the point of the game — §10.2. */
+  --colour-report-care: #23201c;
+  --colour-report-care-mark: #8c5a3c;
+  --colour-closing: #23201c;
+
   /* ---- Type ------------------------------------------------------- */
   --font-body: ui-serif, Georgia, 'Times New Roman', serif;
   --font-ui: ui-sans-serif, system-ui, -apple-system, sans-serif;
   --size-title: 2rem;
+  --size-closing: 1.375rem;
   --size-observation: 1.1875rem;
   --size-body: 1rem;
   --size-small: 0.8125rem;

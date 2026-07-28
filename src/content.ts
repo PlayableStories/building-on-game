@@ -13,10 +13,11 @@
  * adjacency lines in M3, the report copy in M4, the consent flags in M5.
  */
 import type {
+  ClosingLine,
   Config,
-  HouseholdIntro,
+  HouseholdMember,
   PairLine,
-  PlanAdjacency,
+  PlanReport,
   Quality,
   QualityLine,
 } from './types.ts';
@@ -70,21 +71,92 @@ export const whyNow = 'The roof failed in February. You can’t put it off any l
  * household, entirely different house — so this is the first thing to change
  * when forking (§16, rung 1).
  */
-export const household: HouseholdIntro[] = [
+export const household: HouseholdMember[] = [
   {
     id: 'you',
     name: 'You',
     line: 'You work from home three days a week and have never had a door to close.',
+
+    /**
+     * §10.4 — you, on whether you got the door you can close. A study is the
+     * plan that was actually promised; a spare room is the compromise everyone
+     * makes and nobody admits to.
+     */
+    reaction: (house) => {
+      if (house.has('study')) {
+        const near = house.distance('study', 'kitchen');
+        if (near !== null && near <= 1) {
+          return 'You have your door. It opens onto the kitchen, so you will hear every kettle, but it closes.';
+        }
+        return 'You have the door. Three days a week, you will shut it and nobody will think anything of it.';
+      }
+      if (house.has('spare-room')) {
+        return 'No study. You will work in the spare room, and it will be a spare room again whenever anyone visits.';
+      }
+      return 'You still have no door to close. You will work at the table, as you always have, and mind it more now.';
+    },
   },
   {
     id: 'daughter',
     name: 'Your daughter, 14',
     line: 'She plays drums. She has been promised this will be better than the flat.',
+
+    /**
+     * §10.4 — the drummer, on where her room ended up relative to everyone
+     * else's. Distance is the whole reaction: the further the bedroom sits from
+     * where people sit, the longer she gets to play.
+     */
+    reaction: (house) => {
+      if (!house.has('bedroom')) {
+        return 'There is no room that is hers. She has not said anything about it yet.';
+      }
+      const toLiving = house.distance('bedroom', 'living-room');
+      const toStudy = house.distance('bedroom', 'study');
+      const nearest = [toLiving, toStudy].filter((steps): steps is number => steps !== null);
+      if (nearest.length === 0) {
+        return 'Her room is off on its own. She has worked out that nobody can hear her from there, and she is right.';
+      }
+      const closest = Math.min(...nearest);
+      if (closest <= 1) {
+        return 'Her room shares a wall with where everyone sits. She has done the arithmetic on that already.';
+      }
+      if (closest === 2) {
+        return 'Her room is far enough that it will be about volume rather than about whether at all.';
+      }
+      return 'Her room is at the other end of the house. She has stopped asking what time she has to stop.';
+    },
   },
   {
     id: 'mother',
     name: 'Your mother',
     line: 'Moving in next spring. She manages one flight of stairs on a good day.',
+
+    /**
+     * §10.4 — your mother, on the distance from the front door to the bathroom.
+     * If B2 came down there is no front door to measure from, and that is its
+     * own answer (§7).
+     */
+    reaction: (house) => {
+      const wc = house.has('downstairs-wc');
+      if (house.frontDoor === null) {
+        return wc
+          ? 'She cannot see where the front door went, but there is a WC on this floor, and that is the part she asked about.'
+          : 'She asked where the front door is. Nobody has answered her yet.';
+      }
+      const steps = house.fromFrontDoor('bathroom');
+      if (steps === null) {
+        return wc
+          ? 'No bathroom, but there is a WC by the door. She says that will do for now, in the voice she uses.'
+          : 'She has not mentioned the bathroom. She has noticed there isn’t one.';
+      }
+      if (steps <= 2) {
+        return 'From the front door to the bathroom is a few steps. She will not have to plan the journey.';
+      }
+      if (wc) {
+        return 'The bathroom is right across the house. The WC by the door is what she will actually use.';
+      }
+      return 'The bathroom is a long way from the front door. She has counted, and she will count again every time.';
+    },
   },
 ];
 
@@ -100,12 +172,15 @@ export const household: HouseholdIntro[] = [
  * type attached to the house. A heat pump needs somewhere to stand, and it makes
  * noise.
  */
-export const deck: PlanAdjacency[] = [
+export const deck: PlanReport[] = [
   /* ---- §6 Threshold — rounds 1–2 --------------------------------- */
   {
     id: 'porch',
     name: 'Porch',
     tier: 'threshold',
+    have: 'Somewhere to stand while you find your keys, out of the rain.',
+    cost: 'low',
+    care: 'Gutters, a light that keeps failing, and a step that collects leaves.',
     emits: ['footfall'],
     sensitive: [],
     orientation: {
@@ -117,6 +192,9 @@ export const deck: PlanAdjacency[] = [
     id: 'hall',
     name: 'Hall',
     tier: 'threshold',
+    have: 'A place to arrive, rather than walking straight into a room.',
+    cost: 'moderate',
+    care: 'The floor takes everything the outside brings in. It goes first.',
     emits: ['footfall'],
     sensitive: [],
   },
@@ -127,6 +205,9 @@ export const deck: PlanAdjacency[] = [
     id: 'boot-room',
     name: 'Boot room',
     tier: 'threshold',
+    have: 'Wet coats and muddy boots stop at the door.',
+    cost: 'low',
+    care: 'It only works if you keep it emptied. Most people don’t.',
     emits: ['damp', 'work'],
     sensitive: [],
   },
@@ -134,6 +215,9 @@ export const deck: PlanAdjacency[] = [
     id: 'downstairs-wc',
     name: 'Downstairs WC',
     tier: 'threshold',
+    have: 'Nobody has to go upstairs, which matters more than it sounds.',
+    cost: 'moderate',
+    care: 'A macerator or a long drain run. Whichever it is, it will block.',
     emits: ['smell'],
     sensitive: [],
   },
@@ -141,6 +225,9 @@ export const deck: PlanAdjacency[] = [
     id: 'bin-store',
     name: 'Bin store',
     tier: 'threshold',
+    have: 'The bins are somewhere, rather than beside the back door.',
+    cost: 'very-low',
+    care: 'Rinsing it out, and a lid that stops closing by the second winter.',
     emits: ['smell', 'work'],
     sensitive: ['heat'],
   },
@@ -151,6 +238,9 @@ export const deck: PlanAdjacency[] = [
     id: 'kitchen',
     name: 'Kitchen',
     tier: 'daily',
+    have: 'The room everyone ends up in, whatever you intended.',
+    cost: 'high',
+    care: 'Extraction, drains, and the slow replacement of everything in it.',
     emits: ['heat', 'smell', 'footfall'],
     sensitive: ['damp', 'noise'],
     orientation: {
@@ -161,6 +251,9 @@ export const deck: PlanAdjacency[] = [
     id: 'living-room',
     name: 'Living room',
     tier: 'daily',
+    have: 'Somewhere to sit that is not the kitchen.',
+    cost: 'moderate',
+    care: 'The room you will redecorate, and the room you will argue about redecorating.',
     emits: ['noise', 'footfall', 'shade'],
     sensitive: ['noise'],
     orientation: {
@@ -171,6 +264,9 @@ export const deck: PlanAdjacency[] = [
     id: 'dining-room',
     name: 'Dining room',
     tier: 'daily',
+    have: 'A table that stays laid, and meals that take longer.',
+    cost: 'moderate',
+    care: 'Used twice a week, heated seven days. You will notice that eventually.',
     emits: ['footfall', 'shade'],
     sensitive: ['smell'],
   },
@@ -178,6 +274,9 @@ export const deck: PlanAdjacency[] = [
     id: 'utility-room',
     name: 'Utility room',
     tier: 'daily',
+    have: 'The washing happens somewhere that is not the kitchen.',
+    cost: 'moderate',
+    care: 'Plumbing, a floor that has to survive a leak, and a door kept shut.',
     emits: ['damp', 'noise', 'heat'],
     sensitive: [],
   },
@@ -186,6 +285,9 @@ export const deck: PlanAdjacency[] = [
     id: 'glass-extension',
     name: 'Glass-roofed extension',
     tier: 'daily',
+    have: 'A bright room that changes with the weather.',
+    cost: 'high',
+    care: 'Glass to clean, blinds to fit, and a room that is never quite the right temperature.',
     emits: ['light', 'heat', 'shade'],
     sensitive: [],
     orientation: {
@@ -200,6 +302,9 @@ export const deck: PlanAdjacency[] = [
     id: 'bedroom',
     name: 'Bedroom',
     tier: 'private',
+    have: 'A room with a door, and a window you decide about.',
+    cost: 'moderate',
+    care: 'Nothing at all, for years. Then the window, the corner, and the floor.',
     emits: ['quiet', 'shade'],
     sensitive: ['noise', 'footfall', 'smell', 'light'],
     orientation: {
@@ -210,6 +315,9 @@ export const deck: PlanAdjacency[] = [
     id: 'bathroom',
     name: 'Bathroom',
     tier: 'private',
+    have: 'A bath, and somewhere to be alone at seven in the morning.',
+    cost: 'high',
+    care: 'Sealant, extraction, and tiles that outlast the taste for them by twenty years.',
     emits: ['damp', 'shade'],
     sensitive: ['footfall'],
   },
@@ -218,6 +326,9 @@ export const deck: PlanAdjacency[] = [
     id: 'study',
     name: 'Study',
     tier: 'private',
+    have: 'A door you can close on the rest of the house.',
+    cost: 'low',
+    care: 'Only stays a study if the household agrees it is one.',
     emits: ['quiet', 'shade'],
     sensitive: ['noise', 'footfall', 'smell'],
   },
@@ -225,6 +336,9 @@ export const deck: PlanAdjacency[] = [
     id: 'gym',
     name: 'Gym',
     tier: 'private',
+    have: 'No membership, and no excuse.',
+    cost: 'low',
+    care: 'It becomes storage inside two years unless somebody defends it.',
     emits: ['noise', 'work', 'shade'],
     sensitive: ['heat'],
   },
@@ -232,6 +346,9 @@ export const deck: PlanAdjacency[] = [
     id: 'spare-room',
     name: 'Spare room',
     tier: 'private',
+    have: 'Somewhere for people to stay, and for everything else to go.',
+    cost: 'low',
+    care: 'Whatever you meant it to be, it will be full of things by Christmas.',
     emits: ['shade'],
     sensitive: ['noise'],
   },
@@ -241,6 +358,9 @@ export const deck: PlanAdjacency[] = [
     id: 'vegetable-garden',
     name: 'Vegetable garden',
     tier: 'outside',
+    have: 'Something to pick in August, and beds to look at in February.',
+    cost: 'very-low',
+    care: 'Watering, netting, and the fortnight in summer when you go away.',
     emits: ['work'],
     sensitive: ['shade'],
     orientation: {
@@ -252,6 +372,9 @@ export const deck: PlanAdjacency[] = [
     id: 'terrace',
     name: 'Terrace',
     tier: 'outside',
+    have: 'Somewhere to sit outside without standing on the grass.',
+    cost: 'moderate',
+    care: 'Weeds between the slabs, and a jet wash you will buy and use twice.',
     emits: [],
     sensitive: ['noise', 'smell', 'shade'],
     orientation: {
@@ -263,6 +386,9 @@ export const deck: PlanAdjacency[] = [
     id: 'shed',
     name: 'Shed',
     tier: 'outside',
+    have: 'The things that were in the hall are now in the shed.',
+    cost: 'low',
+    care: 'A felt roof with about ten years in it, and a lock worth the money.',
     emits: ['shade'],
     sensitive: [],
   },
@@ -270,6 +396,9 @@ export const deck: PlanAdjacency[] = [
     id: 'lawn',
     name: 'Lawn',
     tier: 'outside',
+    have: 'Green, soft, and somewhere to put a chair.',
+    cost: 'very-low',
+    care: 'Cutting it, March to October, whether or not you feel like it.',
     emits: ['work'],
     sensitive: ['shade'],
     orientation: {
@@ -281,6 +410,9 @@ export const deck: PlanAdjacency[] = [
     id: 'home-farm',
     name: 'Home farm',
     tier: 'outside',
+    have: 'Food you grew, and a reason to be outside every day.',
+    cost: 'very-low',
+    care: 'Twenty minutes a day, every day, forever. This is the largest commitment on the plot.',
     emits: ['smell', 'work'],
     sensitive: ['shade'],
     orientation: {
@@ -294,6 +426,9 @@ export const deck: PlanAdjacency[] = [
     id: 'heat-pump',
     name: 'Air-source heat pump',
     tier: 'wildcard',
+    have: 'Heat without a gas bill, and a house that runs warm and slow.',
+    cost: 'high',
+    care: 'An annual service, radiators sized for it, and a hum you stop hearing after a month.',
     emits: ['noise'],
     sensitive: [],
   },
@@ -301,6 +436,9 @@ export const deck: PlanAdjacency[] = [
     id: 'solar-array',
     name: 'Solar array',
     tier: 'wildcard',
+    have: 'Some of your electricity, on the days you need least of it.',
+    cost: 'high',
+    care: 'An inverter with fifteen years in it, and panels somebody has to climb up to.',
     emits: [],
     sensitive: ['shade'],
     orientation: {
@@ -312,6 +450,9 @@ export const deck: PlanAdjacency[] = [
     id: 'wall-insulation',
     name: 'Internal wall insulation',
     tier: 'wildcard',
+    have: 'Rooms that hold their heat, in a house that never has.',
+    cost: 'moderate',
+    care: 'Every wall is thicker now, and every fixing has to find the one behind.',
     emits: ['heat'],
     sensitive: [],
   },
@@ -319,6 +460,9 @@ export const deck: PlanAdjacency[] = [
     id: 'air-conditioning',
     name: 'Air conditioning unit',
     tier: 'wildcard',
+    have: 'One room that is bearable in the week it matters.',
+    cost: 'moderate',
+    care: 'A filter, a service, and a running cost that lands in the hottest month.',
     emits: ['noise', 'heat'],
     sensitive: [],
   },
@@ -456,3 +600,95 @@ export const qualitySeverity: Quality[] = [
   'work',
   'quiet',
 ];
+
+/* ------------------------------------------------------------------ *
+ * The report — §10
+ * ------------------------------------------------------------------ */
+
+/**
+ * §10.2 — what it cost, cheapest first. A phrase, never a number, and never
+ * shown until the eighth plan lands.
+ *
+ * The bands are aggregated into a share of the most expensive house that could
+ * have been built from the same number of plans, then this list is indexed by
+ * it. Add a phrase and the scale gets finer; the engine does not care how many
+ * there are.
+ */
+export const costPhrases: string[] = [
+  'Modest. You would not have to explain it to anyone.',
+  'Substantial, but the kind of number people say out loud.',
+  'The kind of project you remortgage for.',
+  'The kind of project you remortgage for, and then explain to the bank a second time.',
+];
+
+/**
+ * §10.3 — one sentence naming what kind of house it turned out to be.
+ *
+ * Selected by what the plot is dominantly made of and by how much of the old
+ * house is still standing. The most specific line that fits wins, so the
+ * fallback at the end can sit in the same list. The first four are the GDD's own
+ * examples; the rest fill in the profiles those four leave uncovered.
+ *
+ * There must always be a line with no conditions on it.
+ */
+export const closingLines: ClosingLine[] = [
+  {
+    line: 'A house that asks a lot of you in spring.',
+    dominant: ['work'],
+  },
+  {
+    line: 'A quiet house that will be cold in five years.',
+    dominant: ['quiet'],
+  },
+  {
+    line: 'You kept almost all of it, and it will keep asking you for things.',
+    dominant: ['work'],
+    fabric: 'all',
+  },
+  {
+    line: 'There is very little of the old house left. It is warm, and it is yours.',
+    dominant: ['heat'],
+    fabric: 'none',
+  },
+  {
+    line: 'A loud house. There will be somewhere to go when it is too much, or there will not.',
+    dominant: ['noise'],
+  },
+  {
+    line: 'A bright house, and one you will spend a fortnight a year keeping bright.',
+    dominant: ['light'],
+  },
+  {
+    line: 'A house you move through rather than sit in.',
+    dominant: ['footfall'],
+  },
+  {
+    line: 'A house with a damp corner in it. You will know which one by November.',
+    dominant: ['damp'],
+  },
+  {
+    line: 'A house that holds its heat, and holds it in the wrong month too.',
+    dominant: ['heat'],
+  },
+  {
+    line: 'You took all of the old house down. What stands there is entirely yours, and entirely new.',
+    fabric: 'none',
+  },
+  {
+    line: 'The old house is still standing, with the new one built around it.',
+    fabric: 'all',
+  },
+  {
+    /** The fallback. Fires when nothing more specific fits — there must be one. */
+    line: 'A house that will take some living in before you know what it is.',
+  },
+];
+
+/**
+ * §7, §10.2 — added to the care column when any of the old house came down.
+ * Demolition is the one irreversible decision in the game, and it belongs in the
+ * column about what you will be looking after rather than in a section of its
+ * own.
+ */
+export const demolitionCare =
+  'Part of the old house is gone. What stands there now is new, and new is what you will be looking after.';
