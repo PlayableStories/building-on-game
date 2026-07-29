@@ -7,6 +7,8 @@ look after.
 
 > A home isn't a list of rooms. It's what ended up next to what.
 
+**[Play it →](https://playablestories.github.io/building-on-game/)**
+
 The full design is in [`GDD.md`](GDD.md). The build is staged across milestones M0–M12 in
 [`PLAN.md`](PLAN.md), which also records what the §17 playtest found and what changed
 because of it.
@@ -35,6 +37,22 @@ npm run dev        # http://localhost:5173
 `npm run test:e2e` drives the Google Chrome already on your machine (Playwright's
 `channel: 'chrome'`), so there is no browser download. It starts the dev server itself and
 leaves screenshots of a full playthrough in `e2e/screenshots/`.
+
+## Hosting
+
+The game is a static bundle. There is no server, no database and no API key — the whole
+of a playthrough lives in the page, and a seed is the only state it has. So it can be
+served from anywhere that serves files.
+
+`.github/workflows/deploy.yml` publishes it to GitHub Pages on every push to `main`,
+gated on `npm run validate` and `npm test`. A project page is served from `/<repo>/`
+rather than the domain root, so the workflow passes `--base=/<repo>/` at build time. It
+reads that name from the repository itself, which means **a fork needs no edit to
+deploy** — push to `main` and it lands under the fork's own name.
+
+The base path is set at build time rather than in `vite.config.ts` on purpose: `npm run
+dev`, `npm run preview` and the e2e suite all keep serving from `/`, and hosting this
+somewhere other than Pages needs no change to the source.
 
 ## What to fork
 

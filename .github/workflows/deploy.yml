@@ -1,0 +1,70 @@
+# Publish Building On to GitHub Pages.
+#
+# The game is a static bundle — no server, no database, no API key. Everything
+# it needs is in the page, and a seed is the only state a playthrough has. So
+# hosting is genuinely just "put the files somewhere", and Pages is the least
+# machinery that does it.
+#
+# The build is gated on the same two checks that guard a pull request: the
+# content validator (§16 — a fork that breaks the shape should not ship) and
+# the unit and component suites. The Playwright end-to-end suite stays local;
+# it drives system Chrome, and standing up a browser here would double the run
+# time to re-prove what the jsdom suite already covers.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  # So a broken deploy can be re-run without an empty commit.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time. A queued run is superseded rather than cancelled
+# mid-flight, so a push during a deploy never leaves the site half-written.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run validate
+
+      - run: npm test
+
+      # A project page is served from /<repo>/, not from the domain root, so
+      # the bundle's asset URLs have to be written with that prefix. It is
+      # passed here rather than set in vite.config.ts so that `npm run dev`,
+      # `npm run preview` and the e2e suite all keep serving from / — and so
+      # that hosting this somewhere else later needs no change to the source.
+      - run: npm run build -- --base=/${{ github.event.repository.name }}/
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
