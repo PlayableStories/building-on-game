@@ -36,6 +36,22 @@ npm run dev        # http://localhost:5173
 `channel: 'chrome'`), so there is no browser download. It starts the dev server itself and
 leaves screenshots of a full playthrough in `e2e/screenshots/`.
 
+## Hosting
+
+The game is a static bundle. There is no server, no database and no API key — the whole
+of a playthrough lives in the page, and a seed is the only state it has. So it can be
+served from anywhere that serves files.
+
+`.github/workflows/deploy.yml` publishes it to GitHub Pages on every push to `main`,
+gated on `npm run validate` and `npm test`. A project page is served from `/<repo>/`
+rather than the domain root, so the workflow passes `--base=/<repo>/` at build time. It
+reads that name from the repository itself, which means **a fork needs no edit to
+deploy** — push to `main` and it lands under the fork's own name.
+
+The base path is set at build time rather than in `vite.config.ts` on purpose: `npm run
+dev`, `npm run preview` and the e2e suite all keep serving from `/`, and hosting this
+somewhere other than Pages needs no change to the source.
+
 ## What to fork
 
 This is a workshop sample, so remixability is a design requirement rather than a nicety.
