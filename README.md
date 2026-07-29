@@ -7,6 +7,8 @@ look after.
 
 > A home isn't a list of rooms. It's what ended up next to what.
 
+**[Play it →](https://playablestories.github.io/building-on-game/)**
+
 The full design is in [`GDD.md`](GDD.md). The build is staged across milestones M0–M12 in
 [`PLAN.md`](PLAN.md), which also records what the §17 playtest found and what changed
 because of it.
