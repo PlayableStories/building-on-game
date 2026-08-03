@@ -1,8 +1,8 @@
 # How a game of Building On goes
 
 A short walk through one game, from the situation you are given to the report at the end.
-This describes what the game **does**, as built. [`GDD.md`](../GDD.md) is the design
-document — what it is for, and why — and [`PLAN.md`](../PLAN.md) records how it got here.
+This describes what the game **does**, as built. [`GDD.md`](GDD.md) is the design
+document — what it is for, and why — and [`PLAN.md`](PLAN.md) records how it got here.
 
 **[Play it →](https://playablestories.github.io/building-on-game/)**
 
@@ -49,6 +49,8 @@ names and ages were forgotten by round three; one situation you recognise is not
 
 **The rules**, in six lines, before you start — and reopenable at any point from *How this
 works* in the header, because a rule you cannot look up is a rule you do not have.
+
+![The premise, the situation drawn for this game, and the rules](docs/screenshots/1-the-situation.png)
 
 ---
 
@@ -99,6 +101,11 @@ Which row you land in matters, because rows face different ways:
 | 4 | faces north | Garden, in the shadow of the house |
 | 5 | faces south | Open garden, full sun |
 
+![A house plan selected: rows 1–3 light up and the garden stays dark](docs/screenshots/2-where-it-can-go.png)
+
+*A room is chosen, so the house lights and the garden does not. The old rooms are lit too —
+building on one is always allowed, and it takes it down.*
+
 ### 3 · You place it, and that is permanent
 
 Placement lands on the click. There is no undo, no drag to reposition, no confirmation —
@@ -113,6 +120,11 @@ because in building it is not.
 They are named — *Old scullery*, not *Inherited* — for a reason found in playtesting. A
 cell shouting **INHERITED** reads as scenery and nobody worked out it could be built on. A
 cell that says *Old scullery* and murmurs *inherited* reads as a room, and rooms can go.
+
+![The demolition confirmation: take it down, or put it somewhere else](docs/screenshots/3-the-one-question.png)
+
+*It states what happens and gets out of the way. It does not warn and it does not argue —
+the weight arrives on its own, because it is a house someone left you.*
 
 ### 4 · The house says one thing, or nothing
 
@@ -134,6 +146,11 @@ times."* That is also a playtest fix: without it the sentence landed as atmosphe
 than as a consequence of the move just made. Row 2 faces nothing at all, and no plan has a
 line written for every direction — which is what keeps the game from having a remark about
 every single placement.
+
+![An adjacency line, with the cause named above it and both cells lit](docs/screenshots/4-what-it-noticed.png)
+
+*The utility room has just gone in beside the living room. Both are lit, everything else is
+dimmed, and the cause is printed above the line it caused.*
 
 You dismiss the line to continue. If there is nothing to say, the round simply advances.
 
@@ -169,14 +186,13 @@ their own answer to give.
 
 Eight rounds placed, and the game stops asking you things.
 
+![The report: what you'll have, what it asks, the cost, and the situation answered](docs/screenshots/5-the-house-you-built.png)
+
 **Three rooms, benefit beside obligation.** Not all eight — the three that ask the most of
 you, ranked by what they cost plus the heaviest consent flag they took on, ties going to
 whatever you built later. Each one prints what you will have next to what it will want,
 and the layout never lets you read one without the other. On a narrow screen they stack,
 obligation directly under its benefit.
-
-> **Utility room** — The washing happens somewhere that is not the kitchen. │ Plumbing, a
-> floor that has to survive a leak, and a door kept shut.
 
 **One cost line**, as a phrase rather than a number. *The kind of project you remortgage
 for.* No figure is ever shown, and nothing is totalled at any point during play.
@@ -208,15 +224,14 @@ payoff nobody reads to the end is not a payoff.
 
 ## Where this lives in the code
 
-Useful if you want to change any of it. The short version of [the fork
-surface](../README.md#what-to-fork) is that everything above is either content or one
-small engine module.
+Useful if you want to change any of it. [`FORKING.md`](FORKING.md) is the full guide; the
+short version is that everything above is either content or one small engine module.
 
 | What | Where |
 |---|---|
 | Every word, the deck, the plot, the situations, the rules card | `src/content.ts` |
 | Every colour, size and font | `src/theme.css` |
-| Rounds, hand size, the conservation dial | `config` in `src/content.ts` |
+| The round count and the conservation dial | `config` in `src/content.ts` |
 | The deal and the tier schedule | `src/engine/deck.ts` |
 | Legal cells, zones, rows and what they face | `src/engine/grid.ts` |
 | Which line fires, and why | `src/engine/adjacency.ts` |
@@ -227,3 +242,16 @@ small engine module.
 Nothing in `src/engine/` imports `content.ts` — content is handed to it. That is what
 makes swapping the building for a different one a content change rather than a rewrite,
 and `npm run validate` fails if it stops being true.
+
+---
+
+## About the screenshots
+
+They are generated, not captured by hand. `npm run screenshots` builds the game, plays a
+real one in Chrome and rewrites all five, so they cannot drift from what the game does.
+
+Two of them need something particular to happen rather than just a round to pass — the
+demolition question, and a line that reads one room against another rather than an
+orientation line, since only a pair lights two cells. The deck is dealt from a random
+seed, so the script replays whole games until it is dealt one that offers every frame,
+rather than steering the deck. Every frame above is therefore a game you could be dealt.
