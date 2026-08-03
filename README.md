@@ -1,172 +1,215 @@
 # Building On
 
-An 8-round placement game in which you renovate a house you inherited, choosing one of
-three plans each round and never being able to move it again — discovering, one neighbour
-at a time, that a home is not a list of rooms but a set of things you have agreed to
-look after.
-
 > A home isn't a list of rooms. It's what ended up next to what.
 
-**[Play it →](https://playablestories.github.io/building-on-game/)**
+A no-fail placement game about renovating a house you inherited. Eight rounds; each one
+deals you three plans and you choose one. It has to touch what's already built, and you can
+never move it again. Occasionally the house tells you what you've just put next to what. At
+the end it tells you what you built and what it will ask of you for the rest of your life.
 
-**[How a game goes →](docs/GAME-FLOW.md)** — the round, the placement rules, how the house
-decides what to say, and what the report is doing. Start there if you want to know how it
-plays.
+A game is eight decisions and a report. There is no score and no way to lose. The whole
+thing is text and coloured blocks, and the layout adapts to narrow screens.
 
-The full design is in [`GDD.md`](GDD.md) — what it is for, and why. The build is staged
-across milestones M0–M12 in [`PLAN.md`](PLAN.md), which also records what the §17 playtest
-found and what changed because of it.
+**[Play it →](https://playablestories.github.io/building-on-game/)** ·
+**[How a game goes →](GAME-FLOW.md)** (with screenshots)
 
-## A game, in five frames
+---
 
-**One situation, and the rules you can look up again.** Six situations, one drawn per
-game — the house has to answer that one, and it is named at the end.
-
-![The premise, the situation and the rules](docs/screenshots/1-the-situation.png)
-
-**A plan chosen, and where it is allowed to go.** Rooms go in the house, rows 1–3;
-garden things go in the garden, rows 4–5. It has to touch what is already built.
-
-![A house plan selected, lighting only the house](docs/screenshots/2-where-it-can-go.png)
-
-**The only question the game asks.** The old rooms came with the house and can be taken
-down. Nothing else in eight rounds is irreversible, so nothing else is confirmed.
-
-![The demolition confirmation](docs/screenshots/3-the-one-question.png)
-
-**What the house noticed.** The line names what caused it and lights both cells, so the
-sentence is legible as a consequence of the placement rather than a caption.
-
-![An adjacency line, with both cells lit](docs/screenshots/4-what-it-noticed.png)
-
-**What you built, and what it asks of you.** Three rooms, each benefit printed beside its
-obligation — you cannot read one without the other. Then the situation, answered.
-
-![The report](docs/screenshots/5-the-house-you-built.png)
-
-These are generated, not captured by hand: `npm run screenshots` builds the game, plays a
-real one in Chrome and writes the five frames to `docs/screenshots/`. It plays on until it
-is dealt a game that offers all of them, so what is above is a game anyone can be dealt.
-
-## Quick start
-
-Node **20.19 or later** is required (Vite 8 will refuse anything older). There is an
-`.nvmrc`, so:
+## Quickstart
 
 ```bash
-nvm use            # reads .nvmrc → 20
+git clone https://github.com/PlayableStories/building-on-game.git
+cd building-on-game
+nvm use              # reads .nvmrc → 20. Vite 8 refuses anything below 20.19
 npm install
-npm run dev        # http://localhost:5173
+npm run dev          # localhost:5173
+npm run build        # production build
 ```
 
-| Command | Does |
-|---|---|
-| `npm run dev` | Dev server with hot reload |
-| `npm run build` | Type-check, then build to `dist/` |
-| `npm run preview` | Serve the built `dist/` |
-| `npm test` | Run the unit and component tests once |
-| `npm run test:watch` | Run those in watch mode |
-| `npm run test:e2e` | Play a whole game in real Chrome, and write screenshots |
-| `npm run validate` | Check the content, and the fork surface itself, against GDD §16 |
-| `npm run screenshots` | Replay the game and rewrite the five frames in `docs/screenshots/` |
+---
 
-`npm run test:e2e` drives the Google Chrome already on your machine (Playwright's
-`channel: 'chrome'`), so there is no browser download. It starts the dev server itself and
-leaves screenshots of a full playthrough in `e2e/screenshots/`.
+## The Game
+
+A 5×5 plot. The house you inherited is already standing on part of it: a front door that
+came with the house and can never be changed, and four old rooms behind it — the old
+kitchen, the old sitting room, the old scullery, the old back room.
+
+Each round deals three plans. Two come from the round's tier, one from anywhere:
+
+| Rounds | Tier | Roughly |
+|---|---|---|
+| 1–2 | **Threshold** | Porch, boot room, downstairs WC — the way in |
+| 3–4 | **Daily** | Kitchen, living room, utility — where the day happens |
+| 5–6 | **Private** | Bedrooms, bathroom, study — the doors that close |
+| 7–8 | **Outside** | Terrace, shed, vegetable garden, heat pump |
+
+Three rules decide where a plan can go, and between them they are most of the game:
+
+- **It has to touch** something already standing. The house grows outward from itself.
+- **It has to stay in its zone.** Rooms go in the house, rows 1–3. Garden things go in the
+  garden, rows 4–5.
+- **The front door is not yours to change.** It is the fixed point everything else is
+  decided around.
+
+The old rooms are ordinary cells and you can build on them. Doing so takes them down, for
+good, and that is the only thing the game ever asks you to confirm.
+
+## The Design
+
+Four mechanics carry the game:
+
+- **One line per placement, maximum** — resolved in a strict order: an explicit pair, then
+  the strongest quality match, then orientation, then **silence**. Silence is a valid
+  result, not a failure — across 400 simulated games, three were silent from start to
+  finish. The line names what caused it and lights both cells while you read it, so it
+  lands as a consequence of the move rather than as atmosphere.
+
+- **Placement is permanent, and exactly one thing is confirmed.** Everything in eight
+  rounds is additive and forgiving except demolition, which is neither — so it is the only
+  question the game asks. It states what will happen and gets out of the way. It does not
+  warn and it does not argue: the weight arrives on its own, because it is a house someone
+  left you.
+
+- **The report pairs benefit with obligation.** Three rooms, not eight — the three that ask
+  the most of you. What you gain is printed beside what it will want, and the layout never
+  lets you read one without the other. Then one cost line, as a phrase with no figure in
+  it, and the situation you were given at the start, answered.
+
+- **Two-file customization.** All player-facing text lives in **one** file
+  (`src/content.ts`); all visuals live in **one** file (`src/theme.css`). Nothing in
+  `src/engine/` imports either — content is handed to it as an argument, and
+  `npm run validate` fails if that stops being true. This is the load-bearing design
+  choice: it splits the project into a clean engine and an editable surface, and it is
+  enforced rather than intended.
+
+The deck is 24 plans across four tiers plus a wildcard pool, and 6 situations of which one
+is drawn per game. A game is reproducible from a single seed.
+
+## The Concept
+
+Someone left you a house, and the roof failed in February. The game is about the gap
+between wanting a thing and looking after it — every room you gain arrives attached to
+something it will ask of you, forever, and you find that out one neighbour at a time.
+
+The situations are ordinary rather than dramatic: working from home with no door to close,
+a parent moving in who manages one flight of stairs on a good day, two of you who cook and
+one who tidies. The report answers the one you were given, and sometimes the answer is that
+you didn't answer it — *"There is still no kitchen. Whatever else this house turned into,
+the argument you were trying to settle is exactly where it was."*
+
+Consent flags are flags, never outcomes. Nothing is refused, nothing is blocked, nothing is
+a warning. They are a record of what you took on by building this rather than that.
+
+---
+
+## Fork it
+
+Building On isn't just a game — it's a template for no-fail games about consequence and
+care. Two paths to make it yours:
+
+### Level 1 — Re-skin (text and visuals)
+Keep the mechanics, swap the building. A community centre, a co-op office, a high street, a
+hospice garden. Edit two files: `src/content.ts` for all text — including the plot itself,
+the deck and the situations — and `src/theme.css` for all visuals. No engine code required,
+and `npm run validate` tells you if you've broken something.
+
+→ See **[FORKING.md](./FORKING.md)** for the full re-skin guide.
+
+### Level 2 — Rebuild from scratch with AI
+Recreate the game on a different stack — Next.js, Vue, Svelte, native mobile, whatever —
+using an AI code builder (Replit Agent, Bolt.new, Lovable, v0.app, Cursor, Claude Code).
+Also the path for a differently shaped plot, since the 5×5 grid is an engine constant. The
+reference prompt is self-contained and asks the AI to confirm with you before writing code.
+
+→ See **[REFERENCE_PROMPT.md](./REFERENCE_PROMPT.md)** for the prompt and platform notes.
+
+---
+
+## Tech stack
+
+- **React 19** (Vite 8 scaffold), **TypeScript 5.9**
+- **`useReducer`** for game state — no state library; the whole game is one reducer
+- **Plain CSS** with custom properties (no Tailwind, no UI library)
+- **Vitest + Testing Library** for units and components, **Playwright** for a real-browser
+  playthrough against the Chrome already on your machine
+- **No backend** — everything bundled at build time, and a seeded RNG so a game is
+  reproducible from one number
+- **No web fonts, no images, no icons.** System serif and sans stacks; the favicon is an
+  inline SVG data URI. The game is text and coloured rectangles
+
+The two-file editable architecture (`src/content.ts` + `src/theme.css`) is the project's
+defining design choice, and the engine's inability to import either is what keeps it
+honest.
+
+## Validation
+
+```bash
+npm run validate     # content is playable, and the fork surface is intact
+npm test             # 210 unit and component tests
+npm run build        # type-check, then build to dist/
+npm run test:e2e     # plays a whole game in your own Chrome
+```
+
+All four should report green before a fork or refactor ships. `npm run validate` also
+guards the two boundaries the fork surface rests on, which are not content at all:
+`src/engine/` importing nothing but `types.ts`, and every user-visible word living in
+`content.ts` rather than in a component.
+
+`npm run screenshots` replays the game and rewrites the five frames in `GAME-FLOW.md`.
 
 ## Hosting
 
-The game is a static bundle. There is no server, no database and no API key — the whole
-of a playthrough lives in the page, and a seed is the only state it has. So it can be
-served from anywhere that serves files.
+The game is a static bundle — no server, no database, no API key — so it can be served from
+anywhere that serves files. `.github/workflows/deploy.yml` publishes it to GitHub Pages on
+every push to `main`, gated on the validator and the test suite. It reads the base path
+from the repository name at build time, so **a fork deploys under its own name with no
+edit**.
 
-`.github/workflows/deploy.yml` publishes it to GitHub Pages on every push to `main`,
-gated on `npm run validate` and `npm test`. A project page is served from `/<repo>/`
-rather than the domain root, so the workflow passes `--base=/<repo>/` at build time. It
-reads that name from the repository itself, which means **a fork needs no edit to
-deploy** — push to `main` and it lands under the fork's own name.
+---
 
-The base path is set at build time rather than in `vite.config.ts` on purpose: `npm run
-dev`, `npm run preview` and the e2e suite all keep serving from `/`, and hosting this
-somewhere other than Pages needs no change to the source.
+## Repository structure
 
-## What to fork
-
-This is a workshop sample, so remixability is a design requirement rather than a nicety.
-**Two files hold everything you would want to change**, and `npm run validate` checks that
-this is still true rather than merely intended.
-
-### `src/content.ts` — everything anyone can read
-
-| What | Change it to |
-|---|---|
-| `plot` | The building you inherited: which cells are already standing, what each is called, which one can never be built on, and where the ground behind it starts. |
-| `deck` | The 24 plans. Each has a tier, a **zone** (`indoor`/`outdoor`), what it emits and suffers from, a consent flag, and one line each for what you'll have and what it asks. |
-| `situations` | Six circumstances, one drawn per game. Each answers the finished plot in one line. This is the single highest-leverage thing to change. |
-| `pairLines`, `qualityLines`, `causeWords` | Every observation, and the words that name what caused one. |
-| `rules`, `ui`, `premise`, `whyNow` | The objective, and every other word the interface says — button labels, headings, the prompt above the hand. |
-| `closingLines`, `costPhrases`, `consentCare` | What the report says. |
-| `config` | Round count, and the one conservation flag. |
-
-### `src/theme.css` — everything anyone can see
-
-Every colour, fill, font size, spacing step and measure is a `:root` custom property. No
-component stylesheet hard-codes a value. (The one exception is the media-query breakpoint
-in `app.css`: CSS cannot read a custom property inside `@media`, and it is commented.)
-
-### What you should not need to open
-
-`src/engine/` — grid, draw, adjacency, consent, report. It imports `src/types.ts` and
-nothing else; content is handed to it as an argument. `npm run validate` fails if that
-stops being true, and fails again if a sentence gets written into a component where a fork
-cannot reach it. Those two checks are the fork surface: without them "you only need to
-change two files" is a claim rather than a fact.
-
-**The test:** swap the deck, the plot and the situations for a community centre, a co-op
-office, a high street or a hospice garden, change some values in `theme.css`, and nothing
-else needs opening. This is run against a real fork before each release — validator,
-type-check, build, the component suite and the whole game in Chrome, all green on content
-that describes a different building.
-
-One honest caveat about the test suites. `src/App.test.tsx` and `e2e/play.spec.ts` test
-*behaviour*, read their labels and cell references out of `content.ts`, and will pass on
-your fork unchanged. The engine tests in `src/engine/` assert particular sentences from
-this deck — that the home farm beside the kitchen says *"A short walk with wet hands"* —
-so they are fixtures rather than a contract, and you should expect to rewrite or delete
-them along with the writing they check.
-
-### Two remix dials
-
-1. **Reskin** — swap the plot, the deck and the situations. Same engine, different
-   building, different people, entirely different game.
-2. **Remix** — change what the second half of each report row *is*. Replace *what it asks*
-   with *who this excludes*, or *what this costs the street*, and the game makes a
-   completely different argument with identical code.
+```
+building-on-game/
+├── README.md                  # you are here
+├── GAME-FLOW.md               # how a round works, with screenshots
+├── FORKING.md                 # Level 1 (re-skin) guide
+├── REFERENCE_PROMPT.md        # Level 2 (AI rebuild) prompt
+├── GDD.md                     # the design document — what it's for, and why
+├── PLAN.md                    # how it got built, M0–M12, and what the playtest changed
+├── index.html
+├── package.json
+├── docs/screenshots/          # generated by `npm run screenshots`
+├── src/
+│   ├── content.ts             # 📝 all player text, the deck, the plot, the situations
+│   ├── theme.css              # 🎨 all colours, sizes and measures
+│   ├── types.ts               # the only thing the engine imports
+│   ├── App.tsx, app.css, main.tsx
+│   ├── components/            # Plot, Hand, Observation, Report, Demolition, Rules, Intro
+│   └── engine/                # grid, deck, adjacency, consent, report, game, rng
+├── scripts/
+│   ├── validate.ts            # content + fork-surface checks
+│   └── screenshots.ts         # replays a game and writes the five frames
+└── e2e/
+    └── play.spec.ts           # a whole game in real Chrome
+```
 
 ## Status
 
-**M12 — the fork surface and the validator.** The game is finished to the scope §18 sets
-out, and the playtest that M7 ran has been answered in full.
-
-It opens on why the work is happening, one situation drawn from six, and a short account
-of how the game works that stays available from the header for the whole game. Then the
-5×5 plot: the front door on C1 that came with the house and cannot be changed, four named
-old rooms behind it, and the garden across rows 4–5. Rooms go in the house and garden
-things go in the garden. Eight placements, each checked against its neighbours, and each
-one with something to say naming what caused it and lighting the two cells it is about.
-
-Placing onto an old room asks once, and only once: the one move that cannot be taken back.
-Every plan carries a consent flag in hand — a fact about the plan, never an outcome.
-
-When the eighth plan lands, the house reports back in three rows. Each thing you gained
-sits beside the thing it will ask of you, for as long as you have it; underneath, the cost
-as a phrase and the two obligations the house itself has taken on. Then one sentence about
-what kind of house it turned out to be, and the situation you started with, answered.
-There is no score anywhere, and no number.
+Finished to the scope the GDD sets out. The build is staged across milestones M0–M12 in
+[`PLAN.md`](PLAN.md), which also records what the §17 playtest found and what changed
+because of it.
 
 **Play it twice.** Set `conservation: true` in `src/content.ts` and build the same house
 again. Same plans, same pleasures, same cost — and different obligations. That is the
-argument §9 is making, and it is one config flag.
+argument the game is making, and it is one config flag.
 
-Out of scope by design: discovery (§11), placement animation and polish (§18.8), save and
-load, a seed in the URL, multiple storeys, multi-cell plans, and any score at all.
+Out of scope by design: discovery, placement animation, save and load, a seed in the URL,
+multiple storeys, multi-cell plans, and any score at all.
+
+## Contributing
+
+Issues and PRs welcome. The two-file architecture means most contributions land in
+`src/content.ts` (new plans, new situations, new observations) or `src/theme.css` (visual
+variants) — no engine knowledge required. Run the four validation commands before opening
+one.
