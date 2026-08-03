@@ -9,9 +9,13 @@ look after.
 
 **[Play it →](https://playablestories.github.io/building-on-game/)**
 
-The full design is in [`GDD.md`](GDD.md). The build is staged across milestones M0–M12 in
-[`PLAN.md`](PLAN.md), which also records what the §17 playtest found and what changed
-because of it.
+**[How a game goes →](docs/GAME-FLOW.md)** — the round, the placement rules, how the house
+decides what to say, and what the report is doing. Start there if you want to know how it
+plays.
+
+The full design is in [`GDD.md`](GDD.md) — what it is for, and why. The build is staged
+across milestones M0–M12 in [`PLAN.md`](PLAN.md), which also records what the §17 playtest
+found and what changed because of it.
 
 ## A game, in five frames
 
