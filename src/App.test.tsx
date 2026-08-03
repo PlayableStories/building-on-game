@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, describe, expect, it } from 'vitest';
 import App from './App.tsx';
 import {
+  causeWords,
   config,
   consentLabels,
   deck,
@@ -476,8 +477,13 @@ describe('the line, through the interface (§8.6, §13)', () => {
         const cause = line.querySelector('.observation__cause')?.textContent ?? '';
         if (causes.length > 0) {
           for (const lit of causes) {
-            const name = lit.querySelector('.cell__name')?.textContent ?? '';
-            expect(cause).toContain(name);
+            // §8.6 — a placed neighbour is named; the old house is named
+            // collectively, because 'beside the old kitchen and the old
+            // scullery' is a list, and what it is beside is one building.
+            const expected = lit.classList.contains('cell--inherited')
+              ? causeWords.fabric
+              : (lit.querySelector('.cell__name')?.textContent ?? '');
+            expect(cause).toContain(expected);
           }
           return;
         }
