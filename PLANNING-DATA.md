@@ -197,19 +197,50 @@ ongoing, and they are the right shape for §10.2's *what it asks* column.
 
 ---
 
-## What this changes
+## What this changed
 
-Three flags, and the writing that explains them:
+Three flags moved:
 
 - `terrace` → `sensitive` (44.0% / 35.4%)
 - `heat-pump` → `sensitive` (35.5%)
 - `porch` → `householder` (30.1%, across 10,570 applications)
 
-Nine cards keep their flag and gain a comment citing the figure that confirms it.
-`sensitive` goes from 2 cards of 24 to 4 — still a minority, which it has to be: the flag
-means *materially above the normal case*, and the normal case is that a quarter of
-everything is conditioned.
+Nine cards kept their flag and gained a comment citing the figure that confirms it.
+`sensitive` went from 2 cards of 24 to 4.
 
-The deck has no equivalent for several of the most common real operations — basement,
-dormer, garage conversion, change of use. That is a content decision rather than a data
-one, and it is not made here.
+Three lines were rewritten from the condition data — `consentCare.permitted`,
+`.householder` and `.sensitive` — and `consentLabels.permitted` became *no application
+expected* rather than *no application*. `demolitionCare` was checked and kept.
+
+The **24 per-plan `care` lines were re-read and all 24 stand unchanged.** They are
+maintenance claims — gutters, a felt roof with ten years in it, a filter and a service —
+and a record of planning decisions has nothing to say about any of them. The evidence is
+silent, not agreeing.
+
+### Does `sensitive` still mean anything?
+
+Measured across 400 seeded games, before and after:
+
+| | Before | After |
+|---|---|---|
+| Games with at least one `sensitive` placement | 45.0% | **71.5%** |
+| `sensitive` placements per game | 0.48 | **0.98** |
+
+A large jump, and worth checking against the thing it is supposed to represent. One
+placement in eight is **12.2%** of placements — against a real conditions rate of 24.0%
+across all decisions, and **32.2% on the householder route specifically**. So even after
+the change the game still under-states how often conditions arrive. The flag stays a
+minority of placements, and 28.5% of finished houses never carry one. It kept its meaning.
+
+### One thing this surfaced, and did not fix
+
+Every finished house prints exactly two obligations, and **365 of 400 games print the same
+two** — `demolitionCare` followed by the `demolition` line from `consentCare`. 91% of games
+demolish something, demolition is heaviest in `consentOrder`, and between them the two
+demolition lines take both slots.
+
+Which means the rewritten `householder` and `sensitive` obligations are only ever read in
+the 9% of games where nothing came down. This is not new — the same 365/400 measured before
+any of these changes — but it is now a measured defect rather than an unexamined one. It
+cannot be fixed in content: the two lines are combined in `src/engine/report.ts`, and
+either the budget or the combining has to change. Its own milestone.
