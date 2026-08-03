@@ -365,6 +365,26 @@ export const situations: Situation[] = [
  * §8.7 — the systems are ordinary plans in the wildcard pool, not a second card
  * type attached to the house. A heat pump needs somewhere to stand, and it makes
  * noise.
+ *
+ * §9.1 — the consent flags were written from judgement, and PLANNING-DATA.md
+ * checks them against 308,015 real London decisions. Where a card carries a
+ * figure in a comment below, that is the evidence for its flag. Three moved;
+ * the rest were confirmed.
+ *
+ * The plain rooms — hall, boot room, WC, kitchen, living room, dining room,
+ * utility, bedroom, bathroom, spare room — are all `householder` and share one
+ * piece of evidence rather than ten copies of it. In practice every one of them
+ * is a rear extension, and a rear extension is the single most common thing
+ * anyone does to a London house: 140,559 decisions, 27.0% of them conditioned
+ * against a 24.0% baseline. An application, usually granted, sometimes with
+ * something attached. That is exactly what `householder` claims.
+ *
+ * What the data does *not* reach: the `care` line on each plan below. Those are
+ * maintenance claims — gutters, a felt roof with ten years in it, a filter and
+ * a service — and a record of planning decisions has nothing to say about any
+ * of them. All twenty-four were re-read against it and all twenty-four stand,
+ * unchanged, because the evidence is silent rather than agreeing. The lines the
+ * data does reach are the four in `consentCare`, which are about process.
  */
 export const deck: Plan[] = [
   /* ---- §6 Threshold — rounds 1–2 --------------------------------- */
@@ -373,7 +393,14 @@ export const deck: Plan[] = [
     name: 'Porch',
     tier: 'threshold',
     zone: 'indoor',
-    consent: 'permitted',
+    /**
+     * PLANNING-DATA.md — 10,570 London decisions mention a porch, and 30.1% of
+     * them come back with conditions against a 24.0% baseline. A porch under
+     * three square metres genuinely is permitted development; the volume says
+     * people apply anyway, and the rate says it is not waved through. Not
+     * `sensitive`, though: what the data shows is an application, not a hard one.
+     */
+    consent: 'householder',
     have: 'Somewhere to stand while you find your keys, out of the rain.',
     cost: 'low',
     care: 'Gutters, a light that keeps failing, and a step that collects leaves.',
@@ -428,6 +455,7 @@ export const deck: Plan[] = [
     name: 'Bin store',
     tier: 'threshold',
     zone: 'outdoor',
+    /** PLANNING-DATA.md — 19.2% conditioned, below the 24.0% baseline. */
     consent: 'permitted',
     have: 'The bins are somewhere, rather than beside the back door.',
     cost: 'very-low',
@@ -498,6 +526,11 @@ export const deck: Plan[] = [
     name: 'Glass-roofed extension',
     tier: 'daily',
     zone: 'indoor',
+    /**
+     * PLANNING-DATA.md — confirmed. A conservatory is conditioned 30.8% of the
+     * time and a glazed extension 34.7%, against a 24.0% baseline. What gets
+     * conditioned is the roof: height, pitch, and where the ridge sits.
+     */
     consent: 'sensitive',
     have: 'A bright room that changes with the weather.',
     cost: 'high',
@@ -545,6 +578,12 @@ export const deck: Plan[] = [
     name: 'Study',
     tier: 'private',
     zone: 'indoor',
+    /**
+     * PLANNING-DATA.md — confirmed, strongly. A study is a loft conversion, and
+     * loft conversions are conditioned 9.7% of the time: the lowest rate of
+     * anything measured, against a 24.0% baseline. Building inside your own
+     * roof really is the thing nobody has an opinion about.
+     */
     consent: 'permitted',
     have: 'A door you can close on the rest of the house.',
     cost: 'low',
@@ -557,6 +596,7 @@ export const deck: Plan[] = [
     name: 'Gym',
     tier: 'private',
     zone: 'indoor',
+    /** PLANNING-DATA.md — a loft or an outbuilding: 9.7% and 22.0% conditioned. */
     consent: 'permitted',
     have: 'No membership, and no excuse.',
     cost: 'low',
@@ -599,7 +639,16 @@ export const deck: Plan[] = [
     name: 'Terrace',
     tier: 'outside',
     zone: 'outdoor',
-    consent: 'permitted',
+    /**
+     * PLANNING-DATA.md — the most-conditioned thing in the whole dataset. A
+     * roof terrace is conditioned 44.0% of the time and a patio 35.4%, against
+     * a 24.0% baseline: higher than the conservatory, higher than the air
+     * conditioning unit. Overlooking is why. Somewhere to sit outside turns out
+     * to be the single most negotiated thing a Londoner can build, which is not
+     * what anybody would guess, and it is why this card is no longer
+     * `permitted`.
+     */
+    consent: 'sensitive',
     have: 'Somewhere to sit outside without standing on the grass.',
     cost: 'moderate',
     care: 'Weeds between the slabs, and a jet wash you will buy and use twice.',
@@ -618,6 +667,11 @@ export const deck: Plan[] = [
     name: 'Shed',
     tier: 'outside',
     zone: 'outdoor',
+    /**
+     * PLANNING-DATA.md — 22.0% conditioned as an outbuilding, just under the
+     * 24.0% baseline. Called a garden room it reaches 29.3%, which is a fair
+     * description of what happens when a shed acquires a window and a radiator.
+     */
     consent: 'permitted',
     have: 'The things that were in the hall are now in the shed.',
     cost: 'low',
@@ -664,7 +718,13 @@ export const deck: Plan[] = [
     name: 'Air-source heat pump',
     tier: 'wildcard',
     zone: 'outdoor',
-    consent: 'permitted',
+    /**
+     * PLANNING-DATA.md — 35.5% of air source heat pump applications are
+     * conditioned, against a 24.0% baseline. Siting and acoustics, which is the
+     * same thing this plan's adjacency writing is about. The flag now agrees
+     * with the loudest line in the deck instead of contradicting it.
+     */
+    consent: 'sensitive',
     have: 'Heat without a gas bill, and a house that runs warm and slow.',
     cost: 'high',
     care: 'An annual service, radiators sized for it, and a hum you stop hearing after a month.',
@@ -676,6 +736,7 @@ export const deck: Plan[] = [
     name: 'Solar array',
     tier: 'wildcard',
     zone: 'indoor',
+    /** PLANNING-DATA.md — 26.4% conditioned, within noise of the 24.0% baseline. */
     consent: 'permitted',
     have: 'Some of your electricity, on the days you need least of it.',
     cost: 'high',
@@ -692,6 +753,15 @@ export const deck: Plan[] = [
     name: 'Internal wall insulation',
     tier: 'wildcard',
     zone: 'indoor',
+    /**
+     * PLANNING-DATA.md — the strongest single result in the set. Internal wall
+     * insulation appears in **one** of 308,015 London decisions. External wall
+     * insulation appears 86 times and is conditioned 30.2%.
+     *
+     * The word doing the work in this plan's name is *internal*. Keep it: it is
+     * the difference between a card nobody has to ask about and a card that is
+     * about the street's opinion of your house.
+     */
     consent: 'permitted',
     have: 'Rooms that hold their heat, in a house that never has.',
     cost: 'moderate',
@@ -717,6 +787,12 @@ export const deck: Plan[] = [
      * the deck is either plainly permitted or plainly a householder
      * application, and inflating the flag by pretending otherwise would make
      * §9 dishonest to buy a nicer distribution.
+     */
+    /**
+     * PLANNING-DATA.md — confirmed, and the highest single rate in the deck:
+     * 42.2% of air conditioning applications are conditioned, against a 24.0%
+     * baseline. M7 moved this from `householder` on the argument that an
+     * outdoor condenser unit is a neighbour's problem. The data agrees.
      */
     consent: 'sensitive',
     have: 'One room that is bearable in the week it matters.',
@@ -984,6 +1060,14 @@ export const closingLines: ClosingLine[] = [
  * column about what you will be looking after rather than in a section of its
  * own.
  */
+/**
+ * PLANNING-DATA.md — checked and kept. 60,869 London decisions mention
+ * demolition: refused 16.2% against a 20.0% baseline, conditioned 28.4%
+ * against 24.0%. Demolition is refused *less* often than average and
+ * conditioned *more* often, which is precisely the shape of this line and of
+ * §9.1's insistence that the game flags things rather than blocking them. The
+ * weight is real and it arrives afterwards, not at the door.
+ */
 export const demolitionCare =
   'Part of the old house is gone. What stands there now is new, and new is what you will be looking after.';
 
@@ -999,14 +1083,36 @@ export const demolitionCare =
  * failed, because nothing in the game rolls for it. Planning is not a cost paid
  * once; it is a relationship the household now has with the local authority, and
  * these lines are written as ongoing rather than as a hurdle cleared.
+ *
+ * These four are the lines PLANNING-DATA.md speaks to most directly, because
+ * they are about *process* and the data is a record of process. The earlier
+ * versions described how an application feels — weeks of it, a decision notice
+ * somewhere safe — which is true and is not an obligation. What a condition
+ * actually obliges you to do is now known, from 30,000 condition discharges:
+ *
+ *   approved plans and drawings   5,795   build precisely what you drew
+ *   materials and finishes        2,384   what it is made of is agreed
+ *   construction management       1,619
+ *   drainage and contamination    1,423
+ *   landscaping                   1,199
+ *
+ * The first two dominate householder work by a distance, and neither of them
+ * was in these lines. They are also the right *shape* for §10.2's "what it
+ * asks" column: ongoing, specific, and not a warning.
  */
 export const consentCare: Record<Consent, string> = {
+  /**
+   * §9.1 — 21% of all London decisions are lawful development certificates:
+   * people paying to establish that they did not need permission, of whom
+   * 15.1% are told that they did. "Nobody had to be asked" is true and is not
+   * the same as "nothing was filed".
+   */
   permitted:
-    'Some of this needed nobody’s permission. Keep the drawings anyway — a buyer’s solicitor will ask one day.',
+    'Nobody had to approve this, which is not the same as nobody asking. Keep the drawings and the dates — the one certificate you never applied for is the one a buyer’s solicitor wants.',
   householder:
-    'An application, a fee, and the neighbours consulted. Weeks of it, and a decision notice to keep somewhere safe.',
+    'You build precisely what you drew. The drawings are the permission, so the change of mind on site is a new application, and the shortcut is the thing that gets noticed.',
   sensitive:
-    'A condition on the decision, or a request to change something. You will be agreeing details with an officer, and then living with what you agreed.',
+    'The materials stopped being entirely your choice. What it is faced in, what colour, what the roof does at the edge — agreed with somebody else, on the record, and still agreed in ten years.',
   demolition:
     'A heavier process, and a longer one. What comes down has to be recorded, and what replaces it has to answer for it.',
 };
@@ -1017,9 +1123,16 @@ export const consentCare: Record<Consent, string> = {
  *
  * §9.1 again: none of these is an outcome. "Application" is not "approval", and
  * "conditions likely" is not "refusal".
+ *
+ * `permitted` reads "no application expected" rather than "no application".
+ * PLANNING-DATA.md: 65,087 London decisions — 21% of all of them — are people
+ * establishing that they did not need permission, and 15.1% of those are told
+ * they did. A flat "no application" claims a certainty the data does not
+ * support. One word, and it is the difference between a rule and an
+ * expectation.
  */
 export const consentLabels: Record<Consent, string> = {
-  permitted: 'no application',
+  permitted: 'no application expected',
   householder: 'application',
   sensitive: 'conditions likely',
   demolition: 'demolition',
@@ -1060,8 +1173,18 @@ export const conservationOverrides: ConservationOverrides = {
 
   /** The two the GDD names by plan. */
   plans: {
+    /**
+     * This used to raise the heat pump from `permitted` to `householder`. With
+     * the base flag now `sensitive` on the evidence in PLANNING-DATA.md, that
+     * override would be a *downgrade* — conservation would make the heat pump
+     * easier, which is the opposite of everything else in this block.
+     *
+     * So the flag is left alone and what conservation actually adds is said
+     * instead. It does not change whether you ask; it changes what you end up
+     * agreeing to.
+     */
     'heat-pump': {
-      consent: 'householder',
+      care: 'Where the unit stands stops being a question about the boiler and becomes a question about the street: sited out of sight, boxed if it is not, and held to a noise limit at the neighbour’s wall rather than at yours.',
     },
     'glass-extension': {
       care: 'The ridge has to sit below the eaves of the original house. Whatever you wanted the roof to do, it does it lower down.',

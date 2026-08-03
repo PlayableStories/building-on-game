@@ -109,9 +109,20 @@ describe('conservation changes four things, and only four (§9.2)', () => {
     expect(taken('bin-store', 'C1', false, true)).toEqual(taken('bin-store', 'C1'));
   });
 
-  it('2. makes the heat pump a householder application', () => {
-    expect(taken('heat-pump', 'C4')).toEqual(['permitted']);
-    expect(taken('heat-pump', 'C4', false, true)).toContain('householder');
+  /**
+   * This used to raise the heat pump's flag. It no longer does: the flag is
+   * already `sensitive` on the evidence in PLANNING-DATA.md — 35.5% of air
+   * source heat pump applications are conditioned — so an override could only
+   * have moved it down. What conservation adds here is the obligation, not the
+   * flag, which is the honest version: it does not change whether you ask, it
+   * changes what you end up agreeing to.
+   */
+  it('2. tells the heat pump where it may stand, without changing its flag', () => {
+    expect(taken('heat-pump', 'C4')).toEqual(['sensitive']);
+    expect(taken('heat-pump', 'C4', false, true)).toEqual(['sensitive']);
+
+    expect(consentFor(plan('heat-pump'), 'C4', false, false, content).care).toEqual([]);
+    expect(consentFor(plan('heat-pump'), 'C4', false, true, content).care).toHaveLength(1);
   });
 
   it('3. makes demolition sensitive, and says much more about it', () => {
@@ -223,11 +234,28 @@ describe('the flag on a plan in hand (§14)', () => {
     }
   });
 
+  /**
+   * No plan in *this* content carries a consent override any more — the heat
+   * pump's was dropped when its base flag became `sensitive`. So the mechanism
+   * is tested against a fixture rather than against the deck, which is where it
+   * belonged all along: a fork is free to write one, and this proves it works.
+   */
   it('picks up a conservation override that is knowable before placement', () => {
-    expect(flagInHand(plan('heat-pump'), true, conservationOverrides)).toBe('householder');
+    const overrides = {
+      ...conservationOverrides,
+      plans: { bedroom: { consent: 'sensitive' as const } },
+    };
+
+    expect(flagInHand(plan('bedroom'), true, overrides)).toBe('sensitive');
+    // …and only when conservation is on.
+    expect(flagInHand(plan('bedroom'), false, overrides)).toBe(plan('bedroom').consent);
     // Everything else is unchanged: the street rule depends on the cell.
-    expect(flagInHand(plan('bedroom'), true, conservationOverrides)).toBe(
-      plan('bedroom').consent,
-    );
+    expect(flagInHand(plan('porch'), true, overrides)).toBe(plan('porch').consent);
+  });
+
+  it('shows every plan its own flag under this content, conservation or not', () => {
+    for (const entry of deck) {
+      expect(flagInHand(entry, true, conservationOverrides)).toBe(entry.consent);
+    }
   });
 });
