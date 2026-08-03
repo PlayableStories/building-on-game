@@ -9,9 +9,44 @@ look after.
 
 **[Play it →](https://playablestories.github.io/building-on-game/)**
 
-The full design is in [`GDD.md`](GDD.md). The build is staged across milestones M0–M12 in
-[`PLAN.md`](PLAN.md), which also records what the §17 playtest found and what changed
-because of it.
+**[How a game goes →](docs/GAME-FLOW.md)** — the round, the placement rules, how the house
+decides what to say, and what the report is doing. Start there if you want to know how it
+plays.
+
+The full design is in [`GDD.md`](GDD.md) — what it is for, and why. The build is staged
+across milestones M0–M12 in [`PLAN.md`](PLAN.md), which also records what the §17 playtest
+found and what changed because of it.
+
+## A game, in five frames
+
+**One situation, and the rules you can look up again.** Six situations, one drawn per
+game — the house has to answer that one, and it is named at the end.
+
+![The premise, the situation and the rules](docs/screenshots/1-the-situation.png)
+
+**A plan chosen, and where it is allowed to go.** Rooms go in the house, rows 1–3;
+garden things go in the garden, rows 4–5. It has to touch what is already built.
+
+![A house plan selected, lighting only the house](docs/screenshots/2-where-it-can-go.png)
+
+**The only question the game asks.** The old rooms came with the house and can be taken
+down. Nothing else in eight rounds is irreversible, so nothing else is confirmed.
+
+![The demolition confirmation](docs/screenshots/3-the-one-question.png)
+
+**What the house noticed.** The line names what caused it and lights both cells, so the
+sentence is legible as a consequence of the placement rather than a caption.
+
+![An adjacency line, with both cells lit](docs/screenshots/4-what-it-noticed.png)
+
+**What you built, and what it asks of you.** Three rooms, each benefit printed beside its
+obligation — you cannot read one without the other. Then the situation, answered.
+
+![The report](docs/screenshots/5-the-house-you-built.png)
+
+These are generated, not captured by hand: `npm run screenshots` builds the game, plays a
+real one in Chrome and writes the five frames to `docs/screenshots/`. It plays on until it
+is dealt a game that offers all of them, so what is above is a game anyone can be dealt.
 
 ## Quick start
 
@@ -33,6 +68,7 @@ npm run dev        # http://localhost:5173
 | `npm run test:watch` | Run those in watch mode |
 | `npm run test:e2e` | Play a whole game in real Chrome, and write screenshots |
 | `npm run validate` | Check the content, and the fork surface itself, against GDD §16 |
+| `npm run screenshots` | Replay the game and rewrite the five frames in `docs/screenshots/` |
 
 `npm run test:e2e` drives the Google Chrome already on your machine (Playwright's
 `channel: 'chrome'`), so there is no browser download. It starts the dev server itself and
