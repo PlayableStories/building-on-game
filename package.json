@@ -14,7 +14,8 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "validate": "tsx scripts/validate.ts",
-    "screenshots": "npm run build && tsx scripts/screenshots.ts"
+    "screenshots": "npm run build && tsx scripts/screenshots.ts",
+    "planning-data": "tsx scripts/planning-data.ts"
   },
   "dependencies": {
     "react": "^19.2.8",
