@@ -109,8 +109,8 @@
    * stops being comfortable, and the report is mostly prose.
    *
    * Note for forkers: CSS cannot read a custom property inside a media
-   * query, so the two breakpoints in `app.css` are literals and have to stay
-   * that way. They are the only sizes in the game that are not declared here.
+   * query, so the breakpoint in `app.css` is a literal and has to stay that
+   * way. It is the only size in the game that is not declared here.
    */
   --measure-app: 40rem;
   --measure-prose: 30rem;

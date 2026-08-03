@@ -196,8 +196,9 @@ component stylesheet hard-codes a value.
 | Type, spacing, measure | The scale, the grid steps, and how wide prose is allowed to get |
 
 **One documented exception.** CSS cannot read a custom property inside a media query, so
-the two breakpoints in `src/app.css` are literals and have to stay that way. They are the
-only sizes in the game not declared in `theme.css`, and they are commented as such.
+the breakpoint in `src/app.css` (`@media (min-width: 44rem)`, where the report's two
+columns separate) is a literal and has to stay that way. It is the only size in the game
+not declared in `theme.css`.
 
 **No web fonts.** The game uses `ui-serif` and `ui-sans-serif` stacks, so there is nothing
 to load and nothing to swap in `index.html`. Point `--font-body` and `--font-ui` at
