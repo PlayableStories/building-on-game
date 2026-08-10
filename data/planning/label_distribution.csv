@@ -1,0 +1,6 @@
+band,labels
+"used 1000 or more times",53
+"used 100 to 999",110
+"used 10 to 99",240
+"used fewer than 10",392
+"used exactly once",157
