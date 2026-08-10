@@ -20,7 +20,7 @@
  */
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 
 const QUERIES = 'data/planning/queries.sql';
 
@@ -44,11 +44,28 @@ function blocks(sql: string): { name: string; query: string }[] {
   return found;
 }
 
+/**
+ * Opened read-only, and immutably.
+ *
+ * `mode=ro` refuses every write at the connection level. `immutable=1` goes
+ * further: SQLite is told the file cannot change under it, so it takes no
+ * locks and creates no journal, WAL or shm side-files next to it. Nothing this
+ * script does can alter a byte of the export, and nothing it leaves behind can
+ * either.
+ *
+ * Worth the two words. This analysis reads someone's only copy of a 1.4 GB
+ * file, and the difference between "I only wrote SELECTs" and "the connection
+ * could not have written" is the difference between a promise and a guarantee.
+ */
+function uri(path: string): string {
+  return `file:${resolve(path)}?mode=ro&immutable=1`;
+}
+
 function run(query: string): string {
   // The query goes in on stdin rather than as an argument: every block here
   // opens with its own `--` comment, and sqlite3 reads a leading dash as an
   // option flag.
-  return execFileSync('sqlite3', ['-csv', '-header', database as string], {
+  return execFileSync('sqlite3', ['-csv', '-header', uri(database as string)], {
     input: query,
     encoding: 'utf8',
     // The category and card queries scan every row of a 1.4 GB file.

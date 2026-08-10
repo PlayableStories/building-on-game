@@ -60,6 +60,96 @@ table agree and neither is an artefact of the other.
 that arrive carrying obligations. That is precisely what the `sensitive` flag —
 *conditions likely* — describes, and it is the normal case rather than an unusual one.
 
+## What can be submitted
+
+Two answers, because the question has two.
+
+**The short one: ten.** Planit normalises every application to one of nine types, plus a
+blank. Source: `app_types.csv`.
+
+| Type | Applications | Share |
+|---|---|---|
+| Full | 172,696 | 50.3% |
+| Outline | 110,878 | 32.3% |
+| Conditions | 35,426 | 10.3% |
+| Amendment | 18,355 | 5.3% |
+| (blank) | 2,903 | 0.8% |
+| Heritage | 1,318 | 0.4% |
+| Telecoms | 539 | 0.2% |
+| Other | 531 | 0.2% |
+| Trees | 374 | 0.1% |
+| Advertising | 121 | 0.0% |
+
+**The long one: 795**, which is what the 33 boroughs actually write on the form. In full in
+`application_types.csv`. The 25 most common:
+
+| Label | Applications |
+|---|---|
+| Householder Application | 38,310 |
+| Full Planning Permission | 37,967 |
+| Householder | 35,874 |
+| Full Application | 12,945 |
+| Approval of Details | 11,175 |
+| Detailed Planning Application | 11,041 |
+| Certificate of Lawfulness - Proposed | 8,417 |
+| Proposed Lawful Development Certificate | 7,198 |
+| Cert. Lawfulness Proposed | 6,396 |
+| Prior Approval - Householders | 5,956 |
+| Prior Notification (Householder) | 5,663 |
+| Certificate of Lawful Development - Proposed | 5,293 |
+| Cert of Lawful Use/Operation - Proposed | 5,220 |
+| Householder Planning | 5,130 |
+| Application for Full Permission | 5,114 |
+| Section 192 Certificate - proposed | 4,941 |
+| Prior Approval - Large householder | 4,753 |
+| PA Householder Rear Extension | 4,751 |
+| Section 192 Permitted Development | 4,265 |
+| Details (following full perm.) | 4,019 |
+| Prior Approval - Larger Home Extension | 3,756 |
+| Certificate of Lawfulness Proposed Use | 3,739 |
+| Lawful Development Certificate proposed | 3,604 |
+| Non-Material Amendment | 3,562 |
+| Certificate of Lawful Use proposed | 3,455 |
+
+**795 is mostly spelling, not substance.** *Certificate of Lawfulness - Proposed*, *Cert.
+Lawfulness Proposed*, *Certificate of Lawful Development - Proposed* and *Section 192
+Certificate - proposed* are one thing written four ways by four councils. The distribution
+says as much:
+
+Source: `label_distribution.csv`.
+
+| Label used | Count of labels |
+|---|---|
+| 1,000 or more times | 53 |
+| 100 to 999 | 110 |
+| 10 to 99 | 240 |
+| fewer than 10 | 392 |
+| — of which **exactly once** | **157** |
+
+Fifty-three labels carry almost all the volume. That is why the analysis below groups them
+into seven families (`routes.csv`) rather than treating 795 as 795 different things.
+
+### None of this is a list of works
+
+Worth stating plainly, because the 795 looks like an answer to "what can people build" and
+is not. Source: `route_or_work.csv`.
+
+| | Labels | Applications | |
+|---|---|---|---|
+| Procedure only | 645 | 317,986 | **93.7%** |
+| Names a physical work | 150 | 21,245 | 6.3% |
+
+`application_type` describes **how you ask and who is asking** — *Householder
+Application*, *Approval of Details*, *Non-Material Amendment*, *Section 192 Certificate*.
+Ninety-four percent of applications carry a label that names nothing anybody builds, and
+the 6.3% that do are almost entirely one work: the large rear extension prior-approval
+route.
+
+So the deck cannot be checked against this list. What people build is only ever in the
+free text, and the **descriptions are not enumerable at all** — 250,965 distinct strings
+across 343,141 applications. That is why every category in this document is matched by
+keyword rather than read off a field, and it is why the next section exists.
+
 ## What people ask for
 
 Non-exclusive; see caveat 2. This is `categories.csv` in full.
@@ -93,6 +183,96 @@ The single most common thing anyone does to a London house is **extend it backwa
 a wide margin.
 
 ---
+
+## What London actually builds, and what the deck has
+
+Mined from the descriptions of householder-scale decisions, since there is no field for it.
+This is `works.csv` in full. Non-exclusive: one description names several works.
+
+| Work | Decided | Conditions | Refused | In the deck as |
+|---|---|---|---|---|
+| Rear extension | 133,219 | 26.9% | 22.8% | every plain room |
+| **Dormer** | **74,319** | 15.8% | 18.6% | — |
+| **Rooflight / skylight** | **46,098** | 15.5% | 17.0% | — |
+| **Roof extension** | **44,988** | 23.8% | 18.2% | — |
+| **Windows** | **39,827** | 20.4% | 18.3% | — |
+| Side extension | 33,393 | 39.8% | 20.0% | every plain room |
+| Loft conversion | 23,675 | 9.4% | 18.7% | `study`, `gym` |
+| **Hip to gable** | 22,087 | 9.8% | 17.8% | — |
+| **Garage** | 19,491 | 30.0% | 23.1% | — |
+| **Change of use** | 19,140 | 20.3% | **32.4%** | — |
+| Landscaping | 15,273 | 24.4% | 14.8% | `lawn`, `vegetable-garden` |
+| **Basement / cellar** | 12,275 | **39.5%** | 15.6% | — |
+| **Balcony** | 11,659 | 13.8% | 18.0% | — |
+| Porch | 9,784 | 31.2% | 22.1% | `porch` |
+| Terrace / patio | 8,648 | 38.5% | 20.3% | `terrace` |
+| Outbuilding | 8,165 | 22.3% | 22.7% | `shed` |
+| Conservatory | 7,248 | 31.6% | 15.5% | `glass-extension` |
+| Tree works | 5,047 | 31.0% | 16.7% | — |
+| **Chimney** | 4,495 | 18.1% | 17.8% | — |
+| Subdivide into flats | 2,205 | 30.1% | **40.6%** | — |
+| Bike / cycle store | 1,940 | 25.9% | 30.1% | — |
+| **Bay window** | 1,515 | **40.3%** | 22.0% | — |
+| Solar | 1,464 | 25.5% | 23.4% | `solar-array` |
+| Boundary wall / fence | 1,291 | 28.2% | 18.5% | — |
+| Bin / refuse store | 1,159 | 15.3% | 27.6% | `bin-store` |
+| Shopfront | 1,158 | 33.8% | 21.7% | — |
+| Cladding / render | 1,087 | 24.6% | 22.3% | — |
+| Gate | 1,057 | 36.0% | 15.3% | — |
+| Decking | 826 | **40.2%** | 16.9% | — |
+| Dropped kerb / crossover | 780 | 17.4% | 26.5% | — |
+| New dwelling | 633 | 24.2% | 25.9% | — |
+| Heat pump | 620 | 29.0% | 14.5% | `heat-pump` |
+| Driveway / hardstanding | 605 | **39.5%** | 18.8% | — |
+| Door alterations | 559 | 26.3% | 18.4% | — |
+| Air conditioning | 450 | **43.3%** | 13.8% | `air-conditioning` |
+| Garden room / office | 426 | 29.3% | 17.4% | `shed` |
+| Annexe | 398 | 24.6% | 25.6% | — |
+| Swimming pool | 377 | **41.9%** | 16.7% | — |
+| EV charger | 239 | 21.8% | 14.6% | — |
+| Summer house | 51 | 27.5% | 17.6% | — |
+
+### The biggest gap is the roof, and it is not fixable
+
+Dormer, rooflight, roof extension and hip to gable are the **2nd, 3rd, 4th and 8th** most
+common works in London — 187,492 mentions between them — and the deck represents none of
+them. Nor windows, at 39,827.
+
+This is a fact about the board rather than a gap in the writing. The plot is a five-by-five
+**plan view with no vertical dimension**: a dormer is not a cell, a rooflight is not a
+cell, and a window is an elevation. Representing any of it means a second storey or an
+elevation view, which is a different game. Recorded here so that it is a known limit rather
+than an unnoticed one.
+
+The same applies to change of use (19,140) and subdividing into flats (2,205), which are
+not spatial at all — they are what a building is *for*, and the game has no vocabulary for
+that.
+
+### The deck was left alone, deliberately
+
+Several works would fit the board — garage (19,491), basement (12,275), bike store,
+decking, driveway, annexe, swimming pool, EV charger. Some of them are among the most
+conditioned things measured: swimming pool 41.9%, decking 40.2%, driveway 39.5%, basement
+39.5%.
+
+None were added. **The deck is a designed object, not a sample of London.** It is
+twenty-four plans across four tiers because that is what fills a hand for eight rounds, and
+it is about rooms and the things you agree to look after — not about planning throughput. A
+card earns its place by being a decision worth making next to another card, and "it is
+common in the data" is not that argument.
+
+What the data is good for is checking the cards that *are* there, which is what the rest of
+this document does.
+
+Two cards deserve a note in the other direction:
+
+- **`wall-insulation` appears once in 308,015 decisions**, and `lawn` and `home-farm` do
+  not appear at all. That is not a defect — a lawn needs no permission, and that is exactly
+  why the card is `permitted`. Absence from a planning record is evidence *for* those
+  flags, not against the cards.
+- **`home-farm` is not a planning matter in any form.** It is in the deck because of what
+  it asks of you daily, which no planning authority has an opinion about. The right check
+  for that card is a playtest, not a database.
 
 ## Card by card
 

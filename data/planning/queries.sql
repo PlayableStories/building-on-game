@@ -33,7 +33,11 @@ SELECT
   SUM(json_extract(payload,'$.app_size') = 'Large')    AS large,
   -- The export's own housing-relevance classifier. Recorded so the decision to
   -- ignore it is checkable: it fires on too few rows, and on the wrong ones.
-  SUM(relates_to_hi = 1)                               AS relates_to_hi
+  SUM(relates_to_hi = 1)                               AS relates_to_hi,
+  -- Why every category in this analysis is matched by keyword: the description
+  -- is free text and very nearly unique, so there is no field to read off.
+  COUNT(DISTINCT json_extract(payload,'$.description')) AS distinct_descriptions,
+  COUNT(DISTINCT json_extract(payload,'$.other_fields.application_type')) AS distinct_application_types
 FROM applications;
 
 -- @name: outcomes
@@ -163,6 +167,135 @@ SELECT k.card                                             AS card,
 FROM d JOIN k ON d.t LIKE k.pat
 GROUP BY k.card, k.form
 ORDER BY conditions_pct DESC;
+
+-- @name: app_types
+-- Planit's own normalised type, which is the short answer to "what kinds of
+-- thing can be submitted": nine values plus a blank.
+SELECT COALESCE(NULLIF(json_extract(payload,'$.app_type'), ''), '(blank)') AS app_type,
+       COUNT(*)                                            AS applications,
+       ROUND(100.0 * COUNT(*) / (SELECT COUNT(*) FROM applications), 1) AS pct
+FROM applications
+GROUP BY app_type
+ORDER BY applications DESC;
+
+-- @name: application_types
+-- And the long answer: every label the 33 boroughs actually use, in full.
+--
+-- 795 of them, and that number is mostly spelling. "Certificate of Lawfulness -
+-- Proposed", "Cert. Lawfulness Proposed", "Certificate of Lawful Development -
+-- Proposed" and "Section 192 Certificate - proposed" are one thing written four
+-- ways by four councils. 157 of the labels appear exactly once.
+--
+-- Emitted in full rather than truncated, because "what can be submitted" has no
+-- useful top-N: the tail is where the borough-specific routes live, and a fork
+-- writing consent flags for somewhere that is not London will want to see it.
+SELECT json_extract(payload,'$.other_fields.application_type') AS application_type,
+       COUNT(*)                                               AS applications,
+       SUM(json_extract(payload,'$.app_state') = 'Conditions') AS with_conditions,
+       SUM(json_extract(payload,'$.app_state') = 'Rejected')   AS refused
+FROM applications
+WHERE application_type IS NOT NULL AND application_type <> ''
+GROUP BY application_type
+ORDER BY applications DESC, application_type;
+
+-- @name: route_or_work
+-- Does an application_type label name a physical work, or only a procedure?
+--
+-- This is the check that says application_types.csv is the wrong list to pick
+-- cards from. "Householder Application", "Approval of Details" and
+-- "Non-Material Amendment" describe how you ask and who is asking. They do not
+-- describe anything anybody builds.
+WITH t AS (
+  SELECT json_extract(payload,'$.other_fields.application_type') AS r
+  FROM applications
+  WHERE r IS NOT NULL AND r <> ''
+),
+c AS (
+  SELECT r,
+         COUNT(*) AS n,
+         (lower(r) LIKE '%extension%' OR lower(r) LIKE '%conversion%'
+          OR lower(r) LIKE '%loft%'    OR lower(r) LIKE '%dormer%'
+          OR lower(r) LIKE '%porch%'   OR lower(r) LIKE '%garage%'
+          OR lower(r) LIKE '%basement%'OR lower(r) LIKE '%roof%'
+          OR lower(r) LIKE '%demolition%' OR lower(r) LIKE '%outbuilding%'
+          OR lower(r) LIKE '%conservatory%' OR lower(r) LIKE '%balcony%'
+          OR lower(r) LIKE '%fence%'   OR lower(r) LIKE '%shopfront%'
+          OR lower(r) LIKE '%advert%'  OR lower(r) LIKE '%tree%'
+          OR lower(r) LIKE '%telecom%' OR lower(r) LIKE '%change of use%'
+          OR lower(r) LIKE '%dwelling%') AS names_work
+  FROM t GROUP BY r
+)
+SELECT CASE names_work WHEN 1 THEN 'names a physical work' ELSE 'procedure only' END AS kind,
+       COUNT(*)                                        AS labels,
+       SUM(n)                                          AS applications,
+       ROUND(100.0 * SUM(n) / (SELECT SUM(n) FROM c), 1) AS pct
+FROM c GROUP BY names_work ORDER BY applications DESC;
+
+-- @name: works
+-- So this is the list of what people actually build, and it has to be mined
+-- out of the descriptions because there is no field for it.
+--
+-- Restricted to `app_size = 'Small'`, which is householder-scale work and the
+-- only scale the game is about. Non-exclusive, like `categories`: one
+-- description names several works.
+--
+-- Read this against the deck rather than as a shopping list. Two thirds of what
+-- London builds is roof work and openings — dormers, rooflights, roof
+-- extensions, windows — and none of it is representable on a five-by-five plan
+-- view with no vertical dimension. That is a fact about the board, not a gap in
+-- the writing. See PLANNING-DATA.md.
+WITH d AS (
+  SELECT lower(json_extract(payload,'$.description')) AS t,
+         json_extract(payload,'$.app_state')          AS s
+  FROM applications
+  WHERE json_extract(payload,'$.app_state') IN ('Permitted','Conditions','Rejected')
+    AND json_extract(payload,'$.app_size') = 'Small'
+),
+k(work, pat) AS (VALUES
+  ('rear extension','%rear extension%'),      ('side extension','%side extension%'),
+  ('loft conversion','%loft conversion%'),    ('dormer','%dormer%'),
+  ('rooflight / skylight','%rooflight%'),     ('roof extension','%roof extension%'),
+  ('hip to gable','%hip to gable%'),          ('outbuilding','%outbuilding%'),
+  ('garage','%garage%'),                      ('basement / cellar','%basement%'),
+  ('conservatory','%conservatory%'),          ('porch','%porch%'),
+  ('balcony','%balcony%'),                    ('terrace / patio','%terrace%'),
+  ('boundary wall / fence','%fence%'),        ('gate','%gates%'),
+  ('windows','%window%'),                     ('bay window','%bay window%'),
+  ('door alterations','%new door%'),          ('chimney','%chimney%'),
+  ('cladding / render','%render%'),           ('solar','%solar%'),
+  ('heat pump','%heat pump%'),                ('air conditioning','%air condition%'),
+  ('EV charger','%charging point%'),          ('bin / refuse store','%refuse store%'),
+  ('bike / cycle store','%cycle store%'),     ('driveway / hardstanding','%hardstanding%'),
+  ('dropped kerb / crossover','%crossover%'), ('annexe','%annexe%'),
+  ('garden room / office','%garden room%'),   ('summer house','%summer house%'),
+  ('swimming pool','%swimming pool%'),        ('decking','%decking%'),
+  ('landscaping','%landscaping%'),            ('tree works','%tree%'),
+  ('change of use','%change of use%'),        ('subdivide into flats','%into % flats%'),
+  ('new dwelling','%new dwelling%'),          ('shopfront','%shopfront%')
+)
+SELECT k.work                                             AS work,
+       COUNT(*)                                           AS decided,
+       ROUND(100.0 * SUM(s = 'Conditions') / COUNT(*), 1) AS conditions_pct,
+       ROUND(100.0 * SUM(s = 'Rejected')   / COUNT(*), 1) AS refused_pct
+FROM d JOIN k ON d.t LIKE k.pat
+GROUP BY k.work
+ORDER BY decided DESC;
+
+-- @name: label_distribution
+-- How the 795 labels are spread, which is the evidence that most of them are
+-- spelling rather than substance: a handful carry the volume and a third of
+-- them appear exactly once.
+WITH t AS (
+  SELECT json_extract(payload,'$.other_fields.application_type') AS r, COUNT(*) AS n
+  FROM applications
+  WHERE r IS NOT NULL AND r <> ''
+  GROUP BY r
+)
+SELECT 'used 1000 or more times' AS band, COUNT(*) AS labels FROM t WHERE n >= 1000
+UNION ALL SELECT 'used 100 to 999',   COUNT(*) FROM t WHERE n BETWEEN 100 AND 999
+UNION ALL SELECT 'used 10 to 99',     COUNT(*) FROM t WHERE n BETWEEN 10 AND 99
+UNION ALL SELECT 'used fewer than 10',COUNT(*) FROM t WHERE n < 10
+UNION ALL SELECT 'used exactly once', COUNT(*) FROM t WHERE n = 1;
 
 -- @name: routes
 -- Which door people go through, grouped into families. The council-by-council
