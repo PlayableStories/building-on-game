@@ -15,10 +15,11 @@ Choose Level 2 if you want any of:
 
 - A different stack (Next.js, Vue, Svelte, native mobile, whatever's current when you read
   this)
-- A **differently shaped plot** — not 5×5, or more than two zones, or multi-cell plans.
-  These are engine constants here, so they are not reachable from Level 1
+- A **differently shaped plot** — not 5×5, more or fewer than three levels, a fifth
+  `where` rule, or multi-cell plans. These are engine constants here, so they are not
+  reachable from Level 1
 - Substantially different mechanics — a different resolution ladder, more report rows,
-  multiple storeys, saved games
+  a basement, saved games
 - To re-theme during generation rather than after
 - A clean codebase without inheriting our git history
 
@@ -66,11 +67,19 @@ set of things they have agreed to look after. There is no score and no way to lo
 
 The game is not done until all of these are implemented and working:
 
-1. **A grid plot.** 5×5 by default, cells named by column letter and row number (`A1`…`E5`).
-   Some cells start occupied by the inherited building.
+1. **A grid plot, on three levels.** 5×5 by default — ground floor, first floor and roof.
+   Cells are named by level, column letter and row number (`GA1`…`RE5`), and the player
+   sees `A1` with the level named above the board. Show **one level at a time** with a
+   switcher; stacking all three shrinks the cells past the point where a name fits, to
+   show two levels that are empty for most of the game. The upper levels are the building
+   only — they stop where the garden starts. Some ground-floor cells start occupied by the
+   inherited building.
 
-2. **A fixed point.** One inherited cell can never be built on and can never be removed. In
-   the reference it is the front door. Everything else is decided around it.
+2. **Fixed points.** Two inherited cells can never be built on and can never be removed. In
+   the reference they are the front door and the stair. Everything else is decided around
+   them. The cell directly above the stair is an inherited **landing**, also permanent —
+   it is what gives the first floor somewhere to begin, so that the frontier rule (7) works
+   upstairs with no special case at all. Derive it rather than writing it in content.
 
 3. **Named inherited cells.** The other inherited cells are ordinary, demolishable cells,
    and each has its own name — *Old scullery*, not *Inherited*. This matters: playtesting
@@ -95,9 +104,29 @@ The game is not done until all of these are implemented and working:
    standing. The building grows outward from itself. (Cells holding inherited rooms are the
    exception — always legal, so demolition is never locked away behind building up to it.)
 
-8. **Zones.** Every plan is `indoor` or `outdoor` and is only legal in its own rows —
-   indoor in the upper rows, outdoor in the lower ones. There is no plan that is both.
-   Selecting a plan lights only the cells it can legally go in.
+8. **Where a plan goes.** Every plan carries a `where`, and each value is exactly one
+   legality rule, composed with the frontier rule:
+
+   | `where` | Legal cells |
+   |---|---|
+   | `house` | ground floor, upper rows, touching what is standing |
+   | `garden` | ground floor, lower rows, touching what is standing |
+   | `upstairs` | first floor, **over a cell that holds a room**, touching what is standing up there |
+   | `roof` | on top of the building, at whatever height that turns out to be |
+
+   No plan belongs in two places. Selecting a plan lights only the cells it can legally go
+   in **and moves the board to that level**, or a player who picks a bedroom sees an empty
+   ground floor and reads the rule as the game refusing to work.
+
+   Two consequences to get right. **The roof is playable from round one**, because the
+   inherited building already has one — which is also why a hand of roof plans can never
+   be unplaceable. And **roofing a cell commits it**: once something stands on the roof at
+   a column and row, the first floor beneath it can never be built. That is a second
+   irreversible move, so the rules card has to say so.
+
+   The roof deliberately does *not* use the frontier rule. What a roof cell touches is the
+   thing underneath it, which is already joined to the building by the rules that let it be
+   built.
 
 9. **Demolition, and the one confirmation.** Placing onto an inherited room takes it down,
    permanently. This is the **only** confirmation in the entire game, precisely because it
@@ -165,9 +194,9 @@ One export per thing:
 
 - `config` — round count, and one flag that changes the character of the whole game (in
   the reference: a conservation area, which makes demolition heavier and adds conditions)
-- `plot` — the fixed cell, the demolishable cells (all named), and where the outdoor rows
-  start
-- `deck` — 24 plans, each with `id`, `name`, `tier`, `zone`, `cost`, `consent`, `emits[]`,
+- `plot` — the fixed cells, the demolishable cells (all named, all on the ground floor),
+  and where the garden rows start
+- `deck` — 24 plans, each with `id`, `name`, `tier`, `where`, `cost`, `consent`, `emits[]`,
   `sensitive[]`, optional `orientation` per compass direction, and the two report lines
   `have` and `care`
 - `situations` — 6, each a line plus a function that receives a read-only summary of the
@@ -197,9 +226,9 @@ into something that cannot be played. At minimum it should catch:
 
 - A plan missing a required field, or with an unknown tier / cost / quality / consent flag
 - Duplicate ids
-- A tier with fewer plans than the draw takes from it, or a zone with fewer than a hand
-- An unnamed inherited cell
-- A plot that is not one connected building, or one that does not touch the outdoor rows
+- A tier with fewer plans than the draw takes from it, or a `where` with no plans at all
+- An unnamed inherited cell, or one above the ground floor
+- A plot that is not one connected building, or one that does not touch the garden rows
 - A pair line naming a plan that is not in the deck
 - A quality that can fire but has no line written for it
 - A cost phrase containing a digit
@@ -215,9 +244,9 @@ files is checking the easy half.
 Seed the content file with:
 
 - The agreed building and premise
-- A plot with one permanent cell and at least 4 named demolishable ones
-- **24 plans** across 4 tiers plus a wildcard pool, at least 3 per tier, and enough of each
-  zone to fill a hand
+- A plot with two permanent cells and at least 4 named demolishable ones
+- **24 plans** across 4 tiers plus a wildcard pool, at least 3 per tier, and at least one
+  plan for every `where`
 - **6 situations**, each with an answer written for the case where the player missed
 - **At least 8 pair lines** and one line per quality that can fire
 - Closing lines including at least one with no conditions on it
@@ -235,7 +264,8 @@ images, no icons, no illustration.
 
 - The dev server opens a playable game
 - Every required mechanic is observable in a single playthrough
-- An outdoor plan cannot be placed indoors, and the fixed cell never highlights
+- A garden plan cannot be placed in the house; an upstairs plan lights only first-floor
+  cells that sit over a room; the fixed cells never highlight
 - Demolishing asks exactly once, and nothing else in the game asks anything
 - At least one adjacency line fires, names its cause, and lights its cells
 - The report shows three pairs, one cost phrase, at most two obligations, a closing line
@@ -253,8 +283,9 @@ Here's the game I'll build. Tell me which to change.
 
 - Building: <a house, or the user-requested theme>
 - Premise: <why it has to change — one sentence>
-- Grid: 5×5, indoor rows 1–3, outdoor rows 4–5
-- The fixed cell: <front door at C1, or your equivalent> — never placeable, never removable
+- Grid: 5×5 on three levels — house rows 1–3, garden rows 4–5, first floor and roof above
+- The fixed cells: <front door at GC1 and stair at GB1, or your equivalents> — never
+  placeable, never removable, plus the derived landing above the stair
 - Inherited rooms: <4 named, demolishable>
 - Rounds: 8, three plans dealt each, two from the round's tier
 - Deck: 24 plans across 4 tiers + wildcards
@@ -264,7 +295,7 @@ Here's the game I'll build. Tell me which to change.
   neither — confirm
 - Required mechanics I will implement:
   - Permanent placement, no undo
-  - Frontier rule and zone rule
+  - Frontier rule, the four `where` rules, and the roof committing the cell beneath it
   - Demolition with the single confirmation
   - Resolution ladder: pair → quality → orientation → silence
   - The line names its cause and lights its cells
@@ -324,7 +355,8 @@ Once your builder produces a playable game, sanity-check it:
    - Does a line ever fire that names **two** things, with both cells lit?
    - Does the report show **exactly three** pairs, not all eight?
    - Is there a number anywhere before the report?
-   - Can an outdoor plan be placed indoors?
+   - Can a garden plan be placed in the house? Can an upstairs plan land on a cell with
+     nothing under it? Can a roofed cell still be built on from the first floor?
 4. Try to demolish something. Confirm it asks once, and that nothing else in the game does.
 5. Edit a colour in the theme file and a line in the content file; confirm both hot-reload.
 6. Grep the engine for an import of the content file. If it's there, the two-file

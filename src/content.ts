@@ -62,13 +62,20 @@ export const config: Config = {
  * number and never learns what a scullery is.
  */
 export const plot: PlotContent = {
-  frontDoor: { cell: 'C1', name: 'Front door' },
+  frontDoor: { cell: 'GC1', name: 'Front door' },
+
+  /**
+   * §5 — the stair, beside the front door where a London terrace puts it, and
+   * the landing directly above it. Neither can come down: they are how the
+   * first floor is reachable at all.
+   */
+  stair: { cell: 'GB1', name: 'Stairs' },
 
   fabric: [
-    { cell: 'B2', name: 'Old kitchen' },
-    { cell: 'C2', name: 'Old sitting room' },
-    { cell: 'B3', name: 'Old scullery' },
-    { cell: 'C3', name: 'Old back room' },
+    { cell: 'GB2', name: 'Old kitchen' },
+    { cell: 'GC2', name: 'Old sitting room' },
+    { cell: 'GB3', name: 'Old scullery' },
+    { cell: 'GC3', name: 'Old back room' },
   ],
 
   /** Rows 1–3 are the house. Rows 4–5 are the garden. */
@@ -111,9 +118,11 @@ export const rules: Rules = {
   points: [
     'Each round you are dealt three plans. Choose one — the other two are gone.',
     'It has to touch something already built, and you can never move it afterwards.',
-    'Rooms go in the house, rows 1–3. Garden things go in the garden, rows 4–5.',
+    'Every plan belongs somewhere: in the house, in the garden, upstairs or on the roof. Only the squares it can go in will light up.',
+    'Upstairs only goes over a room. What you put on the ground decides what you can sleep above.',
+    'The roof sits on top of whatever is highest — and roofing a square seals the first floor under it, for good.',
     'The old rooms can be taken down. Put a plan on one and it goes, for good.',
-    'The front door is not yours to change. It came with the house.',
+    'The front door and the stairs are not yours to change. They came with the house.',
     'What you build next to what is the whole game. The house will tell you when it notices something.',
   ],
 };
@@ -140,13 +149,17 @@ export const ui: InterfaceCopy = {
 
   prompt: {
     choose: 'Choose one of three. The other two are gone.',
-    // §5 — naming the zone here, because it is the rule a player is most
-    // likely to be caught out by in the middle of a round.
+    // §5 — naming where it goes here, because it is the rule a player is
+    // most likely to be caught out by in the middle of a round.
     place: {
-      indoor:
-        'It goes in the house, touching what is already built. You cannot move it later.',
-      outdoor:
+      house:
+        'It goes on the ground floor, touching what is already built. You cannot move it later.',
+      garden:
         'It goes in the garden, touching what is already there. You cannot move it later.',
+      upstairs:
+        'It goes on the first floor, over a room that is already there. You cannot move it later.',
+      roof:
+        'It goes on the roof, on top of whatever you have built. You cannot move it later.',
     },
   },
 
@@ -157,6 +170,15 @@ export const ui: InterfaceCopy = {
     inherited: 'inherited',
     empty: 'empty',
     fixed: 'cannot be taken down',
+    /** §5 — the heading over each grid, and the accessible name for it. */
+    levels: {
+      roof: 'The roof',
+      first: 'First floor',
+      ground: 'Ground floor',
+    },
+    levelPicker: 'Which level of the house you are looking at',
+    /** §5 — the cell the stair arrives at, named like any other inherited cell. */
+    landing: 'Landing',
   },
 
   observation: {
@@ -392,7 +414,7 @@ export const deck: Plan[] = [
     id: 'porch',
     name: 'Porch',
     tier: 'threshold',
-    zone: 'indoor',
+    where: 'house',
     /**
      * PLANNING-DATA.md — 10,570 London decisions mention a porch, and 30.1% of
      * them come back with conditions against a 24.0% baseline. A porch under
@@ -415,7 +437,7 @@ export const deck: Plan[] = [
     id: 'hall',
     name: 'Hall',
     tier: 'threshold',
-    zone: 'indoor',
+    where: 'house',
     consent: 'householder',
     have: 'A place to arrive, rather than walking straight into a room.',
     cost: 'moderate',
@@ -430,7 +452,7 @@ export const deck: Plan[] = [
     id: 'boot-room',
     name: 'Boot room',
     tier: 'threshold',
-    zone: 'indoor',
+    where: 'house',
     consent: 'householder',
     have: 'Wet coats and muddy boots stop at the door.',
     cost: 'low',
@@ -442,7 +464,7 @@ export const deck: Plan[] = [
     id: 'downstairs-wc',
     name: 'Downstairs WC',
     tier: 'threshold',
-    zone: 'indoor',
+    where: 'house',
     consent: 'householder',
     have: 'Nobody has to go upstairs, which matters more than it sounds.',
     cost: 'moderate',
@@ -454,7 +476,7 @@ export const deck: Plan[] = [
     id: 'bin-store',
     name: 'Bin store',
     tier: 'threshold',
-    zone: 'outdoor',
+    where: 'garden',
     /** PLANNING-DATA.md — 19.2% conditioned, below the 24.0% baseline. */
     consent: 'permitted',
     have: 'The bins are somewhere, rather than beside the back door.',
@@ -470,7 +492,7 @@ export const deck: Plan[] = [
     id: 'kitchen',
     name: 'Kitchen',
     tier: 'daily',
-    zone: 'indoor',
+    where: 'house',
     consent: 'householder',
     have: 'The room everyone ends up in, whatever you intended.',
     cost: 'high',
@@ -485,7 +507,7 @@ export const deck: Plan[] = [
     id: 'living-room',
     name: 'Living room',
     tier: 'daily',
-    zone: 'indoor',
+    where: 'house',
     consent: 'householder',
     have: 'Somewhere to sit that is not the kitchen.',
     cost: 'moderate',
@@ -500,7 +522,7 @@ export const deck: Plan[] = [
     id: 'dining-room',
     name: 'Dining room',
     tier: 'daily',
-    zone: 'indoor',
+    where: 'house',
     consent: 'householder',
     have: 'A table that stays laid, and meals that take longer.',
     cost: 'moderate',
@@ -512,7 +534,7 @@ export const deck: Plan[] = [
     id: 'utility-room',
     name: 'Utility room',
     tier: 'daily',
-    zone: 'indoor',
+    where: 'house',
     consent: 'householder',
     have: 'The washing happens somewhere that is not the kitchen.',
     cost: 'moderate',
@@ -525,7 +547,7 @@ export const deck: Plan[] = [
     id: 'glass-extension',
     name: 'Glass-roofed extension',
     tier: 'daily',
-    zone: 'indoor',
+    where: 'house',
     /**
      * PLANNING-DATA.md — confirmed. A conservatory is conditioned 30.8% of the
      * time and a glazed extension 34.7%, against a 24.0% baseline. What gets
@@ -549,7 +571,7 @@ export const deck: Plan[] = [
     id: 'bedroom',
     name: 'Bedroom',
     tier: 'private',
-    zone: 'indoor',
+    where: 'upstairs',
     consent: 'householder',
     have: 'A room with a door, and a window you decide about.',
     cost: 'moderate',
@@ -564,7 +586,7 @@ export const deck: Plan[] = [
     id: 'bathroom',
     name: 'Bathroom',
     tier: 'private',
-    zone: 'indoor',
+    where: 'upstairs',
     consent: 'householder',
     have: 'A bath, and somewhere to be alone at seven in the morning.',
     cost: 'high',
@@ -577,7 +599,7 @@ export const deck: Plan[] = [
     id: 'study',
     name: 'Study',
     tier: 'private',
-    zone: 'indoor',
+    where: 'upstairs',
     /**
      * PLANNING-DATA.md — confirmed, strongly. A study is a loft conversion, and
      * loft conversions are conditioned 9.7% of the time: the lowest rate of
@@ -595,7 +617,7 @@ export const deck: Plan[] = [
     id: 'gym',
     name: 'Gym',
     tier: 'private',
-    zone: 'indoor',
+    where: 'upstairs',
     /** PLANNING-DATA.md — a loft or an outbuilding: 9.7% and 22.0% conditioned. */
     consent: 'permitted',
     have: 'No membership, and no excuse.',
@@ -608,7 +630,7 @@ export const deck: Plan[] = [
     id: 'spare-room',
     name: 'Spare room',
     tier: 'private',
-    zone: 'indoor',
+    where: 'upstairs',
     consent: 'householder',
     have: 'Somewhere for people to stay, and for everything else to go.',
     cost: 'low',
@@ -622,7 +644,7 @@ export const deck: Plan[] = [
     id: 'vegetable-garden',
     name: 'Vegetable garden',
     tier: 'outside',
-    zone: 'outdoor',
+    where: 'garden',
     consent: 'permitted',
     have: 'Something to pick in August, and beds to look at in February.',
     cost: 'very-low',
@@ -638,7 +660,7 @@ export const deck: Plan[] = [
     id: 'terrace',
     name: 'Terrace',
     tier: 'outside',
-    zone: 'outdoor',
+    where: 'garden',
     /**
      * PLANNING-DATA.md — the most-conditioned thing in the whole dataset. A
      * roof terrace is conditioned 44.0% of the time and a patio 35.4%, against
@@ -666,7 +688,7 @@ export const deck: Plan[] = [
     id: 'shed',
     name: 'Shed',
     tier: 'outside',
-    zone: 'outdoor',
+    where: 'garden',
     /**
      * PLANNING-DATA.md — 22.0% conditioned as an outbuilding, just under the
      * 24.0% baseline. Called a garden room it reaches 29.3%, which is a fair
@@ -683,7 +705,7 @@ export const deck: Plan[] = [
     id: 'lawn',
     name: 'Lawn',
     tier: 'outside',
-    zone: 'outdoor',
+    where: 'garden',
     consent: 'permitted',
     have: 'Green, soft, and somewhere to put a chair.',
     cost: 'very-low',
@@ -699,7 +721,7 @@ export const deck: Plan[] = [
     id: 'home-farm',
     name: 'Home farm',
     tier: 'outside',
-    zone: 'outdoor',
+    where: 'garden',
     consent: 'permitted',
     have: 'Food you grew, and a reason to be outside every day.',
     cost: 'very-low',
@@ -717,7 +739,7 @@ export const deck: Plan[] = [
     id: 'heat-pump',
     name: 'Air-source heat pump',
     tier: 'wildcard',
-    zone: 'outdoor',
+    where: 'garden',
     /**
      * PLANNING-DATA.md — 35.5% of air source heat pump applications are
      * conditioned, against a 24.0% baseline. Siting and acoustics, which is the
@@ -735,7 +757,12 @@ export const deck: Plan[] = [
     id: 'solar-array',
     name: 'Solar array',
     tier: 'wildcard',
-    zone: 'indoor',
+    /**
+     * §5 — the roof, which is where it always was. It was `indoor` only because
+     * a one-storey board had nowhere else to put it, and a solar array is not
+     * in a room.
+     */
+    where: 'roof',
     /** PLANNING-DATA.md — 26.4% conditioned, within noise of the 24.0% baseline. */
     consent: 'permitted',
     have: 'Some of your electricity, on the days you need least of it.',
@@ -752,7 +779,7 @@ export const deck: Plan[] = [
     id: 'wall-insulation',
     name: 'Internal wall insulation',
     tier: 'wildcard',
-    zone: 'indoor',
+    where: 'house',
     /**
      * PLANNING-DATA.md — the strongest single result in the set. Internal wall
      * insulation appears in **one** of 308,015 London decisions. External wall
@@ -773,7 +800,7 @@ export const deck: Plan[] = [
     id: 'air-conditioning',
     name: 'Air conditioning unit',
     tier: 'wildcard',
-    zone: 'indoor',
+    where: 'house',
     /**
      * §9.1 — the second `sensitive` in the deck, and the answer to a finding
      * the M7 measurements turned up: with the glass extension as its only

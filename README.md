@@ -30,9 +30,11 @@ npm run build        # production build
 
 ## The Game
 
-A 5×5 plot. The house you inherited is already standing on part of it: a front door that
-came with the house and can never be changed, and four old rooms behind it — the old
-kitchen, the old sitting room, the old scullery, the old back room.
+A 5×5 plot on three levels — the ground floor, the first floor and the roof, one on screen
+at a time. The house you inherited is already standing on part of it: a front door and a
+stair that came with the house and can never be changed, the landing the stair arrives at,
+and four old rooms behind them — the old kitchen, the old sitting room, the old scullery,
+the old back room.
 
 Each round deals three plans. Two come from the round's tier, one from anywhere:
 
@@ -43,13 +45,15 @@ Each round deals three plans. Two come from the round's tier, one from anywhere:
 | 5–6 | **Private** | Bedrooms, bathroom, study — the doors that close |
 | 7–8 | **Outside** | Terrace, shed, vegetable garden, heat pump |
 
-Three rules decide where a plan can go, and between them they are most of the game:
+Four rules decide where a plan can go, and between them they are most of the game:
 
 - **It has to touch** something already standing. The house grows outward from itself.
-- **It has to stay in its zone.** Rooms go in the house, rows 1–3. Garden things go in the
-  garden, rows 4–5.
-- **The front door is not yours to change.** It is the fixed point everything else is
-  decided around.
+- **Every plan belongs somewhere** — in the house (rows 1–3), in the garden (rows 4–5),
+  upstairs, or on the roof. Choosing one takes the board to the level it goes on.
+- **Upstairs only goes over a room.** What you build on the ground decides what you can
+  sleep above. And roofing a cell seals the first floor beneath it, for good.
+- **The front door and the stairs are not yours to change.** They are the fixed points
+  everything else is decided around.
 
 The old rooms are ordinary cells and you can build on them. Doing so takes them down, for
 good, and that is the only thing the game ever asks you to confirm.
@@ -216,7 +220,7 @@ again. Same plans, same pleasures, same cost — and different obligations. That
 argument the game is making, and it is one config flag.
 
 Out of scope by design: discovery, placement animation, save and load, a seed in the URL,
-multiple storeys, multi-cell plans, and any score at all.
+a basement, multi-cell plans, and any score at all.
 
 ## Contributing
 

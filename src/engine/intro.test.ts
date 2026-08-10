@@ -40,7 +40,7 @@ describe('the framing (§2)', () => {
     const planId = state.hand[0] as string;
     const selected = game.reducer(state, { type: 'SELECT_PLAN', planId });
     expect(selected.selectedPlanId).toBeNull();
-    expect(game.reducer(selected, { type: 'PLACE', cell: 'C1' })).toBe(selected);
+    expect(game.reducer(selected, { type: 'PLACE', cell: 'GC1' })).toBe(selected);
   });
 
   it('begins on dismissal, keeping the hand it had already dealt', () => {

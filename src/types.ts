@@ -59,8 +59,32 @@ export type Column = (typeof COLUMNS)[number];
 export const ROWS = [1, 2, 3, 4, 5] as const;
 export type Row = (typeof ROWS)[number];
 
-/** A cell is named the way the GDD names it: 'B2', 'C3', 'E5'. */
-export type CellId = `${Column}${Row}`;
+/**
+ * §5 — the building has three levels, and a plan belongs to one of them.
+ *
+ * The prototype was a single storey, and GDD §4 listed multiple storeys as out
+ * of scope. What overturned it was the planning data: dormers, rooflights and
+ * roof extensions are the second, third and fourth most common works in London,
+ * 165,405 applications between them, and none of them is a cell on a flat
+ * board. The board went up so that the deck could hold them.
+ */
+export const LEVELS = ['ground', 'first', 'roof'] as const;
+export type Level = (typeof LEVELS)[number];
+
+/** The letter a level contributes to a cell id. */
+export const LEVEL_CODE = { ground: 'G', first: 'F', roof: 'R' } as const;
+export type LevelCode = (typeof LEVEL_CODE)[Level];
+
+/**
+ * A cell is a level, a column and a row: 'GB2' is the old kitchen, 'FB2' is the
+ * room above it, 'RB2' is the roof over whichever of those is on top.
+ *
+ * The level is part of the id rather than a field beside it, so every existing
+ * lookup — `includes`, `Set`, `find(p => p.cell === cell)` — keeps working on a
+ * plain string. The player never sees the prefix: the plot prints 'B2' under a
+ * level heading, and the accessible name says "First floor, B2".
+ */
+export type CellId = `${LevelCode}${Column}${Row}`;
 
 /**
  * §5 — which way a row faces. Row 1 is the street (north) and row 5 is the open
@@ -83,14 +107,22 @@ export type Orientation = 'north' | 'south';
 export type Position = 'street' | 'middle' | 'back' | 'shadow' | 'garden';
 
 /**
- * §5 — the house, and the garden behind it.
+ * §5 — where a plan goes. One field, four answers, one legality rule each.
  *
- * A plan belongs to one or the other and can only be placed there: a bathroom
- * does not go in the garden and a lawn does not go in the hall. The zone a cell
- * belongs to is decided by its row, which is why the plot reads as a building
- * with ground behind it rather than as twenty-five interchangeable squares.
+ * A bathroom does not go in the garden and a lawn does not go in the hall. That
+ * was `zone: 'indoor' | 'outdoor'` while the board was one storey, and it stops
+ * meaning anything once there are three: a bedroom and a balcony are both
+ * upstairs, and "indoor" is not what separates them.
+ *
+ *   house     the ground floor, rows 1–3
+ *   garden    the ground floor, rows 4–5
+ *   upstairs  the first floor, and only over a room
+ *   roof      on top of whatever is built, at whatever height that is
+ *
+ * See `legalCells` in `engine/grid.ts`, where each of these is exactly one rule.
  */
-export type Zone = 'indoor' | 'outdoor';
+export const WHERES = ['house', 'garden', 'upstairs', 'roof'] as const;
+export type Where = (typeof WHERES)[number];
 
 /** A cell that was already built when the player arrived, and what it is. */
 export interface InheritedCell {
@@ -116,6 +148,17 @@ export interface PlotContent {
    * and the one cell they cannot change. It is never a legal placement.
    */
   frontDoor: InheritedCell;
+  /**
+   * §5 — the stair the house came with, and the landing it arrives at.
+   *
+   * Like the front door it is inherited and can never come down: it is how you
+   * get upstairs, and a house that could lose its stairs would be a house whose
+   * first floor could be stranded. The landing directly above it is inherited
+   * too, and it is the whole first-floor seeding mechanism — with one cell
+   * occupied up there, §7.1's frontier rule works on the first floor with no
+   * special case at all.
+   */
+  stair: InheritedCell;
   /** §7.2 — the old rooms. These can be placed on, which takes them down. */
   fabric: InheritedCell[];
   /** §5 — the first garden row. Everything from here down is outdoors. */
@@ -130,8 +173,8 @@ export interface Plan {
   id: string;
   name: string;
   tier: PlanTier;
-  /** §5 — the house or the garden. It cannot be placed in the other one. */
-  zone: Zone;
+  /** §5 — the one place it may go. It cannot be placed anywhere else. */
+  where: Where;
   /** Qualities this plan puts into its neighbours. */
   emits: Quality[];
   /** Qualities this plan suffers from. */
@@ -152,7 +195,7 @@ export interface Plan {
  * rather than the whole `Plan` — which also lets M1 ship a deck that has not
  * been written yet.
  */
-export type PlanIdentity = Pick<Plan, 'id' | 'name' | 'tier' | 'zone'>;
+export type PlanIdentity = Pick<Plan, 'id' | 'name' | 'tier' | 'where'>;
 
 /**
  * What the adjacency resolution in §8.6 needs: which plan it is, what it puts
@@ -456,12 +499,18 @@ export interface InterfaceCopy {
   /** §13 — what to do next, above the hand. */
   prompt: {
     choose: string;
-    /** One per zone: where this plan is allowed to go. */
-    place: Record<Zone, string>;
+    /** One per `where`: which part of the building this plan belongs to. */
+    place: Record<Where, string>;
   };
 
   /** §5, §12 — the labels on and around the plot. */
   plot: {
+    /** §5 — one heading per level, top to bottom. */
+    levels: Record<Level, string>;
+    /** §5 — what the switcher between the levels is called, for screen readers. */
+    levelPicker: string;
+    /** §5 — what the cell above the stair is called. */
+    landing: string;
     street: string;
     garden: string;
     /** The aside after the garden label — '· sun from the south'. */
@@ -533,6 +582,17 @@ export interface GameState {
    * left rather than a plot they were given.
    */
   frontDoor: CellId;
+  /**
+   * §5, §7 — the two cells the stair occupies: the flight on the ground floor
+   * and the landing it arrives at on the first. Both are fixed for the whole
+   * game, for the same reason the front door is.
+   *
+   * The landing is what makes the first floor reachable at all. §7.1 says a
+   * placement has to touch something already standing, and without one occupied
+   * cell up there nothing upstairs would ever be legal.
+   */
+  stair: CellId;
+  landing: CellId;
   /**
    * §5 — the first garden row, carried here for the same reason as `frontDoor`:
    * it is decided by content before round 1 and then fixed, and every legality

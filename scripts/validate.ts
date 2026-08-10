@@ -23,12 +23,13 @@ import {
   COST_BANDS,
   PLAN_TIERS,
   QUALITIES,
+  WHERES,
   TIERS,
   type CellId,
   type Quality,
 } from '../src/types.ts';
-import { HAND_SIZE, TIER_CARDS } from '../src/engine/deck.ts';
-import { orthogonalNeighbours, zoneOf } from '../src/engine/grid.ts';
+import { TIER_CARDS } from '../src/engine/deck.ts';
+import { isGarden, levelOf, orthogonalNeighbours } from '../src/engine/grid.ts';
 
 const problems: string[] = [];
 const fail = (message: string) => problems.push(message);
@@ -79,10 +80,10 @@ for (const plan of deck) {
   if (!PLAN_TIERS.includes(plan.tier)) {
     fail(`${where}: tier "${plan.tier}" is not one of ${PLAN_TIERS.join(', ')}.`);
   }
-  if (plan.zone !== 'indoor' && plan.zone !== 'outdoor') {
+  if (!WHERES.includes(plan.where)) {
     fail(
-      `${where}: zone must be 'indoor' or 'outdoor' (§5). Without one the game ` +
-        'cannot work out where it is allowed to go.',
+      `${where}: where must be one of ${WHERES.join(', ')} (§5). Without one the ` +
+        'game cannot work out which part of the building it belongs to.',
     );
   }
   if (!COST_BANDS.includes(plan.cost)) {
@@ -117,16 +118,25 @@ for (const tier of TIERS) {
 }
 
 /**
- * §5 — and a zone that cannot fill a hand can deal one nobody can place. There
- * has to be more of each zone than a single hand, or a round can arrive with
- * three plans and nowhere in the plot to put any of them.
+ * §5 — every part of the building needs something that can go there.
+ *
+ * This used to demand a whole hand's worth per zone, on the reasoning that a
+ * round could otherwise deal three plans with nowhere to put them. With two
+ * zones that was over-strict but harmless; with four it is simply wrong, since
+ * a `where` holding two plans can never fill a hand on its own anyway.
+ *
+ * What it actually guards now is deadness: a `where` with no plans at all means
+ * a level of the building nothing can ever be placed on, and copy written for
+ * it that no player will read. Real deadlock — a hand with no legal cell for
+ * any of its three — is a property of the plot rather than of the counts, and
+ * it is checked by playing 400 games rather than by arithmetic here.
  */
-for (const zone of ['indoor', 'outdoor'] as const) {
-  const count = deck.filter((plan) => plan.zone === zone).length;
-  if (count < HAND_SIZE) {
+for (const place of WHERES) {
+  const count = deck.filter((plan) => plan.where === place).length;
+  if (count === 0) {
     fail(
-      `zone "${zone}" has ${count} plans and a hand is ${HAND_SIZE} (§5). ` +
-        'A round could deal three plans with nowhere to put them.',
+      `where "${place}" has no plans (§5). That is a part of the building ` +
+        'nothing can ever be placed on.',
     );
   }
 }
@@ -136,21 +146,32 @@ for (const zone of ['indoor', 'outdoor'] as const) {
  * ------------------------------------------------------------------ */
 
 const { plot } = content;
-const standing: CellId[] = [plot.frontDoor.cell, ...plot.fabric.map((one) => one.cell)];
+const standing: CellId[] = [
+  plot.frontDoor.cell,
+  plot.stair.cell,
+  ...plot.fabric.map((one) => one.cell),
+];
 
 noDuplicates('plot', standing);
 
-for (const one of [plot.frontDoor, ...plot.fabric]) {
+for (const one of [plot.frontDoor, plot.stair, ...plot.fabric]) {
   if (!one.name) {
     fail(
       `plot: the cell at ${one.cell} has no name (§12). Playtesting found that ` +
         'an unnamed inherited cell reads as scenery nobody may touch.',
     );
   }
-  if (zoneOf(one.cell, plot.gardenFromRow) !== 'indoor') {
+  if (isGarden(one.cell, plot.gardenFromRow)) {
     fail(
       `plot: ${one.cell} is in the garden (§5). What you inherited is a ` +
         'building, and the rows below `gardenFromRow` are the ground behind it.',
+    );
+  }
+  if (levelOf(one.cell) !== 'ground') {
+    fail(
+      `plot: ${one.cell} is not on the ground floor (§5). What was standing ` +
+        'when the player arrived is the ground floor and the stair; the levels ' +
+        'above it are theirs to build.',
     );
   }
 }
@@ -178,9 +199,7 @@ if (connected.size !== standing.length) {
 
 /** §5 — and there has to be somewhere outdoors to start from, on turn one. */
 const outdoorFrontier = standing.some((cell) =>
-  orthogonalNeighbours(cell).some(
-    (near) => zoneOf(near, plot.gardenFromRow) === 'outdoor',
-  ),
+  orthogonalNeighbours(cell).some((near) => isGarden(near, plot.gardenFromRow)),
 );
 if (!outdoorFrontier) {
   fail(
@@ -336,8 +355,9 @@ if (problems.length > 0) {
 }
 
 console.log(
-  `Content OK — ${deck.length} plans (${deck.filter((p) => p.zone === 'indoor').length} ` +
-    `indoor, ${deck.filter((p) => p.zone === 'outdoor').length} outdoor), ` +
+  `Content OK — ${deck.length} plans (` +
+    WHERES.map((w) => `${deck.filter((p) => p.where === w).length} ${w}`).join(', ') +
+    `), ` +
     `${standing.length} inherited cells, ${content.situations.length} situations, ` +
     `${content.pairLines.length} pair lines, ${content.closingLines.length} closing lines.`,
 );
