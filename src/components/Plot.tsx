@@ -48,8 +48,16 @@ interface PlotProps {
   onPlace: (cell: CellId) => void;
 }
 
-/** Roof first, ground last — the switcher reads like the building stands. */
-const TOP_DOWN: readonly Level[] = [...LEVELS].reverse();
+/**
+ * Ground first, roof last — left to right is going up.
+ *
+ * The switcher sits *below* the board, beside the hand, because choosing a level
+ * and choosing a plan are the same gesture a beat apart and the cursor should
+ * not have to cross the whole plot between them. It was a vertical stack above
+ * the board when it read like an elevation; below the board a stack only pushes
+ * the cards further away, which is the thing being fixed.
+ */
+const BOTTOM_UP: readonly Level[] = LEVELS;
 
 export default function Plot({ state, deck, plot, copy, onPlace }: PlotProps) {
   const byId = new Map(deck.map((plan) => [plan.id, plan]));
@@ -107,35 +115,28 @@ export default function Plot({ state, deck, plot, copy, onPlace }: PlotProps) {
   const rows = shown === 'ground' ? ROWS : ROWS.filter((row) => row < state.gardenFromRow);
 
   return (
-    <div className={`plot${state.observation ? ' plot--reading' : ''}`}>
-      <div className="plot__levels" role="group" aria-label={copy.levelPicker}>
-        {TOP_DOWN.map((level) => (
-          <button
-            key={level}
-            type="button"
-            className="plot__level"
-            // Not a tab set: `aria-pressed` says the state without promising
-            // the arrow-key handling a tablist is read as offering.
-            aria-pressed={level === shown}
-            // §5 — a quiet mark on the levels the chosen plan could go on, so
-            // the switcher answers "where does this go" before it is touched.
-            data-legal={legal.some((cell) => levelOf(cell) === level)}
-            onClick={() => setShown(level)}
-          >
-            {copy.levels[level]}
-          </button>
-        ))}
-      </div>
-
-      {shown === 'ground' && <p className="plot__edge plot__edge--street">{copy.street}</p>}
+    /**
+     * §5 — the plot holds the same envelope whichever level is on screen: the
+     * street label, five rows of cells, the garden label. The upper levels fill
+     * three of those rows and leave the rest empty.
+     *
+     * That is deliberate, and it buys two things. Nothing below the board moves
+     * when the level changes — the hand stayed put instead of jumping by two
+     * rows — and every cell keeps the *same screen position* on every level, so
+     * B2 is where B2 was and switching reads as looking up rather than as the
+     * page being redrawn.
+     */
+    <div
+      className={`plot${state.observation ? ' plot--reading' : ''}`}
+      style={{ ['--plot-max-rows' as string]: ROWS.length }}
+    >
+      {/* §5 — row 1 is the street elevation at every height, so this is true on
+          every level: a first-floor front bedroom faces the street exactly as
+          the room under it does. */}
+      <p className="plot__edge plot__edge--street">{copy.street}</p>
 
       <div className="plot__frame">
-        <div
-          className="plot__grid"
-          role="grid"
-          aria-label={copy.levels[shown]}
-          style={{ ['--plot-rows' as string]: rows.length }}
-        >
+        <div className="plot__grid" role="grid" aria-label={copy.levels[shown]}>
           {rows.map((row) =>
             COLUMNS.map((column) => {
               const cell = cellId(shown, column, row);
@@ -194,11 +195,31 @@ export default function Plot({ state, deck, plot, copy, onPlace }: PlotProps) {
         </div>
       </div>
 
-      {shown === 'ground' && (
-        <p className="plot__edge plot__edge--garden">
-          {copy.garden} <span className="plot__sun">{copy.sun}</span>
-        </p>
-      )}
+      {/* …but there is no garden above a garden. Hidden rather than removed on
+          the upper levels, so it still holds its line and the switcher below it
+          does not move. */}
+      <p className="plot__edge plot__edge--garden" data-shown={shown === 'ground'}>
+        {copy.garden} <span className="plot__sun">{copy.sun}</span>
+      </p>
+
+      <div className="plot__levels" role="group" aria-label={copy.levelPicker}>
+        {BOTTOM_UP.map((level) => (
+          <button
+            key={level}
+            type="button"
+            className="plot__level"
+            // Not a tab set: `aria-pressed` says the state without promising
+            // the arrow-key handling a tablist is read as offering.
+            aria-pressed={level === shown}
+            // §5 — a quiet mark on the levels the chosen plan could go on, so
+            // the switcher answers "where does this go" before it is touched.
+            data-legal={legal.some((cell) => levelOf(cell) === level)}
+            onClick={() => setShown(level)}
+          >
+            {copy.levels[level]}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

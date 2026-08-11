@@ -159,22 +159,30 @@ test.describe('the plot (§5, §12)', () => {
 
     const tabs = page.locator('.plot__level');
     await expect(tabs).toHaveCount(3);
-    // Top to bottom, the way the building stands.
+    // Left to right is going up, and the ground floor comes first because that
+    // is where a game starts.
     await expect(tabs).toHaveText([
-      ui.plot.levels.roof,
-      ui.plot.levels.first,
       ui.plot.levels.ground,
+      ui.plot.levels.first,
+      ui.plot.levels.roof,
     ]);
+    // …and below the board, next to the hand it is used alongside.
+    const board = await page.locator('.plot__frame').boundingBox();
+    const switcher = await page.locator('.plot__levels').boundingBox();
+    expect(board!.y + board!.height).toBeLessThanOrEqual(switcher!.y);
+
     await expect(page.getByRole('grid')).toHaveCount(1);
     await expect(page.getByRole('grid', { name: ui.plot.levels.ground })).toBeVisible();
 
     // §5 — the upper levels are the building only, so they stop where the
-    // garden starts, and the street and garden labels stay with the ground.
+    // garden starts. The street label stays: row 1 is the street elevation at
+    // every height. The garden label does not, because there is no garden above
+    // a garden — but it keeps its line, so nothing below it moves.
     await showLevel(page, ui.plot.levels.first);
     await expect(page.getByRole('grid', { name: ui.plot.levels.first })).toBeVisible();
     await expect(page.getByRole('gridcell')).toHaveCount(15);
-    await expect(page.locator('.plot__edge--street')).toHaveCount(0);
-    await expect(page.locator('.plot__edge--garden')).toHaveCount(0);
+    await expect(page.locator('.plot__edge--street')).toBeVisible();
+    await expect(page.locator('.plot__edge--garden')).toBeHidden();
 
     // §5 — the stair arrives at an inherited landing. It is what seeds the
     // first floor, so it is standing before anything is built.
@@ -183,6 +191,37 @@ test.describe('the plot (§5, §12)', () => {
 
     await showLevel(page, ui.plot.levels.ground);
     await expect(page.getByRole('gridcell')).toHaveCount(25);
+  });
+
+  /**
+   * §5 — switching levels must not move anything. The ground floor is five rows
+   * and the upper levels are three, so the board reserves the tallest and the
+   * short levels leave the last two rows empty. Without that the hand jumped up
+   * by two rows every time the player looked upstairs, and the card they were
+   * about to click moved out from under the cursor.
+   */
+  test('holds everything still when the level changes', async ({ page }) => {
+    await start(page);
+
+    const top = async (selector: string) =>
+      Math.round((await page.locator(selector).boundingBox())!.y);
+    const cellAtA1 = async () =>
+      Math.round((await page.getByRole('gridcell').first().boundingBox())!.y);
+
+    const before = {
+      grid: await cellAtA1(),
+      switcher: await top('.plot__levels'),
+      hand: await top('.hand'),
+    };
+
+    for (const level of [ui.plot.levels.first, ui.plot.levels.roof]) {
+      await showLevel(page, level);
+      // A1 is A1 at the same height on every level, so a switch reads as
+      // looking up rather than as the page being redrawn.
+      expect(await cellAtA1()).toBe(before.grid);
+      expect(await top('.plot__levels')).toBe(before.switcher);
+      expect(await top('.hand')).toBe(before.hand);
+    }
   });
 
   /**

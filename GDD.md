@@ -142,6 +142,17 @@ it to the level that plan goes on. Stacking all three as an elevation was the ot
 option: it was not taken because it shrinks the cells past the point where a room's name
 fits, in order to show two levels that are empty for most of the game.
 
+The switcher sits **below the board**, next to the hand: choosing a level and choosing a
+plan are the same gesture a beat apart, and the cursor should not have to cross the plot
+between them.
+
+**The board holds one envelope whichever level is shown** — the street label, five rows,
+the garden label — and the upper levels fill three of those rows and leave the rest
+empty. Nothing below the board moves when the level changes, and **every cell keeps the
+same screen position on every level**, so switching reads as looking up rather than as
+the page being redrawn. The cost is visible empty space above the switcher on the upper
+levels, which is the honest shape of a building that is deeper at the bottom.
+
 **[Design note]** One cell per plan is a deliberate simplification. Variable room
 footprints would make this a spatial puzzle, and a spatial puzzle is a different game
 — the player would optimise packing instead of thinking about neighbours.

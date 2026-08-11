@@ -183,20 +183,17 @@
  */
 .plot__levels {
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: var(--space-1);
-  width: fit-content;
-  min-width: 12rem;
-  margin: 0 auto var(--space-3);
+  margin: var(--space-2) auto 0;
 }
 
 .plot__level {
   font-family: var(--font-ui);
   font-size: var(--size-small);
   letter-spacing: 0.04em;
-  text-align: left;
-  padding: var(--space-1) var(--space-2);
+  padding: var(--space-1) var(--space-3);
   border: 1px solid var(--colour-rule);
   border-radius: var(--radius);
   background: transparent;
@@ -248,15 +245,39 @@
   color: var(--colour-garden);
 }
 
+/**
+ * §5 — there is no garden above a garden, but the line still holds its place.
+ * `visibility` rather than `display`, so the switcher below it does not move
+ * when the level changes — and it leaves the accessibility tree too, so nothing
+ * announces a garden that is not there.
+ */
+.plot__edge--garden[data-shown='false'] {
+  visibility: hidden;
+}
+
 .plot__sun {
   text-transform: none;
   letter-spacing: 0;
   opacity: 0.75;
 }
 
+/**
+ * §5 — the board reserves the tallest level's height whichever level is shown,
+ * so switching does not move anything below it. The ground floor is five rows;
+ * the first floor and the roof are three and leave the last two empty.
+ *
+ * Top-aligned, not centred: row 1 is the street at every height, so keeping it
+ * at the same y makes each cell hold its screen position across levels. B2 is
+ * where B2 was, and the switch reads as looking up rather than as a redraw.
+ */
 .plot__frame {
   display: flex;
   justify-content: center;
+  align-items: flex-start;
+  min-height: calc(
+    var(--plot-max-rows) * var(--cell-size) +
+      (var(--plot-max-rows) - 1) * var(--space-1)
+  );
 }
 
 .plot__grid {
