@@ -565,6 +565,35 @@ section.
 **[Design note]** Planning is not a cost paid once. It is a relationship the household
 now has with the local authority, and it belongs with the other ongoing obligations.
 
+#### The report has room for two, and it used to spend them badly
+
+**[Fix, M19]** These were one fixed line per consent flag. Four flags, and nearly every
+house collects nearly all of them — so 400 games produced **three** distinct obligation
+pairs, and one of them printed in **337 of them**. Both of its lines were about
+demolition: *"part of the old house is gone"*, then *"what comes down has to be
+recorded"*. One fact said twice, with everything else the house had taken on squeezed out
+behind it. The `householder` and `sensitive` lines were only ever read by the 16% of
+players who demolished nothing.
+
+Two things changed, and neither is the budget — two lines stays, because the report being
+too long is the defect playtesting actually named.
+
+**Every line carries a `subject`, and the report prints at most one per subject.** That is
+the redundancy fixed explicitly rather than hoped for: two lines may be about two things
+and never about one thing twice.
+
+**Lines are chosen, not looked up.** Each carries conditions — a flag the house took on,
+how much of the old building survived, how many placements need an application, whether
+this is a conservation area — and the most specific writing that fits wins, exactly as
+§10.3's closing line is chosen. Twenty-two lines across six subjects.
+
+The conditions are the house's **consent profile** and deliberately nothing else. What the
+house is *like* selects the closing line; what it *agreed to* selects these. An obligation
+that reads like a second closing line is not an obligation.
+
+Measured after: **17 distinct pairs** in the default game and 30 with conservation on, the
+commonest down from 84% of games to 25%.
+
 ## 10. The Report
 
 ### 10.1 No running totals

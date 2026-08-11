@@ -13,16 +13,28 @@ import type {
   CellId,
   Consent,
   ConservationOverrides,
+  ObligationLine,
   Orientation,
   Plan,
 } from '../types.ts';
 import { isStreetElevation } from './grid.ts';
 
 export interface ConsentContent {
-  /** §9.3 — one obligation per flag. */
-  consentCare: Record<Consent, string>;
+  /** §9.3 — everything the finished house could be said to have taken on. */
+  obligationLines: readonly ObligationLine[];
   /** §9.2 — what changes when conservation is on. */
   conservationOverrides: ConservationOverrides;
+}
+
+/** §9.3 — the finished house, as the obligations need to see it. */
+export interface HouseConsent {
+  /** Every flag taken on anywhere on the plot. */
+  flags: ReadonlySet<Consent>;
+  /** How much of the old house is still standing. */
+  fabric: 'all' | 'some' | 'none';
+  /** Placements needing an application — the same count §10.5 quotes. */
+  applications: number;
+  conservation: boolean;
 }
 
 /** What one placement takes on. Flags in the order they were acquired. */
@@ -124,9 +136,14 @@ export function consentFor(
  * off the front of this list.
  *
  * The order is specific before general — the same principle §8.6 uses to rank
- * the adjacency lines. A condition agreed on this particular house says more
- * than the fact that an application was made, and the flag nobody had to apply
- * for says least of all, so the flags come last and heaviest first.
+ * the adjacency lines, and the same one `closingLine` uses to pick between
+ * sentences about the finished house. A condition agreed on this particular roof
+ * says more than the fact that an application was made.
+ *
+ * **And at most one line per subject**, which is the whole reason this was
+ * rewritten. Keyed on the four consent flags, it printed the same two lines in
+ * 337 games out of 400, both of them about demolition, with everything else the
+ * house had taken on squeezed out behind them.
  *
  * Never placement order. The same finished house always reads the same way,
  * whatever sequence it was built in.
@@ -134,23 +151,65 @@ export function consentFor(
 export function consentCare(
   results: readonly ConsentResult[],
   order: readonly Consent[],
-  lines: Record<Consent, string>,
+  lines: readonly ObligationLine[],
+  house: HouseConsent,
 ): string[] {
   const care: string[] = [];
-  const add = (line: string) => {
-    if (!care.includes(line)) care.push(line);
+  const spoken = new Set<string>();
+  const add = (line: string, subject: string) => {
+    if (care.includes(line) || spoken.has(subject)) return;
+    care.push(line);
+    spoken.add(subject);
   };
 
-  // The obligations attached to a particular placement, in placement order.
-  for (const result of results) {
-    for (const line of result.care) add(line);
+  /**
+   * The obligations attached to a particular placement, in placement order.
+   * These outrank everything below: an agreement about *this* roof is more
+   * particular than anything true of the house in general.
+   *
+   * They carry no subject of their own, so each is its own — two conservation
+   * overrides are two different agreements and both deserve saying.
+   */
+  for (const [at, result] of results.entries()) {
+    for (const [index, line] of result.care.entries()) {
+      add(line, `placement-${at}-${index}`);
+    }
   }
 
-  // Then one per flag the house took on anywhere, heaviest first.
-  const taken = new Set(results.flatMap((result) => result.flags));
-  for (const flag of [...order].reverse()) {
-    if (taken.has(flag)) add(lines[flag]);
-  }
+  const fits = lines.filter((entry) => {
+    if (entry.flag !== undefined && !house.flags.has(entry.flag)) return false;
+    if (entry.fabric !== undefined && entry.fabric !== house.fabric) return false;
+    if (entry.minApplications !== undefined && house.applications < entry.minApplications) {
+      return false;
+    }
+    if (entry.conservation !== undefined && !house.conservation) return false;
+    return true;
+  });
+
+  /**
+   * More conditions is more specific, and specific wins — the same shape as
+   * `closingLine`'s ranking. Ties go to the heavier flag, which is what keeps
+   * "some of this needed nobody's permission" behind a condition the house will
+   * be living with for a decade.
+   */
+  const weight = (entry: ObligationLine) =>
+    (entry.flag === undefined ? 0 : 1) +
+    (entry.fabric === undefined ? 0 : 1) +
+    (entry.minApplications === undefined ? 0 : 1) +
+    (entry.conservation === undefined ? 0 : 1);
+
+  const flagOf = (entry: ObligationLine) =>
+    entry.flag === undefined ? -1 : order.indexOf(entry.flag);
+
+  const ranked = [...fits].sort((a, b) => {
+    if (weight(b) !== weight(a)) return weight(b) - weight(a);
+    if (flagOf(b) !== flagOf(a)) return flagOf(b) - flagOf(a);
+    // A line written for a house that asked about nine things is more specific
+    // than one that fires from five, even though both are one condition.
+    return (b.minApplications ?? 0) - (a.minApplications ?? 0);
+  });
+
+  for (const entry of ranked) add(entry.line, entry.subject);
 
   return care;
 }

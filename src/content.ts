@@ -15,9 +15,10 @@
 import type {
   ClosingLine,
   Config,
-  ConservationOverrides,
   Consent,
+  ConservationOverrides,
   InterfaceCopy,
+  ObligationLine,
   PairLine,
   Plan,
   PlanningContent,
@@ -1391,16 +1392,21 @@ export const closingLines: ClosingLine[] = [
  * §9.1's insistence that the game flags things rather than blocking them. The
  * weight is real and it arrives afterwards, not at the door.
  */
-export const demolitionCare =
-  'Part of the old house is gone. What stands there now is new, and new is what you will be looking after.';
 
 /* ------------------------------------------------------------------ *
  * Consent and preservation — §9
  * ------------------------------------------------------------------ */
 
 /**
- * §9.3 — one obligation per flag, and they land inside "what you'll look after"
- * rather than in a section of their own.
+ * §9.3 — what the finished house has taken on, landing inside "what you'll look
+ * after" rather than in a section of their own.
+ *
+ * **These used to be one fixed line per consent flag, and that was the weakest
+ * writing in the report.** Four flags, and nearly every house collects nearly
+ * all of them: 400 games produced three distinct obligation pairs, one of which
+ * printed in 337 of them — both of its lines about demolition. See §9.3 in
+ * `types.ts` for the shape that replaced it, and `subject` for the rule that
+ * stops one topic taking both of the report's two slots.
  *
  * §9.1 — flags, never outcomes. Nothing here says an application succeeded or
  * failed, because nothing in the game rolls for it. Planning is not a cost paid
@@ -1423,22 +1429,167 @@ export const demolitionCare =
  * was in these lines. They are also the right *shape* for §10.2's "what it
  * asks" column: ongoing, specific, and not a warning.
  */
-export const consentCare: Record<Consent, string> = {
+export const obligationLines: ObligationLine[] = [
+  /* ---- Records, and the applications nobody made ------------------ */
+
   /**
    * §9.1 — 21% of all London decisions are lawful development certificates:
    * people paying to establish that they did not need permission, of whom
    * 15.1% are told that they did. "Nobody had to be asked" is true and is not
    * the same as "nothing was filed".
    */
-  permitted:
-    'Nobody had to approve this, which is not the same as nobody asking. Keep the drawings and the dates — the one certificate you never applied for is the one a buyer’s solicitor wants.',
-  householder:
-    'You build precisely what you drew. The drawings are the permission, so the change of mind on site is a new application, and the shortcut is the thing that gets noticed.',
-  sensitive:
-    'The materials stopped being entirely your choice. What it is faced in, what colour, what the roof does at the edge — agreed with somebody else, on the record, and still agreed in ten years.',
-  demolition:
-    'A heavier process, and a longer one. What comes down has to be recorded, and what replaces it has to answer for it.',
-};
+  {
+    subject: 'records',
+    flag: 'permitted',
+    line: 'Nobody had to approve this, which is not the same as nobody asking. Keep the drawings and the dates — the one certificate you never applied for is the one a buyer’s solicitor wants.',
+  },
+  {
+    subject: 'records',
+    flag: 'permitted',
+    fabric: 'all',
+    line: 'Every wall that was here is still here, and not one of them has a drawing. What you added is documented and what you kept is not, which is the wrong way round the day somebody asks.',
+  },
+
+  /* ---- What you agreed to build ----------------------------------- */
+
+  {
+    subject: 'drawings',
+    flag: 'householder',
+    line: 'You build precisely what you drew. The drawings are the permission, so the change of mind on site is a new application, and the shortcut is the thing that gets noticed.',
+  },
+  {
+    subject: 'drawings',
+    flag: 'householder',
+    minApplications: 8,
+    line: 'Most of this house is drawn on somebody else’s file now. Not a burden while it stands — but the next owner inherits the drawings as well as the rooms, and has to build to them too.',
+  },
+  {
+    subject: 'drawings',
+    flag: 'householder',
+    fabric: 'none',
+    line: 'There is no original left to be measured against, so the drawings are the only record of what was agreed. Lose them and the house has no history at all.',
+  },
+
+  /* ---- What it is made of ----------------------------------------- *
+   *
+   * PLANNING-DATA.md — materials and finishes is the second commonest subject
+   * in 30,000 condition discharges, behind only "build what you drew".
+   */
+
+  {
+    subject: 'materials',
+    flag: 'sensitive',
+    line: 'The materials stopped being entirely your choice. What it is faced in, what colour, what the roof does at the edge — agreed with somebody else, on the record, and still agreed in ten years.',
+  },
+  {
+    subject: 'materials',
+    flag: 'sensitive',
+    minApplications: 8,
+    line: 'Almost none of this house is finished in something you picked unilaterally. Every repair from here is a repair in an agreed material, at an agreed colour, whatever is on the shelf that week.',
+  },
+  {
+    subject: 'materials',
+    flag: 'sensitive',
+    conservation: true,
+    line: 'Here, the materials were never going to be your choice. Expect to match something — a brick, a slate, a window bar — and to keep matching it every time a part of it wears out.',
+  },
+  {
+    subject: 'materials',
+    flag: 'sensitive',
+    fabric: 'none',
+    line: 'Nothing old is left to match, and the agreement about materials stands anyway. What this house is faced in was decided with somebody who will not be living in it.',
+  },
+
+  /* ---- What came down --------------------------------------------- *
+   *
+   * Four ways of saying it, one printed. This subject is why the whole
+   * mechanism exists: 84% of houses demolish something, and when the lines were
+   * keyed on flags alone this one took both of the report's two slots and said
+   * the same thing in each.
+   */
+
+  {
+    subject: 'demolition',
+    flag: 'demolition',
+    line: 'Part of the old house is gone. What stands there now is new, and new is what you will be looking after.',
+  },
+  {
+    subject: 'demolition',
+    flag: 'demolition',
+    fabric: 'some',
+    line: 'Old and new now meet along a line somebody drew this year. That junction is where the damp will show first, and it is nobody’s responsibility but yours.',
+  },
+  {
+    subject: 'demolition',
+    flag: 'demolition',
+    fabric: 'some',
+    minApplications: 6,
+    line: 'Some of the old house came down and most of what replaced it was asked about. The parts you kept are the parts nobody has looked at in fifty years, and they are the parts that will go next.',
+  },
+  {
+    subject: 'demolition',
+    flag: 'demolition',
+    fabric: 'some',
+    minApplications: 8,
+    line: 'You kept a little of it and asked permission for nearly everything else. The surviving rooms are now the odd ones — older, colder, and outside every agreement the rest of the house is inside.',
+  },
+  {
+    subject: 'demolition',
+    flag: 'demolition',
+    fabric: 'none',
+    line: 'There is nothing left of what you were given. Everything here is yours to maintain, on your own schedule, with nobody else’s decisions holding any of it up.',
+  },
+  {
+    subject: 'demolition',
+    flag: 'demolition',
+    conservation: true,
+    line: 'What came down was part of what this area is protected for. That is on the record permanently, and every application you make from here is read next to it.',
+  },
+
+  /* ---- The relationship, once there is enough of it ---------------- */
+
+  {
+    subject: 'authority',
+    minApplications: 9,
+    line: 'Almost every square of this needed asking about. That is one long conversation with one office rather than nine short ones, and it does not close when the work does.',
+  },
+  {
+    subject: 'authority',
+    flag: 'sensitive',
+    minApplications: 6,
+    line: 'Enough of this was agreed with somebody else that the file is now the house’s memory. Whoever comes next reads it before they read a room.',
+  },
+  {
+    subject: 'authority',
+    flag: 'sensitive',
+    minApplications: 7,
+    line: 'There is a version of this house held by the council, and it is the version that counts. Yours is the one you live in; theirs is the one you have to keep agreeing with.',
+  },
+  {
+    subject: 'authority',
+    fabric: 'all',
+    minApplications: 7,
+    line: 'You kept the whole of the old house and asked about almost everything you added to it. The building is unchanged and the paperwork around it is not.',
+  },
+
+  /* ---- What is left when the process ends ------------------------- */
+
+  {
+    subject: 'upkeep',
+    fabric: 'all',
+    line: 'Nothing here was taken away, so nothing here got newer. Every original thing you kept is a year older than when you started, and still yours to keep.',
+  },
+  /**
+   * The guarantee. Every house takes on `householder` somewhere, so this can
+   * never be the only thing that fits — but `validate` requires a line with no
+   * conditions at all, so that a fork rewriting all of the above cannot leave a
+   * finished house with nothing to say.
+   */
+  {
+    subject: 'upkeep',
+    line: 'Everything here is now something you look after. That is the part no application asks about and the part that lasts longest.',
+  },
+];
 
 /**
  * §14 — the flag as it appears on a plan in hand. Two or three words, because it

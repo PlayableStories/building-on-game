@@ -567,7 +567,14 @@ describe('the line, through the interface (§8.6, §13)', () => {
         const line = observation();
         if (!line) continue;
 
-        const causes = cells().filter((cell) => cell.classList.contains('cell--cause'));
+        // §5, §8.6 — every level, not just the one on screen. Since the house
+        // started hearing through its floors a cause can be on the floor below
+        // the placement, and looking only at the visible grid made this test
+        // quietly conclude "no neighbour caused it" and read on. Three games of
+        // that in a row and it threw, about once in a dozen runs.
+        const causes = Object.values(ui.plot.levels).flatMap((level) =>
+          cellsOn(level).filter((cell) => cell.classList.contains('cell--cause')),
+        );
         const cause = line.querySelector('.observation__cause')?.textContent ?? '';
         if (causes.length > 0) {
           for (const lit of causes) {

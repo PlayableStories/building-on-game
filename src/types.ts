@@ -327,6 +327,45 @@ export interface CauseWords {
 }
 
 /**
+ * §9.3 — one thing the finished house has taken on, and the conditions that
+ * make it the right thing to say.
+ *
+ * These used to be one fixed line per consent flag. Four flags, and nearly every
+ * house collects nearly all of them: 400 games produced **three** distinct
+ * obligation pairs, one of which printed in 337 of them. The report's last words
+ * before the closing line were effectively fixed text.
+ *
+ * So they are chosen the way `ClosingLine` is chosen — the most specific writing
+ * that fits — and the conditions are the house's *consent profile* rather than
+ * its character. That boundary is deliberate: what the house is like is the
+ * closing line's job, and an obligation that reads like a second closing line is
+ * not an obligation.
+ */
+export interface ObligationLine {
+  line: string;
+  /**
+   * What this line is about, and the whole of the redundancy fix: the report has
+   * room for two obligations and prints **at most one per subject**.
+   *
+   * Without it the report spent both lines on demolition in 84% of games —
+   * "part of the old house is gone" followed by "what comes down has to be
+   * recorded", which is one fact said twice with everything else squeezed out.
+   */
+  subject: string;
+
+  /* Conditions. Every one present must hold; a line with none always fits. */
+
+  /** The house took this flag on somewhere. */
+  flag?: Consent;
+  /** How much inherited fabric is still standing. */
+  fabric?: 'all' | 'some' | 'none';
+  /** At least this many placements need an application — §10.5 counts them. */
+  minApplications?: number;
+  /** §9.2 — only in a conservation area. */
+  conservation?: true;
+}
+
+/**
  * §10.3 — one sentence naming what kind of house it turned out to be, and the
  * conditions that make it the right one. Derived from what is on the plot, not
  * from a score.

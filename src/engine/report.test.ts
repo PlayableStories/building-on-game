@@ -4,12 +4,11 @@ import {
   causeWords,
   closingLines,
   config,
-  consentCare,
   consentOrder,
   conservationOverrides,
   costPhrases,
   deck,
-  demolitionCare,
+  obligationLines,
   pairLines,
   planning,
   plot,
@@ -42,10 +41,9 @@ const content: ReportContent = {
   situations,
   costPhrases,
   closingLines,
-  demolitionCare,
-  consentCare,
   consentOrder,
   conservationOverrides,
+  obligationLines,
   planning,
 };
 const byId = new Map(deck.map((plan) => [plan.id, plan]));
@@ -309,6 +307,53 @@ describe('the obligations the house took on (§9.3)', () => {
     }
   });
 
+  /** Every line the report can print, by the subject it is about. */
+  const subjectOf = new Map(obligationLines.map((entry) => [entry.line, entry.subject]));
+
+  /**
+   * **The defect this milestone exists for.**
+   *
+   * The report has two obligation lines and it used to spend both of them on
+   * demolition in 337 games out of 400 — "part of the old house is gone",
+   * followed by "what comes down has to be recorded". One fact, said twice,
+   * with everything else the house had taken on pushed out behind it.
+   */
+  it('never spends both its lines on one subject (§9.3)', () => {
+    for (let seed = 1; seed <= 400; seed++) {
+      // Played once and reported twice — the conservation flag changes the
+      // report, not the game.
+      const state = playThrough(seed);
+      for (const conservation of [false, true]) {
+        const { obligations } = buildReport(state, deck, content, qualitySeverity, {
+          ...config,
+          conservation,
+        });
+        const subjects = obligations
+          .map((line) => subjectOf.get(line))
+          .filter((subject) => subject !== undefined);
+        expect(new Set(subjects).size, `seed ${seed} repeated a subject`).toBe(
+          subjects.length,
+        );
+      }
+    }
+  });
+
+  /**
+   * …and the other half of it. Two lines that never repeat a subject would
+   * still be a squeeze if the same two subjects came up every time.
+   *
+   * Three distinct pairs across 400 games was the measured baseline. The floor
+   * is set well under what the writing currently reaches, because this guards
+   * against a collapse rather than pinning a number that new lines may move.
+   */
+  it('does not print the same two lines to everybody (§9.3)', () => {
+    const pairs = new Set<string>();
+    for (let seed = 1; seed <= 400; seed++) {
+      pairs.add(reportFor(seed).obligations.join(' | '));
+    }
+    expect(pairs.size).toBeGreaterThanOrEqual(10);
+  });
+
   it('leads with taking the old house down, when that happened (§7)', () => {
     const state = playThrough(11);
     const untouched: GameState = {
@@ -326,33 +371,18 @@ describe('the obligations the house took on (§9.3)', () => {
       })),
     };
 
-    expect(
-      buildReport(untouched, deck, content, qualitySeverity, config).obligations,
-    ).not.toContain(demolitionCare);
-    expect(
-      buildReport(razed, deck, content, qualitySeverity, config).obligations[0],
-    ).toBe(demolitionCare);
-  });
+    const kept = buildReport(untouched, deck, content, qualitySeverity, config);
+    const wrecked = buildReport(razed, deck, content, qualitySeverity, config);
 
-  it('spends its two lines heaviest first', () => {
-    // Two lines is not room for "some of this needed nobody's permission" ahead
-    // of a condition the house will be living with. The order is what decides
-    // which two survive the cut, so the order is what this checks.
-    const rank = (line: string) =>
-      consentOrder.findIndex((flag) => consentCare[flag] === line);
-
-    for (let seed = 1; seed <= 30; seed++) {
-      const shown = reportFor(seed)
-        .obligations.filter((line) => Object.values(consentCare).includes(line))
-        .map(rank);
-
-      for (let index = 1; index < shown.length; index++) {
-        expect(shown[index - 1] as number).toBeGreaterThan(shown[index] as number);
-      }
+    // A house that kept everything is never told about demolition…
+    for (const line of kept.obligations) {
+      expect(subjectOf.get(line)).not.toBe('demolition');
     }
+    // …and a house that did not, is told about it first.
+    expect(subjectOf.get(wrecked.obligations[0] as string)).toBe('demolition');
   });
 
-  it('drops the lightest flag once the house has two heavier ones', () => {
+  it('drops the lightest thing once the house has two heavier ones', () => {
     // The specific case the ordering exists for: a house that applied, took on
     // a condition and took something down does not spend a line saying that
     // some of it needed nobody's permission — which every house could say.
@@ -366,8 +396,10 @@ describe('the obligations the house took on (§9.3)', () => {
     };
     const { obligations } = buildReport(heavy, deck, content, qualitySeverity, config);
 
-    expect(obligations).not.toContain(consentCare.permitted);
     expect(obligations).toHaveLength(2);
+    for (const line of obligations) {
+      expect(subjectOf.get(line)).not.toBe('records');
+    }
   });
 });
 
@@ -434,13 +466,20 @@ describe('the same house, with conservation on (§9.2)', () => {
     // The one substitution §9.2 asks for. With only two obligation lines the
     // old test — that nothing is ever dropped — cannot hold and should not:
     // conservation adds heavier obligations, and heavier ones win the space.
+    const aboutDemolition = new Set(
+      obligationLines
+        .filter((entry) => entry.subject === 'demolition')
+        .map((entry) => entry.line),
+    );
+
+    let checked = 0;
     for (let seed = 1; seed <= 20; seed++) {
       const { ordinary, preserved: after } = bothWays(seed);
-      if (ordinary.obligations.includes(demolitionCare)) {
-        expect(after.obligations).not.toContain(demolitionCare);
-        expect(after.obligations).toContain(conservationOverrides.demolition.care);
-      }
+      if (!ordinary.obligations.some((line) => aboutDemolition.has(line))) continue;
+      checked++;
+      expect(after.obligations).toContain(conservationOverrides.demolition.care);
     }
+    expect(checked, 'no seed demolished anything').toBeGreaterThan(0);
   });
 
   it('says much more about taking the old house down', () => {
@@ -461,8 +500,12 @@ describe('the same house, with conservation on (§9.2)', () => {
     const after = buildReport(razed, deck, content, qualitySeverity, preserved)
       .obligations;
 
-    expect(ordinary).toContain(demolitionCare);
-    expect(after).not.toContain(demolitionCare);
+    const aboutDemolition = new Set(
+      obligationLines
+        .filter((entry) => entry.subject === 'demolition')
+        .map((entry) => entry.line),
+    );
+    expect(ordinary.some((line) => aboutDemolition.has(line))).toBe(true);
     expect(after).toContain(conservationOverrides.demolition.care);
     expect(after.join(' ').length).toBeGreaterThan(ordinary.join(' ').length);
   });

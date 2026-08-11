@@ -349,12 +349,61 @@ if (content.situations.length === 0) {
 noDuplicates('situations', content.situations.map((one) => one.id));
 
 for (const flag of CONSENT_FLAGS) {
-  if (!content.consentCare[flag]) {
-    fail(`consentCare: no line for the "${flag}" flag (§9.3).`);
-  }
   if (!content.consentLabels[flag]) {
     fail(`consentLabels: no label for the "${flag}" flag (§14).`);
   }
+  // §9.3 — a flag a house can take on and never be told about is a flag that
+  // does nothing. The report picks between lines; it cannot invent one.
+  if (!content.obligationLines.some((line) => line.flag === flag)) {
+    fail(
+      `obligationLines: nothing is written for the "${flag}" flag (§9.3). A house ` +
+        'can take it on and would never be told what it took on.',
+    );
+  }
+}
+
+/**
+ * §9.3 — the obligations, which the report has room for exactly two of.
+ *
+ * `subject` is the load-bearing field and the least obvious one, so it gets the
+ * longest message: it is what stops the report spending both of its lines on
+ * the same topic, which is exactly what it used to do in 337 games out of 400.
+ */
+if (content.obligationLines.length === 0) {
+  fail('obligationLines: empty (§9.3). Every finished house has taken something on.');
+}
+for (const entry of content.obligationLines) {
+  if (!entry.line) fail('obligationLines: an entry has no line (§9.3).');
+  if (!entry.subject) {
+    fail(
+      `obligationLines: "${entry.line.slice(0, 40)}…" has no subject (§9.3). The ` +
+        'report prints at most one line per subject, so a line without one can ' +
+        'end up beside another saying the same thing.',
+    );
+  }
+  if (entry.minApplications !== undefined && entry.minApplications < 1) {
+    fail(
+      `obligationLines: "${entry.subject}" has minApplications ${entry.minApplications}, ` +
+        'which every house meets. Leave it off instead.',
+    );
+  }
+}
+noDuplicates(
+  'obligationLines',
+  content.obligationLines.map((entry) => entry.line),
+);
+
+/**
+ * The same guarantee `closingLines` carries, for the same reason: a house that
+ * meets none of the conditions must still be told something. Every house takes
+ * on `householder` somewhere today, but a fork rewriting all of this should not
+ * be able to leave the report ending on a blank.
+ */
+if (!content.obligationLines.some((entry) => Object.keys(entry).length === 2)) {
+  fail(
+    'obligationLines: no unconditional line (§9.3). One entry must carry nothing ' +
+      'but `line` and `subject`, or there are finished houses with nothing to say.',
+  );
 }
 /* ------------------------------------------------------------------ *
  * The planning statement — §9.1, §10.5

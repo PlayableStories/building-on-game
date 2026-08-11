@@ -171,8 +171,21 @@ than calling everything "beside". If your fork's building has no levels, give no
 | `ui` | Every other word: title, buttons, headings, the prompt above the hand, the plot's edge labels, the demolition question. |
 | `costPhrases` | Cost as a phrase, never a figure. The validator rejects any with a digit in it. |
 | `closingLines` | `{ line, dominant?, fabric? }` — one sentence about the finished building. **At least one must carry no conditions**, or there are houses the game has nothing to say about. |
-| `consentCare`, `consentLabels`, `consentOrder` | One obligation line and one short label per flag, and the order that decides which two obligations the report has room for. |
-| `demolitionCare` | The obligation that arrives when something came down. |
+| `obligationLines` | `{ line, subject, flag?, fabric?, minApplications?, conservation? }` — everything the finished house could be told it has taken on. The report prints **two**. |
+| `consentLabels`, `consentOrder` | A short label per flag, and the order that breaks ties between obligations of equal specificity. |
+
+**`subject` is the field to understand.** The report has room for two obligations and
+prints **at most one line per subject**, so two lines are always about two things. Without
+it this section printed the same pair to 84% of players, both lines about demolition.
+
+Lines are chosen the way `closingLines` are: the most specific writing that fits wins, and
+specificity is just how many conditions a line carries. **At least one line must carry no
+conditions at all** — `npm run validate` enforces it — so that a house meeting none of
+them still has something to be told.
+
+The conditions are the house's *consent profile* on purpose: what it agreed to, not what it
+is like. What the house is like already selects the closing line, and two sentences doing
+that job read as one sentence said twice.
 | `conservationOverrides` | What changes when `config.conservation` is on. |
 | `planning` | `{ data, copy, routeFor }` — the closing statement about what you would have to submit. **Optional: set it to `null` and the section disappears.** |
 
@@ -338,7 +351,8 @@ A copy-paste checklist for your fork's PR description.
 - [ ] `pairLines` — the specific pairings worth a sentence
 - [ ] `qualityLines` — one per quality that can fire
 - [ ] `closingLines` — including at least one with no conditions on it
-- [ ] `costPhrases`, `consentCare`, `consentLabels`, `demolitionCare`
+- [ ] `costPhrases`, `consentLabels`
+- [ ] `obligationLines` — including one with no conditions, and a `subject` on every line
 - [ ] `planning` — your city's figures and doors, **or `null` to say nothing**
 - [ ] `causeWords.facing` — one phrase per band of your plot
 - [ ] `ui` — every remaining string
