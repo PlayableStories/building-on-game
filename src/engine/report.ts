@@ -39,8 +39,6 @@ export interface ReportContent extends ConsentContent {
    */
   costPhrases: readonly string[];
   closingLines: readonly ClosingLine[];
-  /** §7 — added to the care column when any of the old house came down. */
-  demolitionCare: string;
   /** §9.1 — the flag vocabulary, in the order obligations should be read. */
   consentOrder: readonly Consent[];
   /**
@@ -178,21 +176,28 @@ export function costPhrase(
 }
 
 /**
+ * §9.3, §10.3 — how much of the old house is still there.
+ *
+ * Derived rather than counted against a constant, so that a fork inheriting a
+ * building of a different size gets the right answer without saying how big it
+ * was: nothing demolished is all of it, nothing left is none of it.
+ *
+ * Shared by the closing line and the obligations, which both key writing on it
+ * and must agree about what a half-demolished house is.
+ */
+export function fabricLeft(house: HouseSummary): 'all' | 'some' | 'none' {
+  if (!house.placed.some((entry) => entry.demolished)) return 'all';
+  return house.fabricRemaining.length === 0 ? 'none' : 'some';
+}
+
+/**
  * §10.3 — one sentence naming what kind of house it turned out to be.
  *
  * The most specific line that fits wins, so a general fallback can sit in the
  * same list as a line that only fires for a house with nothing old left in it.
  */
 export function closingLine(house: HouseSummary, lines: readonly ClosingLine[]): string {
-  // Derived rather than counted against a constant, so that a fork inheriting a
-  // building of a different size gets the right answer without saying how big
-  // it was: nothing demolished is all of it, nothing left is none of it.
-  const tookSomethingDown = house.placed.some((entry) => entry.demolished);
-  const fabric = !tookSomethingDown
-    ? 'all'
-    : house.fabricRemaining.length === 0
-      ? 'none'
-      : 'some';
+  const fabric = fabricLeft(house);
 
   // The dominant qualities that actually characterise the house — the top few,
   // not every quality that appeared once.
@@ -343,34 +348,6 @@ export function buildReport(
   }));
 
   /**
-   * §9.3 — the obligations the house itself has taken on, which belong to no
-   * single plan and so cannot be paired with anything. Two lines, off the front
-   * of an order that already puts the most specific first.
-   *
-   * `ranked` rather than `made`, so that a placement-specific obligation is
-   * ordered by how much that placement asked. Without it, two lines is not
-   * enough room to guarantee that §9.2's demolition-in-a-conservation-area
-   * obligation — the heaviest thing in the game — actually gets said: it would
-   * sit behind whatever happened to be placed earlier.
-   */
-  const demolished = house.placed.some((entry) => entry.demolished);
-  const obligations = [
-    // §7 — what taking the old house down leaves behind, which is the most
-    // particular thing about a house that did it. §9.2 — under conservation it
-    // has already been said at much greater length, and is in `consentCare`.
-    ...(demolished && !config.conservation ? [content.demolitionCare] : []),
-    ...consentCare(
-      ranked.map((one) => one.consent),
-      content.consentOrder,
-      content.consentCare,
-    ),
-  ].slice(0, OBLIGATION_LINES);
-
-  // §10.4 — the situation this game opened on, answered by the plot that came
-  // out of it. One line, and it is the only place the framing comes back.
-  const situation = content.situations.find((entry) => entry.id === state.situationId);
-
-  /**
    * §10.5 — every placement as the planning system would see it. A placement
    * counts once however many flags it took on: one application covers the lot,
    * which is the same reasoning §9.3 uses to deduplicate the obligations.
@@ -380,6 +357,41 @@ export function buildReport(
     demolished: one.entry.demolished,
     conservation: config.conservation,
   }));
+
+  const applications = needs.filter((need) =>
+    need.flags.some((flag) => flag !== 'permitted'),
+  ).length;
+
+  /**
+   * §9.3 — the obligations the house itself has taken on, which belong to no
+   * single plan and so cannot be paired with anything. Two lines, off the front
+   * of an order that already puts the most specific first.
+   *
+   * `ranked` rather than `made`, so that a placement-specific obligation is
+   * ordered by how much that placement asked. Without it, two lines is not
+   * enough room to guarantee that §9.2's demolition-in-a-conservation-area
+   * obligation — the heaviest thing in the game — actually gets said: it would
+   * sit behind whatever happened to be placed earlier.
+   *
+   * The house's own profile goes in too, so the writing can be about *this*
+   * house rather than about the four flags every house collects. See §9.3 in
+   * `types.ts` for why that was worth changing.
+   */
+  const obligations = consentCare(
+    ranked.map((one) => one.consent),
+    content.consentOrder,
+    content.obligationLines,
+    {
+      flags: new Set(made.flatMap((one) => one.consent.flags)),
+      fabric: fabricLeft(house),
+      applications,
+      conservation: config.conservation,
+    },
+  ).slice(0, OBLIGATION_LINES);
+
+  // §10.4 — the situation this game opened on, answered by the plot that came
+  // out of it. One line, and it is the only place the framing comes back.
+  const situation = content.situations.find((entry) => entry.id === state.situationId);
 
   return {
     pairs,

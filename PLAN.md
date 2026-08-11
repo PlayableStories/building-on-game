@@ -290,7 +290,8 @@ thing about itself.
   confirmation in the game (§13). Demolishing **B2** removes the front door, and every
   subsequent placement plus the report reads against that (§7).
 - `consent` flag on all 24 plans; flag shown on each plan in hand (§14).
-- `content.ts`: `consentCare` — one care line per flag. Consent lands **inside** *what
+- `content.ts`: `consentCare` — one care line per flag *(M19: now `obligationLines`,
+  chosen rather than looked up)*. Consent lands **inside** *what
   you'll look after*, not as its own section (§9.3).
 - `conservationOverrides` — the four §9.2 deltas behind a single `conservation: true` config
   flag: north-elevation openings become `sensitive`, the heat pump becomes `householder`,
@@ -587,6 +588,8 @@ the three the report is about, which is the same argument the pairing is making.
 **Obligations:** `consentCare` can emit four lines plus `demolitionCare`. Keep the two
 heaviest present by `consentOrder` and drop the rest; the deduplication in
 `engine/consent.ts` stays, only the cap is new.
+*(Superseded by M19: the four fixed lines became a chosen set of twenty-two, because
+keeping "the two heaviest" printed the same two to 84% of players.)*
 
 `Report.tsx` renders two columns of three rows, cost and obligations as labelled lines
 beneath, then the closing line and the situation's answer. The household `<dl>` goes. On

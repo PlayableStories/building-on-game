@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
-  conservationOverrides,
-  consentCare as consentCareLines,
   consentLabels,
   consentOrder,
+  conservationOverrides,
   deck,
+  obligationLines,
 } from '../content.ts';
 import { CONSENT_FLAGS, type Consent, type Plan } from '../types.ts';
 import {
   type ConsentContent,
+  type HouseConsent,
   consentCare,
   consentFor,
   flagInHand,
@@ -16,9 +17,33 @@ import {
 } from './consent.ts';
 
 const content: ConsentContent = {
-  consentCare: consentCareLines,
+  obligationLines,
   conservationOverrides,
 };
+
+/** §9.3 — a finished house, for the obligation selection to read. */
+function house(over: Partial<HouseConsent> = {}): HouseConsent {
+  return {
+    flags: new Set<Consent>(['permitted', 'householder']),
+    fabric: 'all',
+    applications: 1,
+    conservation: false,
+    ...over,
+  };
+}
+
+/** The obligation line written for exactly this flag and nothing else. */
+function only(flag: Consent): string {
+  const found = obligationLines.find(
+    (entry) =>
+      entry.flag === flag &&
+      entry.fabric === undefined &&
+      entry.minApplications === undefined &&
+      entry.conservation === undefined,
+  );
+  if (!found) throw new Error(`no unconditional line for "${flag}"`);
+  return found.line;
+}
 
 function plan(id: string): Plan {
   const found = deck.find((entry) => entry.id === id);
@@ -49,7 +74,7 @@ describe('consent is a flag, never an outcome (§9.1)', () => {
 
   it('never says an application succeeded or failed', () => {
     const everything = [
-      ...Object.values(consentCareLines),
+      ...obligationLines.map((entry) => entry.line),
       ...Object.values(consentLabels),
       conservationOverrides.northOpening.care,
       conservationOverrides.demolition.care,
@@ -65,7 +90,9 @@ describe('consent is a flag, never an outcome (§9.1)', () => {
 
   it('has a line and a label for every flag', () => {
     for (const flag of CONSENT_FLAGS) {
-      expect(consentCareLines[flag]?.length).toBeGreaterThan(0);
+      // §9.3 — a flag with no writing at all is a flag a house can take on and
+      // never be told about.
+      expect(obligationLines.some((entry) => entry.flag === flag)).toBe(true);
       expect(consentLabels[flag]?.length).toBeGreaterThan(0);
     }
     expect([...consentOrder].sort()).toEqual([...CONSENT_FLAGS].sort());
@@ -137,7 +164,7 @@ describe('conservation changes four things, and only four (§9.2)', () => {
     expect(preserved.care).toContain(conservationOverrides.demolition.care);
     // "A much longer care line" — §9.2 asks for it in those words.
     expect(conservationOverrides.demolition.care.length).toBeGreaterThan(
-      consentCareLines.demolition.length,
+      only('demolition').length,
     );
   });
 
@@ -171,54 +198,97 @@ describe('the obligations the house takes on (§9.3)', () => {
   it('says a repeated flag once — one relationship, not three', () => {
     const three = [
       consentFor(plan('kitchen'), 'GC4', false, false, content),
-      consentFor(plan('bathroom'), 'GC5', false, false, content),
-      consentFor(plan('bedroom'), 'GD4', false, false, content),
+      consentFor(plan('bathroom'), 'FC2', false, false, content),
+      consentFor(plan('bedroom'), 'FD2', false, false, content),
     ];
-    const care = consentCare(three, consentOrder, consentCareLines);
+    const care = consentCare(three, consentOrder, obligationLines, house());
 
-    expect(care).toEqual([consentCareLines.householder]);
+    // Three householder applications, and the drawings are mentioned once.
+    expect(care.filter((line) => line === only('householder'))).toHaveLength(1);
   });
 
   /**
-   * §9.3 — heaviest first, not placement order. The report has room for two of
-   * these, so the order is not presentation: it decides which two get said.
+   * §9.3 — the rule the whole selection was rewritten around.
+   *
+   * The report has room for two of these, and before this they were keyed on
+   * the four consent flags alone: 337 games in 400 spent both lines on
+   * demolition, saying the same fact twice. A subject may be spoken about once.
    */
-  it('reads them heaviest first, not in placement order', () => {
-    const placements = [
-      consentFor(plan('glass-extension'), 'GC4', false, false, content),
-      consentFor(plan('shed'), 'GE5', false, false, content),
-      consentFor(plan('kitchen'), 'GC3', true, false, content),
-    ];
-    const care = consentCare(placements, consentOrder, consentCareLines);
+  it('never says two things about the same subject', () => {
+    const razed = [consentFor(plan('kitchen'), 'GC3', true, false, content)];
+    const care = consentCare(razed, consentOrder, obligationLines, {
+      ...house(),
+      flags: new Set<Consent>(['permitted', 'householder', 'demolition']),
+      fabric: 'some',
+    });
 
-    expect(care).toEqual([
-      consentCareLines.demolition,
-      consentCareLines.sensitive,
-      consentCareLines.householder,
-      consentCareLines.permitted,
-    ]);
+    const demolition = obligationLines
+      .filter((entry) => entry.subject === 'demolition')
+      .map((entry) => entry.line);
+    expect(demolition.length).toBeGreaterThan(1);
+    expect(care.filter((line) => demolition.includes(line))).toHaveLength(1);
+  });
+
+  /**
+   * §9.3 — the most specific writing that fits, the same way `closingLine`
+   * chooses. A house with nothing old left in it has a truer thing to be told
+   * about demolition than the general line.
+   */
+  it('prefers the line written for this house over the general one', () => {
+    const razed = [consentFor(plan('kitchen'), 'GC3', true, false, content)];
+    const flags = new Set<Consent>(['permitted', 'householder', 'demolition']);
+
+    const gutted = consentCare(razed, consentOrder, obligationLines, {
+      ...house(),
+      flags,
+      fabric: 'none',
+    });
+    const partly = consentCare(razed, consentOrder, obligationLines, {
+      ...house(),
+      flags,
+      fabric: 'some',
+    });
+
+    expect(gutted).not.toEqual(partly);
+    expect(gutted[0]).not.toBe(only('demolition'));
+    expect(partly[0]).not.toBe(only('demolition'));
+  });
+
+  it('says nothing a house has not actually taken on', () => {
+    const nothing = consentCare([], consentOrder, obligationLines, {
+      ...house(),
+      flags: new Set<Consent>(['permitted']),
+    });
+    expect(nothing).not.toContain(only('demolition'));
+    expect(nothing).not.toContain(only('sensitive'));
+    // …and still says something, because every house has taken something on.
+    expect(nothing.length).toBeGreaterThan(0);
   });
 
   it('puts an obligation agreed on this house before the general ones', () => {
     // The same principle §8.6 uses to rank the adjacency lines: a condition on
     // this particular roof says more than the fact that an application exists.
     const placements = [consentFor(plan('glass-extension'), 'GC1', false, true, content)];
-    const care = consentCare(placements, consentOrder, consentCareLines);
+    const care = consentCare(placements, consentOrder, obligationLines, {
+      ...house(),
+      flags: new Set<Consent>(['permitted', 'householder', 'sensitive']),
+      conservation: true,
+    });
     const ridge = conservationOverrides.plans['glass-extension']?.care as string;
 
     expect(care.slice(0, 2)).toContain(ridge);
     expect(care.slice(0, 2)).toContain(conservationOverrides.northOpening.care);
-    expect(care.indexOf(consentCareLines.sensitive)).toBeGreaterThan(
-      care.indexOf(ridge),
-    );
   });
 
   it('says nothing twice', () => {
     const both = [
       consentFor(plan('glass-extension'), 'GC1', false, true, content),
-      consentFor(plan('bedroom'), 'GB1', false, true, content),
+      consentFor(plan('bedroom'), 'FB2', false, true, content),
     ];
-    const care = consentCare(both, consentOrder, consentCareLines);
+    const care = consentCare(both, consentOrder, obligationLines, {
+      ...house(),
+      conservation: true,
+    });
     expect(new Set(care).size).toBe(care.length);
   });
 });

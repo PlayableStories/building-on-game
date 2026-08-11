@@ -445,8 +445,9 @@ For householder-scale work two dominate:
    application.
 2. **Materials** — what it is made of is agreed with somebody else, and stays agreed.
 
-Neither is currently what the game's `consentCare` lines say. They are concrete, they are
-ongoing, and they are the right shape for §10.2's *what it asks* column.
+Neither was what the game's obligation lines said before this audit. Both are concrete,
+both are ongoing, and both are the right shape for §10.2's *what it asks* column — so both
+were written in, and both survive M19's rewrite as the `drawings` and `materials` subjects.
 
 ---
 
@@ -461,9 +462,11 @@ Three flags moved:
 Nine cards kept their flag and gained a comment citing the figure that confirms it.
 `sensitive` went from 2 cards of 24 to 4.
 
-Three lines were rewritten from the condition data — `consentCare.permitted`,
-`.householder` and `.sensitive` — and `consentLabels.permitted` became *no application
-expected* rather than *no application*. `demolitionCare` was checked and kept.
+Three obligation lines were rewritten from the condition data — the `permitted`,
+`householder` and `sensitive` ones — and `consentLabels.permitted` became *no application
+expected* rather than *no application*. The demolition line was checked and kept.
+*(All four are still in the deck of obligations M19 chooses from; only the demolition one
+has since been reworded, because §10.5 now quotes real decision times.)*
 
 The **24 per-plan `care` lines were re-read and all 24 stand unchanged.** They are
 maintenance claims — gutters, a felt roof with ten years in it, a filter and a service —
@@ -485,15 +488,28 @@ across all decisions, and **32.2% on the householder route specifically**. So ev
 the change the game still under-states how often conditions arrive. The flag stays a
 minority of placements, and 28.5% of finished houses never carry one. It kept its meaning.
 
-### One thing this surfaced, and did not fix
+### One thing this surfaced — fixed in M19
 
-Every finished house prints exactly two obligations, and **365 of 400 games print the same
-two** — `demolitionCare` followed by the `demolition` line from `consentCare`. 91% of games
-demolish something, demolition is heaviest in `consentOrder`, and between them the two
-demolition lines take both slots.
+Every finished house prints exactly two obligations, and **365 of 400 games printed the
+same two** — `demolitionCare` followed by the `demolition` line from `consentCare`. 91% of
+games demolished something, demolition is heaviest in `consentOrder`, and between them the
+two demolition lines took both slots. The rewritten `householder` and `sensitive`
+obligations were only ever read in the 9% of games where nothing came down.
 
-Which means the rewritten `householder` and `sensitive` obligations are only ever read in
-the 9% of games where nothing came down. This is not new — the same 365/400 measured before
-any of these changes — but it is now a measured defect rather than an unexamined one. It
-cannot be fixed in content: the two lines are combined in `src/engine/report.ts`, and
-either the budget or the combining has to change. Its own milestone.
+This was recorded here as a measured defect and deferred, with the note that it *"cannot be
+fixed in content… either the budget or the combining has to change."* **M19 changed the
+combining.** Re-measured at ten rounds it was 337 of 400, and it is now 99 of 400:
+
+| | Before | After |
+|---|---|---|
+| Distinct obligation pairs, 400 games | **3** | **17** |
+| Commonest pair | 337 / 400 (84%) | 99 / 400 (25%) |
+| Games where both lines are one subject | 337 | **0** |
+
+The budget is still two lines. What changed is that each line carries a `subject` — the
+report prints at most one per subject — and the lines are *chosen* by the house's consent
+profile rather than looked up by flag. See GDD §9.3.
+
+The four lines this section's evidence produced all survive, and the condition-discharge
+figures still stand behind them. Only the `demolition` one was rewritten, because it
+described how long a process takes and §10.5 now says that with real medians.
