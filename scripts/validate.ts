@@ -356,6 +356,87 @@ for (const flag of CONSENT_FLAGS) {
     fail(`consentLabels: no label for the "${flag}" flag (§14).`);
   }
 }
+/* ------------------------------------------------------------------ *
+ * The planning statement — §9.1, §10.5
+ * ------------------------------------------------------------------ */
+
+/**
+ * §10.5 is optional, and `null` is a valid answer: a fork whose building is not
+ * in London should say nothing rather than borrow London's numbers. But a fork
+ * that keeps the section has to keep the rule that makes it safe.
+ *
+ * §9.1 is that the game reports process and never predicts an outcome. This
+ * section is the only place that prints a real statistic, which makes it the
+ * only place where a rewritten sentence can turn a fact about a dataset into a
+ * prediction about a player. That is a content mistake and it belongs here.
+ */
+if (content.planning !== null) {
+  const { data, copy } = content.planning;
+  const routes = Object.entries(data.routes);
+
+  if (routes.length === 0) {
+    fail(
+      'planning.data.routes: empty (§10.5). Either give it a route or set ' +
+        '`planning` to null, which removes the section entirely.',
+    );
+  }
+
+  for (const [key, route] of routes) {
+    if (!route.one || !route.many) {
+      fail(`planning route "${key}": needs both \`one\` and \`many\` (§10.5).`);
+    }
+    if (!(route.decided > 0)) {
+      fail(
+        `planning route "${key}": \`decided\` is ${route.decided}. A rate with no ` +
+          'denominator is a prediction rather than a measurement (§9.1).',
+      );
+    }
+    if (!(route.medianDays > 0)) {
+      fail(`planning route "${key}": \`medianDays\` has to be a real wait (§10.5).`);
+    }
+    if (route.approvedPct < 0 || route.approvedPct > 100) {
+      fail(`planning route "${key}": \`approvedPct\` is not a percentage.`);
+    }
+  }
+
+  if (!data.source || !copy.source) {
+    fail(
+      'planning: no source line (§9.1). The attribution is printed with the ' +
+        'figures, because a rate with no visible denominator reads as a forecast.',
+    );
+  }
+  if (!copy.heading || !copy.none || !copy.needed) {
+    fail('planning.copy: heading, none and needed are all required (§10.5).');
+  }
+
+  /**
+   * The one rule §9.1 turns on, checked against what the copy actually renders
+   * rather than against the templates: every route is put through the sentences
+   * and the result must not read as a verdict on the player's house.
+   */
+  const forecast = /\bchance\b|\bodds\b|\blikelihood\b|\blikely to be\b|\byour\b/i;
+  for (const [key, route] of routes) {
+    const rendered = [copy.route(3, 3, route), copy.route(5, 2, route), copy.record(route)];
+    for (const line of rendered) {
+      if (forecast.test(line)) {
+        fail(
+          `planning copy for "${key}": "${line}" reads as a forecast about the ` +
+            "player's house (§9.1). These figures are about other people's " +
+            'applications, in the past tense, and the sentence has to say so.',
+        );
+      }
+    }
+    // An approval rate that never names what it is a share of is the same
+    // mistake said quietly.
+    if (/%/.test(copy.record(route)) && !copy.record(route).includes(String(route.decided).replace(/\B(?=(\d{3})+(?!\d))/g, ','))) {
+      fail(
+        `planning copy for "${key}": the record line quotes a percentage without ` +
+          'the count it is a share of (§9.1).',
+      );
+    }
+  }
+}
+
 if (new Set(content.consentOrder).size !== CONSENT_FLAGS.length) {
   fail(
     'consentOrder: has to rank every consent flag exactly once (§9.1). It is ' +

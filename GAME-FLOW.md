@@ -242,7 +242,7 @@ Ten rounds placed, and the game stops asking you things.
 
 ![The report: what you'll have, what it asks, the cost, and the situation answered](docs/screenshots/8-the-house-you-built.png)
 
-**Three rooms, benefit beside obligation.** Not all eight — the three that ask the most of
+**Three rooms, benefit beside obligation.** Not all ten — the three that ask the most of
 you, ranked by what they cost plus the heaviest consent flag they took on, ties going to
 whatever you built later. Each one prints what you will have next to what it will want,
 and the layout never lets you read one without the other. On a narrow screen they stack,
@@ -254,6 +254,18 @@ for.* No figure is ever shown, and nothing is totalled at any point during play.
 **At most two obligations**, heaviest first — what the whole house has taken on rather
 than what any one room did. Three householder applications are one ongoing relationship
 with the local authority, not three, so they are deduplicated before anything is cut.
+
+**What you would actually have to submit.** Whether any of this needs an application,
+which door it goes through, how long that took for other people, and how often it went
+through. Real figures from 302,584 London decisions — medians rather than averages,
+because decision times have a long tail and the average is five weeks adrift on the routes
+where it matters most.
+
+Every number in it is about London and none of it is about your house. The game has spent
+ten rounds refusing to tell you whether a decision goes your way, and it is not going to
+start on the last screen: *81% were approved* is a fact about other people's applications,
+said in the past tense, with the count it is a share of printed beside it. A house of
+nothing but permitted development gets one line saying so and no statistics at all.
 
 **A closing line** about the house as a whole, and then **the situation, answered**. The
 one you were given at the start, and only that one. Sometimes the answer is that you did
@@ -269,8 +281,11 @@ payoff nobody reads to the end is not a payoff.
 ## What is deliberately not here
 
 - **No score.** Nothing is counted, ranked or graded, at the end or during.
-- **No failure.** There is no unplaceable hand, no dead end, and no wrong house.
-- **No undo.** Eight decisions, each of them final. This is the whole point.
+- **No failure.** There is no unplaceable hand, no dead end, and no wrong house — the
+  draw checks the board before it offers you anything.
+- **No verdict.** Not on a placement, not on a consent flag, and not in the closing
+  statement about planning. Nothing in the game ever tells you your house was approved.
+- **No undo.** Ten decisions, each of them final. This is the whole point.
 - **No totals during play.** The first quantity of any kind you see is the report — you
   are meant to be building a house, not optimising a column.
 

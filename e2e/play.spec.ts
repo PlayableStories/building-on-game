@@ -539,21 +539,41 @@ test.describe('the consent flag in hand (§9.1, §14)', () => {
     }
   });
 
+  /**
+   * §9.1 — consent is a flag and never an outcome.
+   *
+   * This used to forbid the five outcome words on every screen including the
+   * report. §10.5 gave the report one sentence that has to use one of them —
+   * *"81% were approved"* — and the right response was to make this check
+   * sharper rather than looser. During play the ban is still absolute. On the
+   * finished page, four of the five are still banned outright, and "approved"
+   * is allowed only in a line that is visibly about London's applications
+   * rather than about this house.
+   */
   test('never reads as an outcome, through a whole game (§9.1)', async ({ page }) => {
+    const outcomes = ['refused', 'approved', 'granted', 'rejected', 'denied'];
     await start(page);
 
     for (let round = 1; round <= ROUNDS; round++) {
       const text = (await page.locator('body').innerText()).toLowerCase();
-      for (const forbidden of ['refused', 'approved', 'granted', 'rejected', 'denied']) {
-        expect(text).not.toContain(forbidden);
+      for (const forbidden of outcomes) {
+        expect(text, `"${forbidden}" appeared during play`).not.toContain(forbidden);
       }
       await playRound(page);
     }
 
-    // Including the report, where the obligations are actually written out.
-    const finished = (await page.locator('body').innerText()).toLowerCase();
-    for (const forbidden of ['refused', 'approved', 'granted', 'rejected', 'denied']) {
-      expect(finished).not.toContain(forbidden);
+    const finished = await page.locator('body').innerText();
+    for (const forbidden of ['refused', 'granted', 'rejected', 'denied']) {
+      expect(finished.toLowerCase()).not.toContain(forbidden);
+    }
+
+    // §10.5 — the one exception, and it has to earn it line by line.
+    for (const line of finished.split('\n')) {
+      if (!/\bapproved\b/i.test(line)) continue;
+      // Past tense, about a named count of other people's applications.
+      expect(line).toMatch(/decided in London/);
+      expect(line).toMatch(/were approved/);
+      expect(line).not.toMatch(/\byour?\b/i);
     }
   });
 });
@@ -627,6 +647,46 @@ test.describe('the report (§10)', () => {
 
     await expect(page.locator('.report__pair')).toHaveCount(3);
     expect(await page.locator('.report__obligation').count()).toBeLessThanOrEqual(2);
+  });
+
+  /**
+   * §10.5 — what you would actually have to submit, and §9.1 held at the one
+   * place in the game that prints a real statistic.
+   *
+   * jsdom proves the section renders. This proves what a player actually reads:
+   * that the figures and the attribution are on screen together, and that
+   * nothing anywhere on the finished page tells them what will happen to their
+   * house. That last one is checked against the whole report rather than the
+   * section, because the failure would be a sentence, and a sentence can move.
+   */
+  test('says what you would have to apply for, without saying how it goes (§9.1, §10.5)', async ({
+    page,
+  }) => {
+    await playToTheEnd(page);
+
+    const planning = page.locator('.planning');
+    await expect(planning).toBeVisible();
+    await expect(planning.locator('.planning__needed')).not.toBeEmpty();
+
+    const record = await planning.locator('.planning__record').count();
+    if (record > 0) {
+      // The rate and the attribution are read in the same glance, or the rate
+      // is a prediction. Same section, and the source is genuinely below it.
+      const rate = await planning.locator('.planning__record').boundingBox();
+      const source = await planning.locator('.planning__source').boundingBox();
+      expect(rate && source).toBeTruthy();
+      expect(source!.y).toBeGreaterThan(rate!.y);
+    }
+
+    const everything = await page.locator('.report').innerText();
+    expect(everything).not.toMatch(/your (?:application|house) (?:will|would) be/i);
+    expect(everything).not.toMatch(/\b(?:you|your house) (?:will|would) (?:be )?(?:approved|refused|granted|rejected)\b/i);
+    expect(everything).not.toMatch(/\bchance\b|\bodds\b|\blikelihood\b/i);
+    // Where an outcome word does appear it is the dataset's, in the past tense.
+    for (const line of everything.split('\n')) {
+      if (!/\bapproved\b|\brefused\b/i.test(line)) continue;
+      expect(line).toMatch(/decided in London/);
+    }
   });
 
   test('describes the cost in words, never a number (§10.2)', async ({ page }) => {

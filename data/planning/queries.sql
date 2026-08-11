@@ -332,6 +332,69 @@ FROM d
 GROUP BY route
 ORDER BY decided DESC;
 
+-- @name: decision_times
+-- How long it takes, and how often it goes through. One row per route.
+--
+-- This is the evidence behind the report's closing statement about planning
+-- (GDD §10.5). The game says what happened to houses like this one, never what
+-- happens to the player's — so what is needed here is a per-route figure for
+-- *duration* and *approval*, which no other query in this file produces.
+--
+-- **Median, not mean, and the difference is the point.** Decision times have a
+-- long right tail: a handful of applications sit for two years and drag the
+-- average somewhere nobody actually waits. Full planning permission averages
+-- 104 days and the median is 69. Listed and conservation consent averages 119
+-- and the median is 75. Quoting the mean would overstate the wait by five weeks
+-- on the routes where it matters most, so `mean_days` is written out beside the
+-- median rather than dropped: the gap is itself worth being able to see.
+--
+-- Two exclusions, both narrow. Rows with no decision date (5,394 of 308,015)
+-- cannot contribute a duration. Rows where the decision predates the
+-- application (37 of them) are data errors rather than very fast councils.
+-- Everything else is kept, tail included — that is what a median is for.
+WITH d AS (
+  SELECT CASE
+           WHEN r LIKE '%lawful%' OR r LIKE '%certificate%' OR r LIKE '%cert%'
+                OR r LIKE '%section 19%'                       THEN 'Lawful development certificate'
+           WHEN r LIKE '%prior%'                               THEN 'Prior approval / notification'
+           WHEN r LIKE '%householder%'                         THEN 'Householder application'
+           WHEN r LIKE '%listed%' OR r LIKE '%conservation%'   THEN 'Listed building / conservation consent'
+           WHEN r LIKE '%full%' OR r LIKE '%detailed%'
+                OR r LIKE '%outline%'                          THEN 'Full planning permission'
+           WHEN r = ''                                         THEN '(not stated)'
+           ELSE 'Other'
+         END                                                   AS route,
+         s, days
+  FROM (
+    SELECT lower(COALESCE(json_extract(payload,'$.other_fields.application_type'), '')) AS r,
+           json_extract(payload,'$.app_state')                                          AS s,
+           CAST(julianday(json_extract(payload,'$.decided_date'))
+                - julianday(json_extract(payload,'$.start_date')) AS INTEGER)           AS days
+    FROM applications
+    WHERE json_extract(payload,'$.app_state') IN ('Permitted','Conditions','Rejected')
+      AND json_extract(payload,'$.start_date')   > '2000'
+      AND json_extract(payload,'$.decided_date') > '2000'
+  )
+  WHERE days >= 0
+),
+-- SQLite has no median, so rank within each route and take the middle row —
+-- or the mean of the middle two where the count is even.
+ranked AS (
+  SELECT route, days,
+         ROW_NUMBER() OVER (PARTITION BY route ORDER BY days) AS rn,
+         COUNT(*)     OVER (PARTITION BY route)               AS n
+  FROM d
+)
+SELECT d.route,
+       COUNT(*)                                                   AS decided,
+       (SELECT CAST(ROUND(AVG(days)) AS INTEGER) FROM ranked
+         WHERE ranked.route = d.route AND rn IN ((n+1)/2, (n+2)/2)) AS median_days,
+       CAST(ROUND(AVG(days)) AS INTEGER)                          AS mean_days,
+       ROUND(100.0 * SUM(s IN ('Permitted','Conditions')) / COUNT(*), 1) AS approved_pct
+FROM d
+GROUP BY d.route
+ORDER BY decided DESC;
+
 -- @name: conditions
 -- What a condition is actually about.
 --

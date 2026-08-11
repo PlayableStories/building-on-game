@@ -19,6 +19,10 @@ import type {
   HouseSummary,
   PlacedPlan,
   Plan,
+  PlanningContent,
+  PlanningNeed,
+  PlanningRoute,
+  PlanningStatement,
   Quality,
   Report,
   Situation,
@@ -39,6 +43,11 @@ export interface ReportContent extends ConsentContent {
   demolitionCare: string;
   /** §9.1 — the flag vocabulary, in the order obligations should be read. */
   consentOrder: readonly Consent[];
+  /**
+   * §10.5 — the figures and the writing behind the planning statement, or null
+   * for a fork that has no such data and should say nothing.
+   */
+  planning: PlanningContent | null;
 }
 
 /** How much each band weighs when the total is turned into a phrase. */
@@ -209,6 +218,75 @@ export function closingLine(house: HouseSummary, lines: readonly ClosingLine[]):
 }
 
 /**
+ * §10.5 — what you would actually have to submit.
+ *
+ * The one thing this must never do is tell the player what happens to their
+ * house. §9.1 is that consent is a flag and never an outcome, and a section
+ * quoting an approval rate is the easiest place in the whole game to break it
+ * by accident: *"81% were approved"* is a fact about London, and *"you have an
+ * 81% chance"* is a prediction the game has spent every other decision
+ * refusing to make.
+ *
+ * So the numbers are attributed in the same breath as they are said, the count
+ * this house contributes is its own placements rather than a probability, and
+ * there is no branch anywhere below that reads a rate and decides anything. The
+ * house's own figures and the dataset's figures never meet.
+ *
+ * Returns null when the fork has no planning data, and a statement saying so
+ * when the house needs no application — those are different answers and the
+ * player should be told the second one.
+ */
+export function planningStatement(
+  needs: readonly PlanningNeed[],
+  content: PlanningContent | null,
+): PlanningStatement | null {
+  if (content === null) return null;
+  const { copy, data } = content;
+
+  /** How many placements go through each door. */
+  const counts = new Map<string, number>();
+  for (const need of needs) {
+    const key = content.routeFor(need);
+    if (key === null || data.routes[key] === undefined) continue;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+
+  const applications = [...counts.values()].reduce((sum, n) => sum + n, 0);
+
+  // Nothing to submit — which is a result worth printing, not a blank.
+  if (applications === 0) {
+    return { needed: copy.none, route: '', record: '', source: '' };
+  }
+
+  /**
+   * Of the doors this house goes through, the slow one. Not the commonest:
+   * a project takes as long as its longest application, so the timetable is
+   * set by the worst of them and that is the one worth naming. Ties go to
+   * whichever holds more of the house.
+   */
+  let named = [...counts.keys()][0] as string;
+  for (const key of counts.keys()) {
+    const a = data.routes[key] as PlanningRoute;
+    const b = data.routes[named] as PlanningRoute;
+    if (
+      a.medianDays > b.medianDays ||
+      (a.medianDays === b.medianDays &&
+        (counts.get(key) as number) > (counts.get(named) as number))
+    ) {
+      named = key;
+    }
+  }
+
+  const route = data.routes[named] as PlanningRoute;
+  return {
+    needed: copy.needed,
+    route: copy.route(applications, counts.get(named) as number, route),
+    record: copy.record(route),
+    source: copy.source,
+  };
+}
+
+/**
  * Assemble the three columns, the closing line and the household's reactions.
  *
  * §10.1 — nothing here is totalled or displayed during play. This runs once, on
@@ -292,10 +370,22 @@ export function buildReport(
   // out of it. One line, and it is the only place the framing comes back.
   const situation = content.situations.find((entry) => entry.id === state.situationId);
 
+  /**
+   * §10.5 — every placement as the planning system would see it. A placement
+   * counts once however many flags it took on: one application covers the lot,
+   * which is the same reasoning §9.3 uses to deduplicate the obligations.
+   */
+  const needs = made.map((one) => ({
+    flags: one.consent.flags,
+    demolished: one.entry.demolished,
+    conservation: config.conservation,
+  }));
+
   return {
     pairs,
     cost: costPhrase(placed, content.costPhrases),
     obligations,
+    planning: planningStatement(needs, content.planning),
     closing: closingLine(house, content.closingLines),
     answer: situation ? situation.reaction(house) : '',
   };

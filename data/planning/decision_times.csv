@@ -1,0 +1,8 @@
+route,decided,median_days,mean_days,approved_pct
+"Householder application",83990,57,69,80.9
+"Full planning permission",72199,69,104,76.5
+"Lawful development certificate",63159,54,52,84.9
+Other,50938,56,82,87.1
+"Prior approval / notification",28116,39,40,62.1
+"(not stated)",3159,56,65,93.9
+"Listed building / conservation consent",1023,75,119,77.7

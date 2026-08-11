@@ -808,6 +808,58 @@
   margin-bottom: 0;
 }
 
+/**
+ * §10.5 — what you would actually have to submit.
+ *
+ * Set apart from the obligations above it by a rule and by being centred, and
+ * kept quieter than the closing line below it. It is the only place in the game
+ * that prints a real statistic, and it should read as a footnote from outside
+ * the house rather than as the house's own verdict — because it is neither the
+ * house's nor a verdict.
+ */
+.planning {
+  max-width: var(--measure-note);
+  margin: var(--space-5) auto 0;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--colour-rule);
+  text-align: center;
+}
+
+.planning__heading {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-ui);
+  font-size: var(--size-small);
+  font-weight: normal;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--colour-report-heading);
+}
+
+/* The one sentence that is about this house. It carries the weight. */
+.planning__needed {
+  margin: 0 0 var(--space-2);
+  color: var(--colour-ink);
+}
+
+.planning__route,
+.planning__record {
+  margin: 0 0 var(--space-2);
+  color: var(--colour-ink-soft);
+}
+
+/**
+ * §9.1 — the attribution, and it is not decoration. A rate with no visible
+ * denominator is how a statement about a dataset becomes a prediction about a
+ * player, so this is small but never absent.
+ */
+.planning__source {
+  margin: var(--space-3) 0 0;
+  font-family: var(--font-ui);
+  font-size: var(--size-small);
+  color: var(--colour-ink-soft);
+  opacity: 0.75;
+}
+
 /* §10.3 — what kind of house it turned out to be. */
 .report__closing {
   font-size: var(--size-closing);

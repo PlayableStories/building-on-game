@@ -1,19 +1,22 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   causeWords,
   closingLines,
   config,
-  conservationOverrides,
   consentCare,
   consentOrder,
+  conservationOverrides,
   costPhrases,
   deck,
   demolitionCare,
   pairLines,
+  planning,
   plot,
-  situations,
   qualityLines,
   qualitySeverity,
+  situations,
+  ui,
 } from '../content.ts';
 import type { GameState, Plan, Report } from '../types.ts';
 import { QUALITIES } from '../types.ts';
@@ -43,6 +46,7 @@ const content: ReportContent = {
   consentCare,
   consentOrder,
   conservationOverrides,
+  planning,
 };
 const byId = new Map(deck.map((plan) => [plan.id, plan]));
 
@@ -615,6 +619,169 @@ describe('the finished house (§10.4)', () => {
         report.answer,
       ].join(' ');
       expect(everything).not.toMatch(/\bscore[ds]?\b|\bpoints\b|\btotal\b|\d+\s*\//i);
+    }
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * What you would actually have to submit — §9.1, §10.5
+ * ------------------------------------------------------------------ */
+
+describe('the planning statement (§10.5)', () => {
+  const lines = (report: Report) =>
+    report.planning === null
+      ? []
+      : [
+          report.planning.needed,
+          report.planning.route,
+          report.planning.record,
+          report.planning.source,
+        ].filter((line) => line.length > 0);
+
+  it('says an application is needed, names the route and what happened to them', () => {
+    const report = reportFor(11);
+    expect(report.planning).not.toBeNull();
+    expect(report.planning?.needed).toBe(ui.report.planning.needed);
+    expect(report.planning?.route).toMatch(/householder applications/);
+    // The three figures the section exists to carry, all from the CSV.
+    expect(report.planning?.record).toContain('83,990');
+    expect(report.planning?.record).toContain('8 weeks');
+    expect(report.planning?.record).toContain('81%');
+    expect(report.planning?.source.length).toBeGreaterThan(0);
+  });
+
+  /**
+   * §10.5's own gate. A house of nothing but permitted development is a real
+   * result and the player should be told it plainly, rather than shown a blank
+   * where the section was.
+   */
+  it('says no application is needed when none is', () => {
+    const state = playThrough(11);
+    const permitted: GameState = {
+      ...state,
+      // Every placement becomes a lawn, which is `permitted` and demolishes
+      // nothing. Rigged rather than played for: no seed deals ten of them.
+      placements: state.placements.map((placement) => ({
+        ...placement,
+        planId: 'lawn',
+        demolished: false,
+      })),
+    };
+    const report = buildReport(permitted, deck, content, qualitySeverity, config);
+
+    expect(report.planning?.needed).toBe(ui.report.planning.none);
+    expect(report.planning?.route).toBe('');
+    expect(report.planning?.record).toBe('');
+    // …and no figure is quoted at a house that is not going to apply for
+    // anything, which would be a statistic in search of a reason.
+    expect(report.planning?.source).toBe('');
+  });
+
+  /**
+   * §9.2 — the route is per placement, not per house. Taking part of the old
+   * building down inside a conservation area is its own consent; the rest of
+   * the house is still ordinary householder work, and the sentence has to say
+   * both numbers rather than call all ten of them conservation consent.
+   */
+  it('names the slower route without overstating how much of the house is on it', () => {
+    const conservation = { ...config, conservation: true };
+    const state = playThrough(10);
+    const report = buildReport(state, deck, content, qualitySeverity, conservation);
+
+    const demolitions = state.placements.filter((one) => one.demolished).length;
+    expect(demolitions).toBeGreaterThan(0);
+    expect(demolitions).toBeLessThan(state.placements.length);
+
+    // Written out here rather than imported, so the expectation is stated
+    // rather than borrowed from the code that produced it.
+    const words = ['None', 'One', 'Two', 'Three', 'Four', 'Five'];
+    expect(report.planning?.route).toContain('conservation-area consent');
+    expect(report.planning?.route).toContain(`${words[demolitions]} are`);
+    // …and the sentence names the larger number too, so a reader can see that
+    // most of the house is not on this route.
+    expect(report.planning?.route).toMatch(/of these need permission/);
+    expect(report.planning?.record).toContain('1,023');
+    expect(report.planning?.record).toContain('11 weeks');
+  });
+
+  /**
+   * §16 — a fork with no such data, or in a place with no planning system,
+   * deletes the block and the section goes with it. Nothing borrows London's
+   * numbers by default.
+   */
+  it('says nothing at all when a fork has removed the data', () => {
+    const state = playThrough(11);
+    const report = buildReport(
+      state,
+      deck,
+      { ...content, planning: null },
+      qualitySeverity,
+      config,
+    );
+    expect(report.planning).toBeNull();
+  });
+
+  /**
+   * **§9.1, and the reason this section was the risky one to write.** Consent
+   * is a flag and never an outcome. An approval rate is the one figure in the
+   * game that could read as a prediction, so every sentence carrying one has to
+   * be visibly about other people's applications: past tense, attributed, and
+   * with the count it is a share of said out loud.
+   *
+   * Read across 400 games and both settings of the conservation flag, because
+   * the failure this guards against is a single sentence in a single branch.
+   */
+  it('never says anything about what happens to *this* house (§9.1)', () => {
+    for (let seed = 1; seed <= 400; seed++) {
+      // Played once and reported twice — the conservation flag changes the
+      // report, not the game.
+      const state = playThrough(seed);
+      for (const conservation of [false, true]) {
+        const report = buildReport(state, deck, content, qualitySeverity, {
+          ...config,
+          conservation,
+        });
+
+        for (const line of lines(report)) {
+          // No verdict, in either direction, about anything.
+          expect(line).not.toMatch(/\bwill (?:be )?(?:approved|refused|granted)\b/i);
+          expect(line).not.toMatch(/\blikely to be\b|\bchance\b|\bodds\b|\bexpect(?:ed)? to (?:be )?(?:pass|succeed|approve)/i);
+          // "approved" and "refused" may only appear in the past tense, about
+          // the dataset, in the same sentence as the count they are a share of.
+          if (/\bapproved\b|\brefused\b/i.test(line)) {
+            expect(line).toMatch(/decided in London/);
+            expect(line).toMatch(/\bwere\b/);
+            expect(line).not.toMatch(/\byour?\b/i);
+          }
+        }
+      }
+    }
+  });
+
+  it('quotes only figures that are in decision_times.csv', () => {
+    const csv = readFileSync('data/planning/decision_times.csv', 'utf8').trim().split('\n');
+    const header = (csv[0] as string).split(',');
+    const rows = csv.slice(1).map((line) => {
+      // Route names are quoted and contain no commas of their own.
+      const match = /^"?([^"]+)"?,(.*)$/.exec(line) as RegExpExecArray;
+      const values = (match[2] as string).split(',');
+      return Object.fromEntries([
+        [header[0] as string, match[1] as string],
+        ...values.map((value, at) => [header[at + 1] as string, Number(value)]),
+      ]) as { route: string; decided: number; median_days: number; approved_pct: number };
+    });
+
+    const expected: Record<string, string> = {
+      householder: 'Householder application',
+      conservation: 'Listed building / conservation consent',
+    };
+
+    for (const [key, route] of Object.entries(planning.data.routes)) {
+      const row = rows.find((one) => one.route === expected[key]);
+      expect(row, `no CSV row for "${key}"`).toBeDefined();
+      expect(route.decided).toBe(row?.decided);
+      expect(route.medianDays).toBe(row?.median_days);
+      expect(route.approvedPct).toBe(row?.approved_pct);
     }
   });
 });

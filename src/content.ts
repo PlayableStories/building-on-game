@@ -20,6 +20,7 @@ import type {
   InterfaceCopy,
   PairLine,
   Plan,
+  PlanningContent,
   PlotContent,
   Quality,
   QualityLine,
@@ -206,9 +207,76 @@ export const ui: InterfaceCopy = {
     care: 'What it asks',
     cost: 'Cost',
     obligations: 'Also',
+
+    /**
+     * §10.5 — what you would actually have to submit, in four short lines.
+     *
+     * **Every number here is about London and none of them is about this
+     * house.** That is §9.1 held at the last place it could slip: the game has
+     * refused to predict an outcome for ten rounds, and an approval rate is the
+     * one figure that could read as a prediction if it were phrased carelessly.
+     * So `record` says *"of them"*, names the count it is a share of, and
+     * describes what already happened to other people's applications in the
+     * past tense. Nothing in this block has a second person in it except the
+     * sentence about what you would have to do, which is a fact about process.
+     *
+     * "Half were settled within" rather than "took about": that is what a
+     * median means, said plainly, and it is also the honest way to quote a
+     * distribution with a tail this long.
+     */
+    planning: {
+      heading: 'If you build this',
+
+      none: 'None of it needs an application. All of this is permitted development, and you could start on Monday.',
+
+      needed: 'You would need to apply.',
+
+      route: (applications, onRoute, route) => {
+        // The ordinary case: everything that needs permission goes through the
+        // same door, and the sentence is one clause.
+        if (applications === onRoute) {
+          return onRoute === 1
+            ? `One of these is ${route.one}.`
+            : `${inWords(onRoute)} of these are ${route.many}.`;
+        }
+        // …and the case that made this take two numbers: a conservation-area
+        // demolition is its own consent, and the other placements are not.
+        return onRoute === 1
+          ? `${inWords(applications)} of these need permission. One is ${route.one}, which is the slowest of them.`
+          : `${inWords(applications)} of these need permission. ${inWords(onRoute)} are ${route.many}, which is the slowest of them.`;
+      },
+
+      record: (route) =>
+        `Of ${route.decided.toLocaleString('en-GB')} decided in London, half were settled inside ${Math.round(route.medianDays / 7)} weeks, and ${Math.round(route.approvedPct)}% were approved.`,
+
+      source: 'London planning decisions, 2016–2026. Median time to decision.',
+    },
+
     again: 'Build again',
   },
 };
+
+/**
+ * Small numbers as words, because "Four of these are householder applications"
+ * is a sentence and "4 of these" is a caption. Above ten the numeral wins, and
+ * ten is already more placements than a game has.
+ */
+function inWords(count: number): string {
+  const words = [
+    'None',
+    'One',
+    'Two',
+    'Three',
+    'Four',
+    'Five',
+    'Six',
+    'Seven',
+    'Eight',
+    'Nine',
+    'Ten',
+  ];
+  return words[count] ?? String(count);
+}
 
 /**
  * §2, §10.4 — why this house has to change. One per game, drawn by the seed.
@@ -1413,6 +1481,71 @@ export const consentOrder: Consent[] = [
  * plans are identical and the obligations are not, which is the whole argument
  * §9 is making.
  */
+/**
+ * §10.5 — the figures behind the closing planning statement, and which door
+ * this house goes through.
+ *
+ * Straight out of `data/planning/decision_times.csv`, which is generated from
+ * the `decision_times` block in `data/planning/queries.sql`. Regenerate rather
+ * than editing these by hand; a test reads the CSV and fails if they drift.
+ *
+ * **Medians, not means, and the gap is why the query computes both.** A
+ * householder application averages 69 days and the median is 57. Listed and
+ * conservation consent averages 119 days and the median is 75 — five and a half
+ * weeks of difference, all of it a long right tail of applications that sat for
+ * a year or more. The mean answers "what is the total divided by the count";
+ * the median answers "how long will this take", which is the question a player
+ * is actually asking.
+ *
+ * A fork points this at its own city, or deletes it. Deleting it deletes the
+ * section: a game about a hospice garden in a place with different rules should
+ * say nothing here rather than borrow London's numbers.
+ */
+export const planning: PlanningContent = {
+  data: {
+    source: 'decision_times.csv · 302,584 decided London applications, 2016–2026',
+    routes: {
+      householder: {
+        one: 'a householder application',
+        many: 'householder applications',
+        decided: 83990,
+        medianDays: 57,
+        approvedPct: 80.9,
+      },
+      /**
+       * §9.2 — taking part of a building down inside a conservation area is its
+       * own consent, not a line on the householder form. The slowest route in
+       * the data and not the least likely to succeed, which is worth a player
+       * knowing: the cost of building here is time and agreement, not refusal.
+       */
+      conservation: {
+        one: 'an application for conservation-area consent',
+        many: 'applications for conservation-area consent',
+        decided: 1023,
+        medianDays: 75,
+        approvedPct: 77.7,
+      },
+    },
+  },
+
+  copy: ui.report.planning,
+
+  /**
+   * Which door. Content's call rather than the engine's, because it is a fact
+   * about a planning system: a fork in another city has different doors, and
+   * one with no planning system returns null and never mentions any of this.
+   */
+  routeFor: ({ flags, demolished, conservation }) => {
+    // §9.1 — permitted development is the absence of an application, so a
+    // placement carrying nothing else goes through no door at all.
+    if (!flags.some((flag) => flag !== 'permitted')) return null;
+    // §9.2 — taking part of a building down inside a conservation area is its
+    // own consent. Only that placement: the rest of the house is not.
+    if (conservation && demolished) return 'conservation';
+    return 'householder';
+  },
+};
+
 export const conservationOverrides: ConservationOverrides = {
   /** New openings in the north (street) elevation. */
   northOpening: {

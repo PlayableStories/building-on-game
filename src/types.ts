@@ -414,6 +414,123 @@ export interface ReportPair {
  * Cost was never a list, and the obligations the house took on (§9.3) are not
  * about any single plan — both stay as short lines underneath.
  */
+/* ------------------------------------------------------------------ *
+ * What you would actually have to submit — §9.1, §10.5
+ * ------------------------------------------------------------------ */
+
+/**
+ * One route through the planning system, as `decision_times.csv` measured it.
+ *
+ * Every figure here is real and every figure here is about **London, not about
+ * this house**. That distinction is §9.1 and it is not negotiable: the game
+ * flags process and never predicts an outcome, so a rate quoted at the player
+ * has to be visibly a rate about other people's applications.
+ */
+export interface PlanningRoute {
+  /** 'a householder application' — for a sentence about one of them. */
+  one: string;
+  /** 'householder applications' — for a sentence about several. */
+  many: string;
+  /** How many of them were decided in the export. */
+  decided: number;
+  /**
+   * The **median** wait, in days. Not the mean: decision times have a long
+   * right tail, and the mean overstates the wait by five weeks on the routes
+   * where it matters most. See the `decision_times` block in `queries.sql`.
+   */
+  medianDays: number;
+  /** Permitted or permitted-with-conditions, as a share of decided. */
+  approvedPct: number;
+}
+
+/**
+ * §10.5 — the figures the closing planning statement is built from, and the
+ * one place a fork points it at its own city.
+ *
+ * Deleting this block deletes the section. That is deliberate: a fork whose
+ * building is not in London, or that has no equivalent data, should be able to
+ * say nothing rather than say something borrowed.
+ */
+export interface PlanningData {
+  /** Where the numbers came from, printed under them. */
+  source: string;
+  /** Keyed by whatever `ui.report.planning` asks for. */
+  routes: Record<string, PlanningRoute>;
+}
+
+/**
+ * §10.5 — what this house would actually have to submit, or null if it would
+ * not have to submit anything.
+ *
+ * Assembled here rather than in a component so that the one rule §9.1 turns on
+ * — *this is a statement about the dataset, never about your house* — is
+ * enforced by a type rather than by remembering. There is nowhere in this shape
+ * to put a verdict.
+ */
+export interface PlanningStatement {
+  /** Whether an application is needed at all, in a sentence. */
+  needed: string;
+  /** Which route, and how many placements go through it. Empty if none do. */
+  route: string;
+  /** How long, and how often it went through — for other people. Empty if none. */
+  record: string;
+  /** Attribution, printed small. Empty if there is nothing to attribute. */
+  source: string;
+}
+
+/**
+ * One placement, as the planning system would see it.
+ *
+ * Per placement rather than per house, because a house is not on one route.
+ * Take part of the old building down inside a conservation area and *that*
+ * placement is its own consent; the other nine are still ordinary householder
+ * applications, and a section that called all ten conservation consent would be
+ * overstating by nine.
+ */
+export interface PlanningNeed {
+  /** §9.1 — everything this placement took on. `permitted` alone needs nothing. */
+  flags: readonly Consent[];
+  /** §7.2 — this placement went onto the old house. */
+  demolished: boolean;
+  /** §9.2 — the config flag, because it changes which door you go through. */
+  conservation: boolean;
+}
+
+/**
+ * §10.5 — the writing, the figures, and which door this house goes through.
+ *
+ * `routeFor` is content rather than engine on purpose. Which application you
+ * make is a fact about a planning system, not about a grid: a fork in another
+ * city has different doors, and one with no planning system at all returns
+ * null from every branch and gets a game that never mentions it.
+ */
+export interface PlanningContent {
+  data: PlanningData;
+  copy: PlanningCopy;
+  /** A key into `data.routes`, or null for "nothing to submit". */
+  routeFor: (need: PlanningNeed) => string | null;
+}
+
+/** §10.5, §16 — every word of the planning statement. */
+export interface PlanningCopy {
+  heading: string;
+  /** When nothing here needs an application at all. */
+  none: string;
+  /** When something does. */
+  needed: string;
+  /**
+   * 'Four of these are householder applications.'
+   *
+   * `applications` is everything needing permission; `onRoute` is how many go
+   * through this particular door. They are usually the same number and the copy
+   * has to handle them not being.
+   */
+  route: (applications: number, onRoute: number, route: PlanningRoute) => string;
+  /** What happened to other people's. Never to this house — §9.1. */
+  record: (route: PlanningRoute) => string;
+  source: string;
+}
+
 export interface Report {
   /** Heaviest first. At most three — see `REPORT_PAIRS`. */
   pairs: ReportPair[];
@@ -425,6 +542,11 @@ export interface Report {
    * relationship with the local authority, not three.
    */
   obligations: string[];
+  /**
+   * §10.5 — what you would have to submit. Null when nothing here needs an
+   * application, and null when a fork has removed `planningData` entirely.
+   */
+  planning: PlanningStatement | null;
   closing: string;
   /** §10.4 — the situation the game opened on, answered. One line. */
   answer: string;
@@ -576,6 +698,8 @@ export interface InterfaceCopy {
     care: string;
     cost: string;
     obligations: string;
+    /** §10.5 — what you would actually have to submit. */
+    planning: PlanningCopy;
     again: string;
   };
 }

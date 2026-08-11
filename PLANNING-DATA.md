@@ -309,6 +309,44 @@ Two cards deserve a note in the other direction:
   it asks of you daily, which no planning authority has an opinion about. The right check
   for that card is a playtest, not a database.
 
+## How long it takes, and how often it goes through
+
+Source: `decision_times.csv`. 302,584 decided applications with usable dates — the 5,394
+with no decision date cannot contribute a duration, and 37 whose decision predates the
+application are data errors rather than very fast councils.
+
+| Route | Decided | **Median days** | Mean days | Approved |
+|---|---|---|---|---|
+| Householder application | 83,990 | **57** | 69 | 80.9% |
+| Full planning permission | 72,199 | **69** | 104 | 76.5% |
+| Lawful development certificate | 63,159 | **54** | 52 | 84.9% |
+| Other | 50,938 | **56** | 82 | 87.1% |
+| Prior approval / notification | 28,116 | **39** | 40 | **62.1%** |
+| (not stated) | 3,159 | **56** | 65 | 93.9% |
+| Listed / conservation consent | 1,023 | **75** | 119 | 77.7% |
+
+**The median and the mean are a different story, and the gap is the finding.** Every
+route except the certificate has a long right tail — a minority of applications that sit
+for a year or more — and the mean follows it. Full planning permission averages 104 days
+and half are settled in 69. Listed and conservation consent averages 119 and half are
+settled in 75. Quote the mean and you overstate the wait by five weeks on exactly the
+routes where somebody is most anxious about it.
+
+The mean is written out beside the median in the CSV rather than dropped, because the gap
+between them is itself the evidence for using the median.
+
+**The fastest door is the one most likely to say no.** Prior approval has the shortest
+median at 39 days and by far the lowest approval rate at 62.1%, against 80.0% overall.
+That is what prior approval is *for* — a quick check on whether something falls inside a
+permitted right — and it is a useful correction to the intuition that a short process is
+a soft one.
+
+**Two of these rows are in the game.** §10.5's closing statement quotes the householder
+row for ordinary work, and the listed/conservation row for taking part of the old building
+down inside a conservation area. Both are attributed on screen, and both are statements
+about London rather than about the player's house — see GDD §9.1, which this section is
+the most likely place in the game to violate.
+
 ## Card by card
 
 The same measurement with the patterns tightened until each maps onto a plan in
