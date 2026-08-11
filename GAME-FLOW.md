@@ -148,8 +148,9 @@ the weight arrives on its own, because it is a house someone left you.*
 
 ### 4 · The house says one thing, or nothing
 
-After a placement the game looks at the orthogonal neighbours and resolves **at most one
-line**, in a strict order:
+After a placement the game looks at the six cells around it — the four beside it, the one
+directly under it and the one directly over it — and resolves **at most one line**, in a
+strict order:
 
 1. **An explicit pair** — a line written for this exact pairing. *Utility room beside
    living room.* More specific writing beats less: a line naming both plans beats one
@@ -169,10 +170,23 @@ every single placement.
 
 ![An adjacency line, with the cause named above it and both cells lit](docs/screenshots/5-what-it-noticed.png)
 
-*The utility room has just gone in beside the living room. Both are lit, everything else is
+*The living room has just gone in beside the utility room. Both are lit, everything else is
 dimmed, and the cause is printed above the line it caused.*
 
-You dismiss the line to continue. If there is nothing to say, the round simply advances.
+**A line can be about two levels at once.** Put a study over the porch and the house says
+so — *Study above Porch*, and the ceiling is doing what a wall does. The board goes to the
+level of the thing you just placed, which is where the sentence starts, and the level
+switcher marks the floor the rest of it is on so you can go and look without losing the
+line. A pair line only speaks vertically if it was written to: everything written for two
+rooms sharing a wall stays about walls.
+
+![A line about two levels: the study lit on the first floor, and the ground floor marked on the switcher](docs/screenshots/6-through-the-floor.png)
+
+*The study has just gone in over the porch. The line says* above*, not* beside*, and the
+dot on **Ground floor** is where the other half of the sentence is standing.*
+
+You dismiss the line to continue. If there is nothing to say, the round simply advances —
+which is what happens slightly more than half the time.
 
 ---
 
@@ -206,7 +220,7 @@ their own answer to give.
 
 Eight rounds placed, and the game stops asking you things.
 
-![The report: what you'll have, what it asks, the cost, and the situation answered](docs/screenshots/6-the-house-you-built.png)
+![The report: what you'll have, what it asks, the cost, and the situation answered](docs/screenshots/7-the-house-you-built.png)
 
 **Three rooms, benefit beside obligation.** Not all eight — the three that ask the most of
 you, ranked by what they cost plus the heaviest consent flag they took on, ties going to

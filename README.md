@@ -64,9 +64,14 @@ Four mechanics carry the game:
 
 - **One line per placement, maximum** — resolved in a strict order: an explicit pair, then
   the strongest quality match, then orientation, then **silence**. Silence is a valid
-  result, not a failure — across 400 simulated games, three were silent from start to
-  finish. The line names what caused it and lights both cells while you read it, so it
-  lands as a consequence of the move rather than as atmosphere.
+  result, not a failure, and it is the common one: across 400 simulated games, 53.7% of
+  placements say nothing at all. The line names what caused it and lights both cells while
+  you read it, so it lands as a consequence of the move rather than as atmosphere.
+
+- **The house hears through its floors.** A placement is read against six cells, not four:
+  the ones beside it, the one under it and the one over it. The cause says which — *Bedroom
+  above Kitchen* — and when the other end is on a level that is not on screen, the level
+  switcher marks it.
 
 - **Placement is permanent, and exactly one thing is confirmed.** Everything in eight
   rounds is additive and forgiving except demolition, which is neither — so it is the only

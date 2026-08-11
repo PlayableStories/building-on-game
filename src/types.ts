@@ -226,12 +226,33 @@ export type PlanAdjacency = PlanIdentity &
 export type PairTarget = Plan['id'] | '*' | 'fabric';
 
 /**
+ * §8.6 — how a neighbour stands relative to the placement being read, from the
+ * placement's point of view. A bedroom put on top of a kitchen is `above` it.
+ *
+ * Since §5 the house has floors, and a floor is not a wall: what travels through
+ * one is not the same as what travels through the other, and a line that called
+ * both "beside" would be describing a house the player cannot see.
+ */
+export type Relation = 'beside' | 'above' | 'below';
+
+/**
  * An explicit line for one exact pairing. Matched in either direction, and the
  * best writing in the game — used for the handful of pairs that deserve it.
+ *
+ * A line fires on the *same floor* unless `over` says otherwise. That default is
+ * deliberate: every line written before the house had floors means "beside", and
+ * silently letting them fire through a ceiling would put existing writing in a
+ * situation it was not written for.
  */
 export interface PairLine {
   a: Plan['id'];
   b: PairTarget;
+  /**
+   * Stacked rather than side by side: fires only when `a` is directly above `b`.
+   * Directional on purpose — a bathroom over a living room is a different
+   * sentence from a living room over a bathroom.
+   */
+  over?: true;
   line: string;
 }
 
@@ -278,8 +299,12 @@ export interface Observation {
  * garden says "beside" differently, and may not have a street to face.
  */
 export interface CauseWords {
-  /** Joins the placed plan to what it is being read against. */
+  /** Joins the placed plan to a neighbour on the same floor. */
   beside: string;
+  /** …to one underneath it. 'Bedroom **above** the kitchen'. */
+  above: string;
+  /** …and to one over its head. 'Kitchen **under** the bedroom'. */
+  below: string;
   /** Joins two neighbours when both fired. */
   and: string;
   /** What to call the inherited fabric when it is the neighbour. */

@@ -1,8 +1,9 @@
 /**
  * What just ended up next to what — GDD §8.6.
  *
- * When a plan is placed, the game checks each orthogonal neighbour and resolves
- * in a strict order:
+ * When a plan is placed, the game checks each neighbour — the four beside it,
+ * and since §5 gave the house floors, the one under it and the one over it —
+ * and resolves in a strict order:
  *
  *   1. explicit pair    — a written line for this exact pairing
  *   2. quality match    — an emitted quality meeting a neighbour sensitive to it
@@ -19,6 +20,13 @@
  * returned a sentence. Now it returns the cells too, so the plot can light them
  * while the sentence is being read.
  *
+ * A floor is not a wall. Noise, smell and damp travel through one as readily as
+ * the other — which is why the quality step needed no change at all — but the
+ * *phrasing* has to know the difference, and a pair line written for two rooms
+ * sharing a wall does not automatically hold for two rooms sharing a ceiling.
+ * So `Neighbour` carries a `Relation`, and a pair line fires sideways unless it
+ * says `over`.
+ *
  * The writing all lives in `content.ts`, including the handful of connecting
  * words used to name a cause. This module decides which line to ask for and
  * which cells it is about; it does not know English.
@@ -32,15 +40,21 @@ import type {
   Position,
   Quality,
   QualityLine,
+  Relation,
 } from '../types.ts';
 import { orientationOf, positionOf } from './grid.ts';
 
 export type { CauseWords, Observation };
 
-/** A cell next door: either something the player placed, or the old house. */
-export type Neighbour =
+/**
+ * A cell the placement is read against: either something the player placed, or
+ * the old house. `how` is where it stands relative to the placement — beside it,
+ * under it, or over it.
+ */
+export type Neighbour = { how: Relation } & (
   | { kind: 'plan'; cell: CellId; plan: PlanAdjacency }
-  | { kind: 'fabric'; cell: CellId };
+  | { kind: 'fabric'; cell: CellId }
+);
 
 export interface AdjacencyContent {
   pairLines: readonly PairLine[];
@@ -54,8 +68,8 @@ export interface AdjacencyContent {
 interface Match {
   line: string;
   because: CellId[];
-  /** Names of what the placed plan is being read against, deduplicated. */
-  against: string[];
+  /** What the placed plan is being read against, for the cause phrase. */
+  against: Neighbour[];
 }
 
 function targetMatches(target: PairLine['b'], neighbour: Neighbour): boolean {
@@ -80,6 +94,39 @@ function namesOf(neighbours: readonly Neighbour[], words: CauseWords): string[] 
 }
 
 /**
+ * A fixed order rather than the order the neighbours happened to arrive in, so
+ * the same relationship reads the same way every time it fires.
+ */
+const RELATIONS: readonly Relation[] = ['beside', 'above', 'below'];
+
+/**
+ * The phrase above the line: what was placed, and what it is being read against,
+ * grouped by how each neighbour stands to it.
+ *
+ * 'Bedroom above the kitchen' · 'Bathroom beside the landing and above the hall'
+ *
+ * Naming the relationship is the whole point. M10 fixed a line reading as
+ * atmosphere by saying *which two things*; on a house with floors, saying "the
+ * bedroom beside the kitchen" about a bedroom on the floor above would put the
+ * fix straight back where it started.
+ */
+function causeOf(
+  placedName: string,
+  on: readonly Neighbour[],
+  words: CauseWords,
+): string {
+  const phrases: string[] = [];
+  for (const how of RELATIONS) {
+    const names = namesOf(
+      on.filter((neighbour) => neighbour.how === how),
+      words,
+    );
+    if (names.length > 0) phrases.push(`${words[how]} ${names.join(` ${words.and} `)}`);
+  }
+  return `${placedName} ${phrases.join(` ${words.and} `)}`;
+}
+
+/**
  * Specific writing beats general writing. A line naming both plans is better
  * than one naming the old walls, which is better than "beside anything" — so a
  * wildcard rule can be added to the deck without drowning everything near it.
@@ -95,14 +142,28 @@ function explicitPair(
   placed: PlanAdjacency,
   neighbours: readonly Neighbour[],
 ): Match | null {
-  /** The neighbours this line is about, which is what the plot will light. */
+  /**
+   * The neighbours this line is about, which is what the plot will light.
+   *
+   * `over` lines are directional — `a` on top of `b` — so which end of the pair
+   * was just placed decides which way to look. A plain line is about the same
+   * floor and looks sideways only.
+   */
   function firedOn(line: PairLine): Neighbour[] {
+    const wanted: Relation = line.over === undefined ? 'beside' : 'above';
+
     // Matched in either direction: the pair is a relationship, not a sequence.
     if (line.a === placed.id) {
-      return neighbours.filter((neighbour) => targetMatches(line.b, neighbour));
+      return neighbours.filter(
+        (neighbour) => neighbour.how === wanted && targetMatches(line.b, neighbour),
+      );
     }
     if (line.b === placed.id) {
-      return neighbours.filter((neighbour) => targetMatches(line.a, neighbour));
+      // Placed as the underneath half: the other end is the one over its head.
+      const other: Relation = wanted === 'above' ? 'below' : 'beside';
+      return neighbours.filter(
+        (neighbour) => neighbour.how === other && targetMatches(line.a, neighbour),
+      );
     }
     return [];
   }
@@ -121,7 +182,7 @@ function explicitPair(
   return {
     line: best.line.line,
     because: best.on.map((neighbour) => neighbour.cell),
-    against: namesOf(best.on, content.causeWords),
+    against: best.on,
   };
 }
 
@@ -165,11 +226,7 @@ function qualityMatch(
   if (line === undefined) return null;
 
   const on = involved.get(strongest) as Neighbour[];
-  return {
-    line,
-    because: on.map((neighbour) => neighbour.cell),
-    against: namesOf(on, content.causeWords),
-  };
+  return { line, because: on.map((neighbour) => neighbour.cell), against: on };
 }
 
 /**
@@ -209,7 +266,7 @@ export function observationFor(
       kind: 'pair',
       cell,
       because: pair.because,
-      cause: `${placed.name} ${words.beside} ${pair.against.join(` ${words.and} `)}`,
+      cause: causeOf(placed.name, pair.against, words),
     };
   }
 
@@ -220,7 +277,7 @@ export function observationFor(
       kind: 'quality',
       cell,
       because: quality.because,
-      cause: `${placed.name} ${words.beside} ${quality.against.join(` ${words.and} `)}`,
+      cause: causeOf(placed.name, quality.against, words),
     };
   }
 

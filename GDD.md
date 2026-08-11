@@ -403,8 +403,7 @@ Nine qualities, kept small on purpose so participants can hold them in their hea
 
 ### 8.6 How a line is chosen
 
-When a plan is placed, the game checks each orthogonal neighbour and resolves in this
-order:
+When a plan is placed, the game checks each neighbour and resolves in this order:
 
 1. **Explicit pair** — a written line for this exact pair of plans. Best writing, used
    for the handful of pairs that deserve it.
@@ -421,6 +420,31 @@ short piece of writing as the payoff for a mechanical event. It keeps the storyt
 in the content file, where a participant can rewrite all of it without opening engine
 code.
 
+#### Through the floor
+
+A neighbour is one of six cells, not four: the four beside it, the one directly under
+it, and the one directly over it. §5 gave the house levels, and a house whose floors
+hear nothing of each other is three flat games sharing a screen.
+
+- **The cause names the relationship.** "Bedroom above the kitchen", not "Bedroom beside
+  the kitchen". Getting this wrong would undo the fix that made the line read as
+  consequence rather than as atmosphere.
+- **Qualities travel through a floor unchanged**, and needed no new writing. Noise,
+  smell and damp do this in real buildings, which is the point of the whole mechanic.
+- **A pair line is about a shared wall unless it says otherwise.** Every line written
+  before the house had levels means "beside", so vertical writing is opt-in — a pair
+  line marked `over` fires only when the first plan sits directly on the second, and
+  never sideways. It is directional: a bathroom over a living room is a different
+  sentence from a living room over a bathroom.
+- **The board says where the other end is.** One level is on screen at a time, so when a
+  line is about two levels the switcher marks the one the player cannot see.
+
+**The firing rate is the thing to watch.** The ladder works because silence is possible;
+a line on every placement is wallpaper. Two extra neighbours per cell push against that
+directly, so it is measured rather than assumed. Over 400 simulated games the share of
+placements that say nothing went from 58.0% to 53.7% — the vertical writing is thinned
+before the rule is loosened if that ever collapses.
+
 ### 8.7 Systems as plans
 
 Heat pumps, solar, insulation and air conditioning are ordinary plans occupying
@@ -433,16 +457,26 @@ remixability.
 
 | Placement | Line |
 |---|---|
-| Heat pump beside a bedroom | "Quiet enough now. Less so at five in the morning in January." |
 | Heat pump beside the terrace | "The one place you sit outside is the one place that hums." |
 | Air conditioning beside anything | "Cool this summer, and every summer after, at a price that rises." |
 | Insulation against original solid walls | "Warmer. And a damp risk you will be managing for a decade." |
 | Solar on a north row | "A lovely gesture. Very little electricity." |
 | Home farm beside the kitchen | "A short walk with wet hands. This is the version that gets used." |
-| Home farm beside a bedroom | "Compost, and something starting at six in the morning." |
 
 The insulation and solar lines are where preservation and decarbonisation genuinely
 conflict. The game states what happens and does not editorialise.
+
+**Two lines have been withdrawn.** This section originally also wrote *heat pump beside a
+bedroom* and *home farm beside a bedroom*. Both were written for a flat board, where a
+garden cell and a bedroom could genuinely share a wall. §5 moved the private rooms
+upstairs, and a garden cell and a first-floor cell now have no way of touching at all —
+not beside, and nothing sits over a garden. They were unreachable for a whole milestone
+before anyone noticed, so the validator now refuses a pair line whose two plans can never
+meet, and the two lines are gone rather than left in the file looking alive.
+
+No mechanic went with them. The heat pump still emits `noise` and the home farm still
+emits `smell`, so if either ends up under something that suffers from it, §8.6's quality
+step speaks — in the general voice rather than the specific one.
 
 ## 9. Consent and Preservation
 

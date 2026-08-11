@@ -661,7 +661,9 @@ reopens mid-play · one situation, answered once at the end · a garden plan can
 placed in the house and a house plan cannot be placed in the garden · an upstairs plan
 lights only first-floor cells that sit over a room · the front door at GC1 and the stair
 at GB1 never highlight · demolishing an old room asks once and surfaces in the obligations ·
-every line names its cause and lights the cells that caused it · the report is three pairs,
+every line names its cause and lights the cells that caused it · a bedroom placed over a
+kitchen says *above* rather than *beside*, and the level switcher marks the floor the other
+end of the line is on · the report is three pairs,
 a cost line, two obligations, a closing line and one answer · no cost, score, counter or
 timer appears before the report · the fork test in M12.
 

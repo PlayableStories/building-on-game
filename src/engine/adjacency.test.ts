@@ -33,11 +33,24 @@ function beside(...ids: string[]): Neighbour[] {
   return ids.map((id, index) => {
     const cell = AROUND[index];
     if (cell === undefined) throw new Error('more neighbours than C3 has');
-    return { kind: 'plan', cell, plan: plan(id) } as const;
+    return { kind: 'plan', cell, plan: plan(id), how: 'beside' } as const;
   });
 }
 
-const FABRIC: Neighbour[] = [{ kind: 'fabric', cell: 'GB3' }];
+/**
+ * §8.6 — the two neighbours the house gained when it gained floors, named from
+ * the placement's point of view. `under('kitchen')` is the kitchen the placement
+ * is standing *above*.
+ */
+function under(id: string): Neighbour[] {
+  return [{ kind: 'plan', cell: 'GC3', plan: plan(id), how: 'above' }];
+}
+
+function over(id: string): Neighbour[] {
+  return [{ kind: 'plan', cell: 'RC3', plan: plan(id), how: 'below' }];
+}
+
+const FABRIC: Neighbour[] = [{ kind: 'fabric', cell: 'GB3', how: 'beside' }];
 
 /** The line only, for the tests that are about which line wins. */
 function lineFor(...args: Parameters<typeof observationFor>): string | null {
@@ -58,9 +71,11 @@ describe('§8.6 resolution order', () => {
   });
 
   it('matches a pair in either direction', () => {
-    const a = lineFor(writing, plan('home-farm'), 'GC3', beside('bedroom'));
-    const b = lineFor(writing, plan('bedroom'), 'GC3', beside('home-farm'));
-    expect(a).toBe('Compost, and something starting at six in the morning.');
+    // The back of the house and the top of the garden, which is where these two
+    // genuinely end up next to each other.
+    const a = lineFor(writing, plan('kitchen'), 'GC3', beside('bin-store'));
+    const b = lineFor(writing, plan('bin-store'), 'GC4', beside('kitchen'));
+    expect(a).toBe('Convenient in February. Less so in July, with the window open.');
     expect(b).toBe(a);
   });
 
@@ -203,8 +218,8 @@ describe('what caused the line (§8.6)', () => {
 
   it('says the old house once, however many old cells it is against', () => {
     const result = observationFor(writing, plan('wall-insulation'), 'GC3', [
-      { kind: 'fabric', cell: 'GB3' },
-      { kind: 'fabric', cell: 'GC2' },
+      { kind: 'fabric', cell: 'GB3', how: 'beside' },
+      { kind: 'fabric', cell: 'GC2', how: 'beside' },
     ]);
     expect(result?.cause).toBe('Internal wall insulation beside the old house');
     // …but both cells still light up, because both are what it is against.
@@ -224,6 +239,97 @@ describe('what caused the line (§8.6)', () => {
         }
       }
     }
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * Through the floor — §5, §8.6
+ *
+ * A floor is not a wall. What travels through it is the same, which is why the
+ * quality step needed no change; what it is called is not, which is why the
+ * cause phrasing and the pair lines did.
+ * ------------------------------------------------------------------ */
+
+describe('what is above and below (§8.6)', () => {
+  it('names the relationship rather than calling everything "beside"', () => {
+    const result = observationFor(writing, plan('bedroom'), 'FC3', under('kitchen'));
+    expect(result?.kind).toBe('pair');
+    expect(result?.line).toBe(
+      'Dinner arrives through the floorboards an hour before you sleep.',
+    );
+    expect(result?.cause).toBe('Bedroom above Kitchen');
+  });
+
+  it('says it the other way round when the room underneath is the new one', () => {
+    const result = observationFor(writing, plan('kitchen'), 'GC3', over('bedroom'));
+    expect(result?.line).toBe(
+      'Dinner arrives through the floorboards an hour before you sleep.',
+    );
+    expect(result?.cause).toBe('Kitchen under Bedroom');
+  });
+
+  it('lights the cell on the other level, which is the point of the line', () => {
+    const result = observationFor(writing, plan('bedroom'), 'FC3', under('kitchen'));
+    expect(result?.cell).toBe('FC3');
+    expect(result?.because).toEqual(['GC3']);
+  });
+
+  /**
+   * The reason `over` exists. Every pair line written before the house had
+   * floors means "sharing a wall", and letting them fire through a ceiling would
+   * put existing writing in a situation nobody wrote it for.
+   */
+  it('keeps a stacked line off the same floor, and a flat line off the ceiling', () => {
+    // Stacked writing does not fire sideways...
+    expect(lineFor(writing, plan('bedroom'), 'FC3', beside('kitchen'))).not.toBe(
+      'Dinner arrives through the floorboards an hour before you sleep.',
+    );
+    // ...and flat writing does not fire through a floor.
+    expect(lineFor(writing, plan('home-farm'), 'GC3', under('kitchen'))).not.toBe(
+      'A short walk with wet hands. This is the version that gets used.',
+    );
+  });
+
+  it('is directional: a over b is not b over a', () => {
+    // The bathroom is written as the room on top. Underneath the living room, it
+    // is a different arrangement and this line has nothing to say about it.
+    expect(lineFor(writing, plan('bathroom'), 'FC3', under('living-room'))).toBe(
+      'Everyone downstairs knows exactly who is running the tap.',
+    );
+    expect(lineFor(writing, plan('bathroom'), 'GC3', over('living-room'))).not.toBe(
+      'Everyone downstairs knows exactly who is running the tap.',
+    );
+  });
+
+  /**
+   * Noise, smell and damp travel through a floor as readily as through a wall,
+   * so the quality step needed no new writing at all — only the cause phrasing
+   * had to learn where the neighbour was standing.
+   */
+  it('lets a quality through the floor, under its own name', () => {
+    const result = observationFor(writing, plan('bedroom'), 'FC3', under('gym'));
+    expect(result?.kind).toBe('quality');
+    expect(result?.cause).toBe('Bedroom above Gym');
+  });
+
+  it('groups a mixed set by where each neighbour is standing', () => {
+    // A bedroom with a living room next door and a gym underneath. Both are
+    // noise, so both are in the line — and they are not in the same place.
+    const result = observationFor(writing, plan('bedroom'), 'FC3', [
+      ...beside('living-room'),
+      ...under('gym'),
+    ]);
+    expect(result?.kind).toBe('quality');
+    expect(result?.cause).toBe('Bedroom beside Living room and above Gym');
+    expect(result?.because).toEqual(['GB3', 'GC3']);
+  });
+
+  it('holds a wildcard line to the same floor as well', () => {
+    // '*' means beside *anything*, not through anything. The rule is one rule:
+    // a line without `over` is about a shared wall.
+    const line = 'Cool this summer, and every summer after, at a price that rises.';
+    expect(lineFor(writing, plan('air-conditioning'), 'GC3', beside('shed'))).toBe(line);
+    expect(lineFor(writing, plan('air-conditioning'), 'GC3', over('shed'))).toBeNull();
   });
 });
 
@@ -283,20 +389,19 @@ describe('§8.7 pairings against something other than a plan', () => {
     expect(lineFor(writing, plan('wall-insulation'), 'GC3', beside('shed'))).toBeNull();
   });
 
-  it('prefers a line naming both plans over a wildcard one', () => {
-    // Air conditioning has a '*' rule; if a specific pair were ever written for
-    // it, that must win. Checked here against the rule that enforces it.
+  it('names only what the line is about, not everything next door', () => {
+    // A kitchen between the bins and a shed. There is writing for one of those
+    // two, and the shed has no part in it.
     const specific = observationFor(
       writing,
-      plan('heat-pump'),
+      plan('kitchen'),
       'GC3',
-      beside('bedroom', 'shed'),
+      beside('bin-store', 'shed'),
     );
     expect(specific?.line).toBe(
-      'Quiet enough now. Less so at five in the morning in January.',
+      'Convenient in February. Less so in July, with the window open.',
     );
-    // …and the cause names the bedroom rather than everything next door.
-    expect(specific?.cause).toBe('Air-source heat pump beside Bedroom');
+    expect(specific?.cause).toBe('Kitchen beside Bin store');
     expect(specific?.because).toEqual(['GB3']);
   });
 });

@@ -145,10 +145,22 @@ than a congratulation, and a situation with only a happy answer is not a situati
 
 | Export | What it is |
 |---|---|
-| `pairLines` | `{ a, b, line }`. Two plan ids, or a plan and `'fabric'` (the old building) or `'*'` (anything). Matched in either direction; the most specific wins. |
-| `qualityLines` | One line per quality, fired when something emitting it meets something sensitive to it. |
+| `pairLines` | `{ a, b, line }`, plus optional `over: true`. Two plan ids, or a plan and `'fabric'` (the old building) or `'*'` (anything). Matched in either direction; the most specific wins. |
+| `qualityLines` | One line per quality, fired when something emitting it meets something sensitive to it. Fires through a floor as readily as through a wall — no separate vertical writing needed. |
 | `qualitySeverity` | All nine qualities, strongest first. Decides which line wins when several fire. |
-| `causeWords` | The connecting words that name a cause — `beside`, `and`, what to call the old building, and one phrase per band of the plot for orientation lines. |
+| `causeWords` | The connecting words that name a cause — `beside`, `above`, `below`, `and`, what to call the old building, and one phrase per band of the plot for orientation lines. |
+
+**`over` is how a pair line goes vertical.** A placement is read against six cells: the
+four beside it, the one under it and the one over it. A pair line without `over` is about
+a shared wall and fires sideways only; one with `over` fires only when `a` sits directly
+on `b`, and it is directional — *bathroom over living room* is not *living room over
+bathroom*. That default is deliberate: every line written before the house had levels
+means "beside", and letting them fire through a ceiling would put existing writing in a
+situation nobody wrote it for.
+
+The cause phrase groups by relationship, so a line reads *"Bedroom above Kitchen"* rather
+than calling everything "beside". If your fork's building has no levels, give no plan
+`where: 'upstairs'` or `'roof'` and none of this ever fires.
 
 ### The framing and the report
 
@@ -237,6 +249,10 @@ npm run test:e2e     # plays a whole game in your own Chrome
 - **A plot that is not one connected building**, or one that does not touch the garden —
   a garden plan dealt in round 1 would have nowhere legal to go
 - A pair line naming a plan that is not in the deck
+- **A pair line whose two plans can never meet** — a garden plan written "beside" an
+  upstairs one, or an `over` line pointing at something the geometry never stacks. This
+  is the check that would have caught four lines going quietly dead when the private
+  rooms moved upstairs, and it names which two `where` values are the problem
 - A quality that can fire but has no line, or a sensitivity nothing in the deck produces
 - A `qualitySeverity` or `consentOrder` that does not rank every value exactly once
 - A cost phrase containing a digit

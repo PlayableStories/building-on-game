@@ -19,6 +19,7 @@ import {
   type GameState,
   type Level,
   type Orientation,
+  type Relation,
   type Row,
   type Where,
 } from '../types.ts';
@@ -134,6 +135,32 @@ export function orientationOf(cell: CellId): Orientation | null {
  */
 export function isStreetElevation(cell: CellId): boolean {
   return positionOf(cell) === 'street';
+}
+
+/**
+ * §8.6 — every cell a placement is read against: the four beside it, the one
+ * under it and the one over it.
+ *
+ * **This is not `orthogonalNeighbours`, and the difference is load-bearing.**
+ * §7.1's frontier rule asks a different question — what may I build against —
+ * and it has to stay flat. Give it the cell below and every first-floor cell
+ * over a room touches something by definition, so the frontier upstairs
+ * evaporates and the first floor can be built in any order from anywhere. Two
+ * questions, two functions.
+ */
+export function adjacentCells(cell: CellId): { cell: CellId; how: Relation }[] {
+  const adjacent: { cell: CellId; how: Relation }[] = orthogonalNeighbours(cell).map(
+    (near) => ({ cell: near, how: 'beside' }),
+  );
+
+  // Named from the placement's point of view: the cell underneath is the one
+  // this placement is *above*.
+  const under = below(cell);
+  if (under !== null) adjacent.push({ cell: under, how: 'above' });
+  const over = above(cell);
+  if (over !== null) adjacent.push({ cell: over, how: 'below' });
+
+  return adjacent;
 }
 
 /** Orthogonal, and on the same level. Diagonals are not neighbours — §7.1. */

@@ -21,12 +21,15 @@ import * as content from '../src/content.ts';
 import {
   CONSENT_FLAGS,
   COST_BANDS,
+  LEVELS,
   PLAN_TIERS,
   QUALITIES,
   WHERES,
   TIERS,
   type CellId,
+  type Level,
   type Quality,
+  type Where,
 } from '../src/types.ts';
 import { TIER_CARDS } from '../src/engine/deck.ts';
 import { isGarden, levelOf, orthogonalNeighbours } from '../src/engine/grid.ts';
@@ -212,10 +215,74 @@ if (!outdoorFrontier) {
  * The writing — §8.6, §8.7
  * ------------------------------------------------------------------ */
 
+/**
+ * §5, §8.6 — which level each half of the plot is on. `where` already answers
+ * it: the four legality rules each put their plans on exactly one level, and
+ * that is what decides whether two plans can ever be in the same room as each
+ * other, so to speak.
+ */
+const LEVEL_OF: Record<Where, Level> = {
+  house: 'ground',
+  garden: 'ground',
+  upstairs: 'first',
+  roof: 'roof',
+};
+
+/** Where the old house still stands: the ground floor, and the landing. */
+const FABRIC_LEVELS: readonly Level[] = ['ground', 'first'];
+
+const whereOf = (id: string) => deck.find((plan) => plan.id === id)?.where;
+
+/**
+ * §8.6 — can these two ever actually be neighbours?
+ *
+ * This check exists because of a bug that shipped silently. M15 moved the
+ * private tier upstairs, and four pair lines written when a bathroom could be
+ * beside a kitchen became unreachable overnight: still valid, still tested,
+ * never firing again. Nothing noticed until M16 went looking at the writing.
+ *
+ * Two plans meet on the same floor, or one sits directly on the other. Nothing
+ * sits over the garden — that is the rule that stops the first floor floating —
+ * and the roof's floor is the first floor, never the ground.
+ */
+function canMeet(line: (typeof content.pairLines)[number]): boolean {
+  if (line.b === '*') return true;
+
+  const a = whereOf(line.a);
+  if (a === undefined) return true; // Already reported as a missing plan.
+  const above = LEVEL_OF[a];
+
+  if (line.b === 'fabric') {
+    return line.over === undefined
+      ? FABRIC_LEVELS.includes(above)
+      : // Over the old house: the first floor over a ground room, or the roof
+        // over the landing.
+        above === 'first' || above === 'roof';
+  }
+
+  const b = whereOf(line.b);
+  if (b === undefined) return true;
+  const below = LEVEL_OF[b];
+
+  if (line.over === undefined) return above === below;
+  if (b === 'garden') return false;
+  return LEVELS.indexOf(above) === LEVELS.indexOf(below) + 1;
+}
+
 for (const line of content.pairLines) {
   if (!ids.has(line.a)) fail(`pair line: no plan "${line.a}" in the deck.`);
   if (line.b !== '*' && line.b !== 'fabric' && !ids.has(line.b)) {
     fail(`pair line: no plan "${line.b}" in the deck ("${line.a}" names it).`);
+  }
+  if (!canMeet(line)) {
+    const how = line.over === undefined ? 'beside' : 'above';
+    fail(
+      `pair line "${line.a}" ${how} "${line.b}": these can never meet (§5, §8.6). ` +
+        `"${line.a}" goes ${whereOf(line.a)} and "${line.b}" goes ${whereOf(line.b)}, ` +
+        `which are not on levels that touch. Either retarget it, add \`over: true\` ` +
+        `if it is about one sitting on the other, or delete the line — as written it ` +
+        `can never fire.`,
+    );
   }
 }
 
