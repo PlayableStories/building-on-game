@@ -231,6 +231,71 @@ describe('the line, and the pause for it (§8.6, §13)', () => {
     expect(final.observation).toBeNull();
   });
 
+  /* ---------------------------------------------------------------- *
+   * Through the floor — §5, §8.6
+   * ---------------------------------------------------------------- */
+
+  /**
+   * A kitchen on the ground floor and a bedroom put directly over it, both
+   * through the real reducer. The unit tests in `adjacency.test.ts` prove the
+   * resolution; this proves the game actually hands it the cell below.
+   */
+  function bedroomOverKitchen(): GameState {
+    const kitchen = settle(
+      game.reducer(
+        { ...startGame(1), hand: ['kitchen'], selectedPlanId: 'kitchen' },
+        { type: 'PLACE', cell: 'GB2' },
+      ),
+    );
+    const cleared = game.reducer(kitchen, { type: 'DISMISS' });
+    return settle(
+      game.reducer(
+        { ...cleared, hand: ['bedroom'], selectedPlanId: 'bedroom' },
+        { type: 'PLACE', cell: 'FB2' },
+      ),
+    );
+  }
+
+  it('hears through a floor, and says which way round it is (§8.6)', () => {
+    const placed = bedroomOverKitchen();
+
+    expect(placed.observation?.line).toBe(
+      'Dinner arrives through the floorboards an hour before you sleep.',
+    );
+    expect(placed.observation?.cause).toBe('Bedroom above Kitchen');
+  });
+
+  it('lights both ends of it, across two levels', () => {
+    const placed = bedroomOverKitchen();
+
+    expect(placed.observation?.cell).toBe('FB2');
+    expect(placed.observation?.because).toContain('GB2');
+  });
+
+  /**
+   * §8.6's gate, and the reason M16 measured before it changed anything.
+   *
+   * The ladder works because silence is possible: a line that fires on every
+   * placement is wallpaper, and the player stops reading it. Two extra
+   * neighbours per cell push against exactly that. Measured over 400 games the
+   * silent share went 58.0% → 53.7%, so half the placements still say nothing.
+   *
+   * The floor is set well under that rather than at it. This is a guard against
+   * a collapse, not a pin on a number that new writing is allowed to move.
+   */
+  it('still says nothing about half the time (§8.6)', () => {
+    let placements = 0;
+    let silent = 0;
+
+    for (let seed = 1; seed <= 400; seed++) {
+      const { lines } = playThrough(seed);
+      placements += lines.length;
+      silent += lines.filter((line) => line === null).length;
+    }
+
+    expect(silent / placements).toBeGreaterThan(0.4);
+  });
+
   it('says something at least sometimes, across many games', () => {
     // If the deck were written so that nothing ever fired, every test above
     // would still pass and the prototype would have nothing to test.

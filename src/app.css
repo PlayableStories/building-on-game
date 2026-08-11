@@ -217,7 +217,8 @@
  * second colour on the same three buttons would leave the player working out
  * which of two things each one meant.
  */
-.plot__level[data-legal='true']::after {
+.plot__level[data-legal='true']::after,
+.plot__level[data-cause='true']::after {
   content: '';
   display: inline-block;
   width: 0.4em;
@@ -226,6 +227,24 @@
   vertical-align: 0.1em;
   border-radius: 50%;
   background: var(--colour-plot-legal-edge);
+}
+
+/**
+ * §8.6 — and while a line is up, the level the *other end* of it is on. Since
+ * the house started hearing through its floors, "Bedroom above the kitchen" can
+ * name a room on a level that is not on screen, and a sentence about two cells
+ * has to be able to show both.
+ *
+ * The same dot in the observation colour rather than a second kind of mark:
+ * placing clears the selection, so nothing is ever marked legal while a line is
+ * being read and the two can never be up at once.
+ */
+.plot__level[data-cause='true']::after {
+  background: var(--colour-observation-edge);
+}
+
+.plot__level[data-cause='true'] {
+  border-color: var(--colour-observation-edge);
 }
 
 .plot__edge {

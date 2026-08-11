@@ -94,13 +94,24 @@ export default function Plot({ state, deck, plot, copy, onPlace }: PlotProps) {
   }, [state.selectedPlanId]);
 
   /**
-   * §8.6 — a line about a cell has to be readable next to that cell. Nothing
-   * fires across levels yet, so this only ever confirms where the board already
-   * is; it is here so that the day something does, the board follows it.
+   * §8.6 — a line about a cell has to be readable next to that cell. Since the
+   * house started hearing through its floors, a line can be about two levels at
+   * once, and the board goes to the placement's own level: that is the half the
+   * player just did, and the half the sentence starts with.
    */
   useEffect(() => {
     if (subject !== undefined) setShown(levelOf(subject));
   }, [subject]);
+
+  /**
+   * …and the other half is on a level that is not on screen. "Bedroom above the
+   * kitchen" is only half a sentence if the kitchen is somewhere the player
+   * cannot see, so the switcher says which level the rest of it is on. Pressing
+   * it does not disturb the line: the board only follows a *new* observation.
+   */
+  const causeLevels = new Set(
+    causes.filter((cell) => levelOf(cell) !== shown).map(levelOf),
+  );
 
   /** The name of an inherited cell — an old room, the front door, the stair. */
   const inheritedName = (cell: CellId): string | undefined => {
@@ -214,6 +225,8 @@ export default function Plot({ state, deck, plot, copy, onPlace }: PlotProps) {
             // §5 — a quiet mark on the levels the chosen plan could go on, so
             // the switcher answers "where does this go" before it is touched.
             data-legal={legal.some((cell) => levelOf(cell) === level)}
+            // §8.6 — and while a line is up, where the other end of it is.
+            data-cause={causeLevels.has(level)}
             onClick={() => setShown(level)}
           >
             {copy.levels[level]}

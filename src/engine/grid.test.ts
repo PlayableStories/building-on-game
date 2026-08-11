@@ -19,6 +19,7 @@ import {
   isOccupied,
   legalCells,
   orientationOf,
+  adjacentCells,
   orthogonalNeighbours,
   isGarden,
 } from './grid.ts';
@@ -142,6 +143,32 @@ describe('neighbours', () => {
     // The rule is about where a plan may go, not about what it can be next to.
     // A heat pump in the garden is still against the back of the house.
     expect(orthogonalNeighbours('GB4')).toContain('GB3');
+  });
+
+  /* §8.6 — what a placement is *read against*, which is a different question. */
+
+  it('adds the cell under and the cell over, named from the placement (§8.6)', () => {
+    expect(adjacentCells('FC3')).toContainEqual({ cell: 'GC3', how: 'above' });
+    expect(adjacentCells('FC3')).toContainEqual({ cell: 'RC3', how: 'below' });
+    expect(adjacentCells('FC3')).toContainEqual({ cell: 'FC2', how: 'beside' });
+    expect(adjacentCells('FC3')).toHaveLength(6);
+  });
+
+  it('has nothing under the ground floor and nothing over the roof', () => {
+    expect(adjacentCells('GC3').every((near) => near.how !== 'above')).toBe(true);
+    expect(adjacentCells('RC3').every((near) => near.how !== 'below')).toBe(true);
+  });
+
+  /**
+   * The reason this is a second function rather than two lines added to
+   * `orthogonalNeighbours`. §7.1's frontier asks what may be built against, and
+   * it has to stay flat: with the cell below counting, every first-floor cell
+   * over a room would touch something by definition, and the frontier upstairs
+   * would disappear entirely.
+   */
+  it('leaves the frontier rule flat (§7.1)', () => {
+    expect(orthogonalNeighbours('FC3')).not.toContain('GC3');
+    expect(orthogonalNeighbours('FC3')).not.toContain('RC3');
   });
 });
 

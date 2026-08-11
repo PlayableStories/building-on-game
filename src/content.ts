@@ -846,12 +846,22 @@ export const deck: Plan[] = [
  * genuinely conflict. The game states what happens and does not editorialise.
  */
 export const pairLines: PairLine[] = [
-  // §8.7, verbatim.
-  {
-    a: 'heat-pump',
-    b: 'bedroom',
-    line: 'Quiet enough now. Less so at five in the morning in January.',
-  },
+  /**
+   * §8.7, verbatim — with two of its lines removed rather than left to rot.
+   *
+   * §8.7 wrote *heat pump beside bedroom* and *home farm beside bedroom* for a
+   * flat board, where the two could genuinely end up sharing a wall. §5 gave the
+   * house floors and moved the private tier upstairs, and a garden cell and a
+   * first-floor cell now have no way of touching at all: not beside, and nothing
+   * sits over a garden. Both lines had been unreachable since M15 without
+   * anything noticing, which is what `canMeet` in `scripts/validate.ts` now
+   * exists to prevent.
+   *
+   * No mechanic went with them. The heat pump still emits noise and the home
+   * farm still emits smell, so if either ever does end up under something that
+   * suffers from it, §8.6's quality step speaks — it just speaks in the general
+   * voice rather than the specific one.
+   */
   {
     a: 'heat-pump',
     b: 'terrace',
@@ -872,22 +882,12 @@ export const pairLines: PairLine[] = [
     b: 'kitchen',
     line: 'A short walk with wet hands. This is the version that gets used.',
   },
-  {
-    a: 'home-farm',
-    b: 'bedroom',
-    line: 'Compost, and something starting at six in the morning.',
-  },
 
   // Written for this build, in the same voice.
   {
     a: 'kitchen',
     b: 'bin-store',
     line: 'Convenient in February. Less so in July, with the window open.',
-  },
-  {
-    a: 'bathroom',
-    b: 'kitchen',
-    line: 'One wall, two rooms, and both of them wanting the same drains.',
   },
   {
     a: 'downstairs-wc',
@@ -899,10 +899,45 @@ export const pairLines: PairLine[] = [
     b: 'kitchen',
     line: 'Close enough to cut something while the pan is already hot.',
   },
+
+  /**
+   * §8.6 — stacked, not beside. `over` means `a` sits directly on top of `b`,
+   * and these fire through a floor rather than through a wall.
+   *
+   * Two of these were written as side-by-side lines before the house had floors,
+   * and had quietly stopped being reachable: the private tier lives upstairs
+   * now, so a bathroom can no longer be next to a kitchen or a study next to the
+   * hall. They can only be *over* them, so that is what they say.
+   */
+  {
+    a: 'bathroom',
+    b: 'kitchen',
+    over: true,
+    line: 'One floor, two rooms, and both of them wanting the same drains.',
+  },
   {
     a: 'study',
     b: 'hall',
-    line: 'The door closes. The house walks past it all day.',
+    over: true,
+    line: 'You will hear every arrival before you hear the door.',
+  },
+  {
+    a: 'bedroom',
+    b: 'kitchen',
+    over: true,
+    line: 'Dinner arrives through the floorboards an hour before you sleep.',
+  },
+  {
+    a: 'bedroom',
+    b: 'utility-room',
+    over: true,
+    line: 'The spin cycle finishes at eleven, directly under the pillow.',
+  },
+  {
+    a: 'bathroom',
+    b: 'living-room',
+    over: true,
+    line: 'Everyone downstairs knows exactly who is running the tap.',
   },
 ];
 
@@ -957,6 +992,13 @@ export const qualityLines: QualityLine[] = [
  */
 export const causeWords = {
   beside: 'beside',
+  /**
+   * §5 — the house has floors, so "beside" is no longer the only way two rooms
+   * can be in each other's way. 'under' rather than 'below' for the downward
+   * one: it is what anyone standing in the room would actually say.
+   */
+  above: 'above',
+  below: 'under',
   and: 'and',
   /** What the old house is called when it is the neighbour rather than a room. */
   fabric: 'the old house',

@@ -18,10 +18,10 @@ import { type AdjacencyContent, type Neighbour, observationFor } from './adjacen
 import { drawHand } from './deck.ts';
 import {
   above,
+  adjacentCells,
   isFabric,
   isFixed,
   isLegalCell,
-  orthogonalNeighbours,
   placementAt,
 } from './grid.ts';
 import { createRng } from './rng.ts';
@@ -188,21 +188,22 @@ export function createGame(
   }
 
   /**
-   * The neighbours of a cell, as §8.6 sees them: the plans next door, and the
-   * old house where it is still standing.
+   * The neighbours of a cell, as §8.6 sees them: the plans next door, the ones
+   * above and below since the house gained floors, and the old house wherever it
+   * is still standing.
    */
   function neighboursOf(state: GameState, cell: CellId): Neighbour[] {
     const neighbours: Neighbour[] = [];
 
-    for (const ref of orthogonalNeighbours(cell)) {
+    for (const { cell: ref, how } of adjacentCells(cell)) {
       const placement = placementAt(state, ref);
       if (placement) {
         const plan = byId.get(placement.planId);
-        if (plan) neighbours.push({ kind: 'plan', cell: ref, plan });
+        if (plan) neighbours.push({ kind: 'plan', cell: ref, plan, how });
       } else if (state.fabric.includes(ref) || isFixed(state, ref)) {
         // The front door is part of the old house too — insulation against it
         // is insulation against a solid wall, same as any other old room.
-        neighbours.push({ kind: 'fabric', cell: ref });
+        neighbours.push({ kind: 'fabric', cell: ref, how });
       }
     }
 
