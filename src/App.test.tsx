@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import App from './App.tsx';
+import type { Where } from './types.ts';
 import {
   causeWords,
   config,
@@ -14,8 +15,18 @@ import {
   whyNow,
 } from './content.ts';
 
-/** Everything standing at the start: the fixed entrance plus the old rooms. */
-const inherited = [plot.frontDoor, ...plot.fabric];
+/**
+ * Everything standing at the start: the fixed entrance, the stair, the landing
+ * the stair arrives at, and the old rooms. The landing is derived by the engine
+ * rather than written in content, so it is named here rather than imported.
+ */
+const inherited = [plot.frontDoor, plot.stair, ...plot.fabric];
+/**
+ * How many *inherited* labels are on screen at once. One level shows at a time
+ * (§5), so this is the ground floor's share: the front door, the stair and the
+ * old rooms. The landing is inherited too, but it is upstairs.
+ */
+const INHERITED_LABELS = inherited.length;
 const ROOM = plot.fabric[0]!.cell;
 const OTHER_ROOM = plot.fabric[1]!.cell;
 const DOOR = plot.frontDoor.cell;
@@ -31,12 +42,28 @@ function renderPlaying() {
   fireEvent.click(screen.getByRole('button', { name: ui.begin }));
 }
 
-function grid() {
-  return screen.getByRole('grid', { name: 'The plot' });
+/**
+ * §5 — the board is three levels now and shows one at a time, so `cells()` is
+ * whichever level is on screen. A test that means a particular one switches to
+ * it first with `showLevel`.
+ */
+function cells() {
+  return screen.getAllByRole('gridcell');
 }
 
-function cells() {
-  return within(grid()).getAllByRole('gridcell');
+function levelGrid(name: string) {
+  return screen.getByRole('grid', { name });
+}
+
+/** Click the level switcher. Returns the cells that level turned out to have. */
+function showLevel(name: string) {
+  fireEvent.click(screen.getByRole('button', { name, pressed: false }));
+  return within(levelGrid(name)).getAllByRole('gridcell');
+}
+
+function cellsOn(name: string) {
+  const grid = screen.queryByRole('grid', { name });
+  return grid === null ? showLevel(name) : within(grid).getAllByRole('gridcell');
 }
 
 function legalCells() {
@@ -50,25 +77,48 @@ function handButtons() {
     .filter((button) => button.classList.contains('plan'));
 }
 
-const zoneByName = new Map(deck.map((plan) => [plan.name, plan.zone]));
+const whereByName = new Map(deck.map((plan) => [plan.name, plan.where]));
 
 /**
- * §5 — a plan in hand that goes in the given half of the plot. Tests that aim at
- * a named cell need one that is allowed to go there; returns null when this hand
- * has none, which is normal for the garden in an early round.
+ * §5 — a plan in hand that belongs to the given part of the building. Tests that
+ * aim at a named cell need one allowed to go there; returns null when this hand
+ * has none, which is normal for the garden and the roof in an early round.
  */
-function handButtonFor(zone: 'indoor' | 'outdoor'): HTMLElement | null {
+function handButtonFor(where: Where): HTMLElement | null {
   return (
     handButtons().find(
       (button) =>
-        zoneByName.get(button.querySelector('.plan__name')?.textContent ?? '') === zone,
+        whereByName.get(button.querySelector('.plan__name')?.textContent ?? '') === where,
     ) ?? null
   );
 }
 
+/** The label reads "Ground floor, B2, Old kitchen" — this is the 'B2'. */
+function refOf(cell: Element): string {
+  return ((cell.getAttribute('aria-label') ?? '').split(',')[1] ?? '').trim();
+}
+
+const GRID_FOR_LEVEL: Record<string, string> = {
+  G: ui.plot.levels.ground,
+  F: ui.plot.levels.first,
+  R: ui.plot.levels.roof,
+};
+
+/**
+ * The one cell with this id. Three grids share the reference 'B2', so a search
+ * across the document finds whichever level renders first — which is the roof,
+ * and never what a test aiming at the old kitchen meant.
+ */
+function cellAt(cellId: string): HTMLElement {
+  const grid = GRID_FOR_LEVEL[cellId[0] as string] as string;
+  const found = cellsOn(grid).find((cell) => refOf(cell) === cellId.slice(1));
+  if (!found) throw new Error(`no cell ${cellId}`);
+  return found;
+}
+
 /** The small quiet label under every cell that came with the house. */
 function inheritedCells() {
-  return within(grid()).getAllByText(ui.plot.inherited);
+  return screen.getAllByText(ui.plot.inherited);
 }
 
 function observation() {
@@ -107,17 +157,56 @@ function playRound() {
  * a click on a highlighted cell places, and that the round advances.
  */
 describe('a whole game, played through the interface', () => {
-  it('is 25 cells, with every inherited room named on the grid', () => {
+  it('is three levels of grid, one at a time, with every inherited room named', () => {
     renderPlaying();
+    // §5 — the ground floor is the whole plot; the first floor and the roof are
+    // the building only, so they stop where the garden starts.
+    expect(cellsOn(ui.plot.levels.roof)).toHaveLength(15);
+    expect(cellsOn(ui.plot.levels.first)).toHaveLength(15);
+    expect(cellsOn(ui.plot.levels.ground)).toHaveLength(25);
+
+    // …and only ever one of them, so a reference like B2 means one cell.
+    expect(screen.getAllByRole('grid')).toHaveLength(1);
     expect(cells()).toHaveLength(25);
 
     // §12 — the old rooms say what they are, in the same face as any placement,
     // and murmur "inherited" underneath. The front door does too, because it is
     // inherited as well; it just cannot be taken down.
     for (const { name } of inherited) {
-      expect(within(grid()).getByText(name)).toBeDefined();
+      expect(screen.getByText(name)).toBeDefined();
     }
-    expect(inheritedCells()).toHaveLength(inherited.length);
+    expect(inheritedCells()).toHaveLength(INHERITED_LABELS);
+
+    // §5 — the stair arrives at an inherited landing, which is what seeds the
+    // first floor. It is on the first floor, so it is only named up there.
+    expect(screen.queryByText(ui.plot.landing)).toBeNull();
+    showLevel(ui.plot.levels.first);
+    expect(screen.getByText(ui.plot.landing)).toBeDefined();
+  });
+
+  /**
+   * §5 — the switcher mostly operates itself. Choosing a plan that goes
+   * upstairs takes the board upstairs, because the alternative is a player
+   * looking at a ground floor with nothing lit and no way to know why.
+   */
+  it('follows the chosen plan to the level it can go on (§5)', () => {
+    renderPlaying();
+    expect(levelGrid(ui.plot.levels.ground)).toBeDefined();
+
+    // §6 — the private tier is entirely upstairs and every hand is at least
+    // two-thirds its own tier, so one turns up. Playing forward rather than
+    // rigging the hand, because App deals its own seed and this has to hold
+    // for all of them.
+    let upstairs = handButtonFor('upstairs');
+    for (let round = 1; upstairs === null && round < config.rounds; round++) {
+      playRound();
+      upstairs = handButtonFor('upstairs');
+    }
+    if (upstairs === null) throw new Error('no upstairs plan was ever dealt');
+
+    fireEvent.click(upstairs);
+    expect(levelGrid(ui.plot.levels.first)).toBeDefined();
+    expect(legalCells().length).toBeGreaterThan(0);
   });
 
   it('offers no legal cell until a plan is chosen (§13)', () => {
@@ -125,27 +214,25 @@ describe('a whole game, played through the interface', () => {
     expect(legalCells()).toHaveLength(0);
 
     // §5 — where a plan can go depends on which half of the plot it belongs to.
-    const indoors = handButtonFor('indoor');
-    if (!indoors) throw new Error('no indoor plan in the opening hand');
+    const indoors = handButtonFor('house');
+    if (!indoors) throw new Error('no ground-floor plan in the opening hand');
     fireEvent.click(indoors);
-    // The old rooms, plus every empty indoor cell touching what is standing.
-    // Never the front door, whichever cell that is.
+    // The old rooms, plus every empty ground cell touching what is standing.
+    // Never the front door or the stair, whichever cells those are.
     expect(legalCells().length).toBeGreaterThanOrEqual(plot.fabric.length);
-    expect(
-      legalCells().map((cell) => (cell.getAttribute('aria-label') ?? '').split(',')[0]),
-    ).not.toContain(plot.frontDoor.cell);
+    expect(legalCells().map(refOf)).not.toContain(plot.frontDoor.cell.slice(1));
+    expect(legalCells().map(refOf)).not.toContain(plot.stair.cell.slice(1));
   });
 
   it('offers a garden plan only the garden (§5)', () => {
     renderPlaying();
-    const outdoors = handButtonFor('outdoor');
+    const outdoors = handButtonFor('garden');
     // The garden tier arrives late, so an opening hand may hold none.
     if (!outdoors) return;
 
     fireEvent.click(outdoors);
     for (const cell of legalCells()) {
-      const row = Number((cell.getAttribute('aria-label') ?? '')[1]);
-      expect(row).toBeGreaterThanOrEqual(4);
+      expect(Number(refOf(cell)[1])).toBeGreaterThanOrEqual(4);
     }
   });
 
@@ -193,11 +280,16 @@ describe('a whole game, played through the interface', () => {
       playRound();
     }
 
-    const named = cells().filter((cell) => {
-      const name = cell.querySelector('.cell__name')?.textContent ?? '';
-      return planNames.has(name);
-    });
+    // §5 — a finished house is spread over three levels and the board shows
+    // one, so this counts each in turn. Every placement is named on whichever
+    // level it landed on, and none of them is named twice.
+    const named = Object.values(ui.plot.levels).flatMap((level) =>
+      cellsOn(level)
+        .map((cell) => cell.querySelector('.cell__name')?.textContent ?? '')
+        .filter((name) => planNames.has(name)),
+    );
     expect(named).toHaveLength(config.rounds);
+    expect(new Set(named).size).toBe(config.rounds);
   });
 
   it('starts over from the inherited house on Build again (§14)', () => {
@@ -215,7 +307,7 @@ describe('a whole game, played through the interface', () => {
 
     expect(screen.getByText(`1 of ${config.rounds}`)).toBeDefined();
     expect(handButtons()).toHaveLength(3);
-    expect(inheritedCells()).toHaveLength(inherited.length);
+    expect(inheritedCells()).toHaveLength(INHERITED_LABELS);
   });
 });
 
@@ -415,8 +507,10 @@ describe('the line, through the interface (§8.6, §13)', () => {
     renderPlaying();
     playUntilLine();
 
-    expect(grid()).toBeDefined();
-    expect(cells()).toHaveLength(25);
+    // §5 — one level is on screen, and it is the one the line is about: the
+    // sentence and the cells it names have to be readable together.
+    expect(screen.getAllByRole('grid')).toHaveLength(1);
+    expect(document.querySelector('.cell--subject')).not.toBeNull();
   });
 
   /**
@@ -511,18 +605,14 @@ describe('the one confirmation (§7.2, §13)', () => {
    * chosen — captured before aiming, because the hand is not on screen once the
    * game has stopped to ask.
    */
-  function aimAt(ref: string): string {
+  function aimAt(cellId: string): string {
     renderPlaying();
-    const chosen = handButtonFor('indoor');
-    if (!chosen) throw new Error('no indoor plan in the opening hand');
+    const chosen = handButtonFor('house');
+    if (!chosen) throw new Error('no ground-floor plan in the opening hand');
     const name = chosen.querySelector('.plan__name')?.textContent ?? '';
     fireEvent.click(chosen);
 
-    const target = cells().find(
-      (cell) => (cell.getAttribute('aria-label') ?? '').split(',')[0] === ref,
-    );
-    if (!target) throw new Error(`no cell ${ref}`);
-    fireEvent.click(target);
+    fireEvent.click(cellAt(cellId));
     return name;
   }
 
@@ -533,15 +623,15 @@ describe('the one confirmation (§7.2, §13)', () => {
    */
   function clearCell(): string {
     renderPlaying();
-    const chosen = handButtonFor('indoor');
-    if (!chosen) throw new Error('no indoor plan in the opening hand');
+    const chosen = handButtonFor('house');
+    if (!chosen) throw new Error('no ground-floor plan in the opening hand');
     fireEvent.click(chosen);
-    const ref = legalCells()
-      .map((cell) => (cell.getAttribute('aria-label') ?? '').split(',')[0] as string)
+    const found = legalCells()
+      .map((cell) => `G${refOf(cell)}`)
       .find((one) => !plot.fabric.some((room) => room.cell === one));
     cleanup();
-    if (!ref) throw new Error('no clear indoor cell at the opening');
-    return ref;
+    if (!found) throw new Error('no clear ground-floor cell at the opening');
+    return found;
   }
 
   function asking() {
@@ -554,7 +644,7 @@ describe('the one confirmation (§7.2, §13)', () => {
     aimAt(ROOM);
     expect(demolition()).not.toBeNull();
     // Nothing has happened yet — the old house is still on the plot.
-    expect(inheritedCells()).toHaveLength(inherited.length);
+    expect(inheritedCells()).toHaveLength(INHERITED_LABELS);
   });
 
   it('does not ask for any other placement', () => {
@@ -585,8 +675,8 @@ describe('the one confirmation (§7.2, §13)', () => {
     expect(demolition()).toBeNull();
     // Still round 1, and nothing has been placed — the click did nothing at all.
     expect(screen.getByText(`1 of ${config.rounds}`)).toBeDefined();
-    expect(inheritedCells()).toHaveLength(inherited.length);
-    expect(within(grid()).getByText(plot.frontDoor.name)).toBeDefined();
+    expect(inheritedCells()).toHaveLength(INHERITED_LABELS);
+    expect(screen.getByText(plot.frontDoor.name)).toBeDefined();
   });
 
   it('takes it down on Take it down', () => {
@@ -594,7 +684,7 @@ describe('the one confirmation (§7.2, §13)', () => {
     fireEvent.click(screen.getByRole('button', { name: ui.demolition.confirm }));
 
     expect(demolition()).toBeNull();
-    expect(inheritedCells()).toHaveLength(inherited.length - 1);
+    expect(inheritedCells()).toHaveLength(INHERITED_LABELS - 1);
   });
 
   it('leaves it standing on Put it somewhere else, with the plan still chosen', () => {
@@ -602,7 +692,7 @@ describe('the one confirmation (§7.2, §13)', () => {
     fireEvent.click(screen.getByRole('button', { name: ui.demolition.cancel }));
 
     expect(demolition()).toBeNull();
-    expect(inheritedCells()).toHaveLength(inherited.length);
+    expect(inheritedCells()).toHaveLength(INHERITED_LABELS);
     expect(screen.getByText(`1 of ${config.rounds}`)).toBeDefined();
     // The plan is still in hand and still selected, so it can go elsewhere.
     expect(document.querySelector('.plan--selected .plan__name')?.textContent).toBe(
@@ -616,7 +706,7 @@ describe('the one confirmation (§7.2, §13)', () => {
     fireEvent.keyDown(window, { key: 'Escape' });
 
     expect(demolition()).toBeNull();
-    expect(inheritedCells()).toHaveLength(inherited.length);
+    expect(inheritedCells()).toHaveLength(INHERITED_LABELS);
   });
 
   it('hides the hand while it is waiting for an answer', () => {
@@ -688,10 +778,14 @@ describe('the report, when the eighth plan lands (§10)', () => {
   it('only reports plans that are on the finished plot', () => {
     playToTheEnd();
 
+    // §5 — across all three levels, because the report is about the house and
+    // the house is not one floor.
     const onPlot = new Set(
-      cells()
-        .map((cell) => cell.querySelector('.cell__name')?.textContent ?? '')
-        .filter((name) => planNames.has(name)),
+      Object.values(ui.plot.levels).flatMap((level) =>
+        cellsOn(level)
+          .map((cell) => cell.querySelector('.cell__name')?.textContent ?? '')
+          .filter((name) => planNames.has(name)),
+      ),
     );
     for (const row of pairs()) {
       expect(onPlot.has(row.querySelector('.report__name')?.textContent ?? '')).toBe(

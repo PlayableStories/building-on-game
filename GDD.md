@@ -103,16 +103,26 @@ The second claim, which arrives only at the end:
 
 ## 4. Prototype Scope
 
-**Includes:** a 5×5 plot · four cells of inherited fabric · a fixed front door · a
-household of 2–3 people · 8 rounds · a hand of 3 drawn per round · tier-weighted draw ·
-orthogonal adjacency placement · demolition onto inherited fabric · a written
-observation on each placement · orientation effects (street/garden, north/south) ·
-consent flags · a four-part end report.
+**Includes:** a 5×5 plot on **three levels** · four cells of inherited fabric · a fixed
+front door and a fixed stair · a household of 2–3 people · 8 rounds · a hand of 3 drawn
+per round · tier-weighted draw · orthogonal adjacency placement · demolition onto
+inherited fabric · a written observation on each placement · orientation effects
+(street/garden, north/south) · consent flags · a four-part end report.
 
 **Does not include:** costs shown during play · any score or points · removal or
-relocation of placed plans · multiple storeys · plans larger than one cell · budgets
-the player manages · save/load · multiple plots · a conservation-area variant as a
-separate mode (it is a config flag, see §9).
+relocation of placed plans · a basement or any below-ground level · plans larger than
+one cell · budgets the player manages · save/load · multiple plots · a conservation-area
+variant as a separate mode (it is a config flag, see §9).
+
+**[Decision, M15]** *Multiple storeys* was in the list above until the planning data
+was measured. `PLANNING-DATA.md` found that the four commonest roof works in London —
+dormer, rooflight, roof extension and hip-to-gable — account for **187,492 applications**
+between them, the 2nd, 3rd, 4th and 8th commonest works in the city, and that none of
+them can be represented on a flat board. A dormer is not a cell in a plan view. The
+original reason for the exclusion was that storeys add rules for no new decisions; the
+data says otherwise, because a whole class of the most ordinary work people actually do
+was unreachable. A basement stays out: it is 12,275 applications and needs a different
+support rule.
 
 **Staged, not cut:** the discovery system (§11) is fully specified but marked
 optional for the first build.
@@ -121,11 +131,49 @@ optional for the first build.
 
 ### Grid
 
-A **5×5 grid**, columns A–E, rows 1–5. Every plan occupies exactly one cell.
+A **5×5 grid**, columns A–E, rows 1–5, on **three levels**: the ground floor, the first
+floor above it, and the roof above that. Every plan occupies exactly one cell on one
+level. A cell is written level-first — `GB2` is the ground floor's B2, `FB2` the first
+floor's, `RB2` the roof's — and the player sees `B2` with the level named above the
+board.
+
+The board shows **one level at a time**, chosen by a switcher, and choosing a plan moves
+it to the level that plan goes on. Stacking all three as an elevation was the other
+option: it was not taken because it shrinks the cells past the point where a room's name
+fits, in order to show two levels that are empty for most of the game.
 
 **[Design note]** One cell per plan is a deliberate simplification. Variable room
 footprints would make this a spatial puzzle, and a spatial puzzle is a different game
 — the player would optimise packing instead of thinking about neighbours.
+
+### Where a plan goes
+
+Every plan carries a `where`, and each value is exactly one legality rule. All of them
+compose with the frontier rule (§7.1) and with §7.3 — a cell that holds a placement is
+never offered again.
+
+| `where` | Legal cells |
+|---|---|
+| `house` | ground floor, rows 1–3, touching what is standing — and the old rooms, always, so demolition is never locked away behind building up to it |
+| `garden` | ground floor, rows 4–5, touching what is standing |
+| `upstairs` | first floor, over a cell that holds a room, touching what is standing up there |
+| `roof` | on top of the building, at whatever height that turns out to be |
+
+Two consequences are worth stating plainly.
+
+**The roof is playable from round one**, because the house the player inherited already
+has one. A rooflight over the old kitchen is a real application before anything has been
+built, and it is also why a hand of roof plans can never be unplaceable.
+
+**Roofing a cell commits it.** Once something stands on the roof at a column and row, the
+first floor beneath it can never be built: you roofed it, so you cannot build up there
+now. This is the only irreversible move added since §7.3, and the rules card says so
+because it cannot be worked out from the board until it is too late.
+
+**[Design note]** The roof deliberately does *not* use the frontier rule. What a roof
+cell touches is the thing underneath it, which is already joined to the rest of the
+building by the rules that let it be built — so requiring roof cells to touch each other
+as well would forbid roofing a detached corner for no reason a player could infer.
 
 ### Orientation
 
@@ -146,15 +194,25 @@ the game would be a quiz.
 
 ### The inherited house
 
-The plot starts with the house already on it, occupying **B2, C2, B3, C3**.
+The plot starts with the house already on it, occupying **GB2, GC2, GB3, GC3**.
 
-- **B2** carries the **front door**, opening north onto the street.
+- **GC1** carries the **front door**, opening north onto the street.
+- **GB1** carries the **stair**, beside it.
+- **FB1**, directly above the stair, is the **landing** it arrives at.
 - The fabric is old: solid walls, small windows, a chimney on C2.
-- Fabric cells are marked visually as *inherited* — a different fill from anything
+- Inherited cells are marked visually as *inherited* — a different fill from anything
   the player places.
 
-The player never chooses the front door. It is the one thing about the house that was
-decided before they arrived, by someone who isn't there to ask.
+The player never chooses the front door or the stair. They are the things about the
+house that were decided before they arrived, by someone who isn't there to ask. Neither
+can be demolished; you need the one to get in and the other to get upstairs.
+
+**[Design note]** The stair is inherited rather than a card, so no round is spent on it
+and no game can be dealt a first floor it cannot reach. The landing above it is doing
+more work than it looks: because it is occupied from the start, the **existing frontier
+rule works upstairs with no special case at all**. It is what seeds the first floor. The
+alternative was a separate "first placement upstairs may go anywhere over a room" rule,
+which is a second rule to write, teach and test for the same result.
 
 ## 6. Rounds and the Hand
 

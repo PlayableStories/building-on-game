@@ -171,6 +171,66 @@
 
 /* ---- The plot — §5, §12 -------------------------------------------- */
 
+/**
+ * §5 — the switcher between the three levels, above the board and reading top
+ * to bottom the way the building stands: the roof, the first floor, the ground
+ * floor. Three buttons rather than a tab strip, because the board below is a
+ * grid of buttons already and one keyboard model for the whole plot is enough.
+ *
+ * The pressed level is filled rather than merely underlined. An underline is
+ * the convention, but the thing being switched between here is *which floor of
+ * a house you are standing on*, and that wants to feel more solid than a tab.
+ */
+.plot__levels {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-1);
+  width: fit-content;
+  min-width: 12rem;
+  margin: 0 auto var(--space-3);
+}
+
+.plot__level {
+  font-family: var(--font-ui);
+  font-size: var(--size-small);
+  letter-spacing: 0.04em;
+  text-align: left;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--colour-rule);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--colour-ink-soft);
+}
+
+.plot__level:not([aria-pressed='true']):hover {
+  border-color: var(--colour-ink-soft);
+  color: var(--colour-ink);
+}
+
+.plot__level[aria-pressed='true'] {
+  background: var(--colour-fabric);
+  border-color: var(--colour-ink-soft);
+  color: var(--colour-ink);
+}
+
+/**
+ * §5 — the mark on a level the chosen plan could go on. A dot after the name,
+ * not a colour change: the pressed state is already carrying colour, and a
+ * second colour on the same three buttons would leave the player working out
+ * which of two things each one meant.
+ */
+.plot__level[data-legal='true']::after {
+  content: '';
+  display: inline-block;
+  width: 0.4em;
+  height: 0.4em;
+  margin-left: 0.5em;
+  vertical-align: 0.1em;
+  border-radius: 50%;
+  background: var(--colour-plot-legal-edge);
+}
+
 .plot__edge {
   font-family: var(--font-ui);
   font-size: var(--size-small);
@@ -297,7 +357,7 @@
  * colours have to win over the ground they sit on, and a bare attribute
  * selector would outrank `.cell--legal` and quietly swallow it.
  */
-.cell--empty[data-zone='outdoor']:not(.cell--legal) {
+.cell--empty[data-garden='true']:not(.cell--legal) {
   background: var(--colour-plot-garden);
 }
 

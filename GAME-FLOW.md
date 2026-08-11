@@ -23,7 +23,7 @@ flowchart TD
     B --> C{{"Round 1 of 8"}}
     C --> D["<b>Deal</b> — three plans<br/>two from this round's tier, one from anywhere"]
     D --> E["<b>Choose one</b><br/>the other two go back in the pool"]
-    E --> F["<b>Place it</b><br/>touching what is already built, in its own zone"]
+    E --> F["<b>Place it</b><br/>on the level it belongs to,<br/>touching what is already built"]
     F --> G{"Is an old room<br/>standing there?"}
     G -- yes --> H["<b>The one question</b><br/>take it down, or put it somewhere else"]
     H -- "somewhere else" --> F
@@ -78,20 +78,34 @@ most of the house is the house you did not build.
 
 ### 2 · You choose one, and the plot shows you where it can go
 
-Selecting a plan lights the cells it is allowed to go in. Three rules decide that, and
-between them they are most of the game:
+Selecting a plan lights the cells it is allowed to go in — and moves the board to the
+level those cells are on, so you always arrive somewhere with highlights. Four rules
+decide where a plan may go, and between them they are most of the game:
 
 - **It has to touch.** A plan must be orthogonally adjacent to something already
   standing — a room you placed, or the old house. The house grows outward from itself; it
   cannot be built in scattered pieces. (A cell with an old room on it is the one
   exception: it is legal from the opening move, so demolition is never locked away behind
   building up to it.)
-- **It has to stay in its zone.** Rooms go in the house, rows 1–3. Garden things go in the
-  garden, rows 4–5. There is no plan that is both.
-- **The front door is not yours to change.** C1 came with the house, is never a legal
-  cell, and cannot come down. It is the fixed point everything else is decided around.
+- **Every plan belongs somewhere.** The card says which: **in the house** (ground floor,
+  rows 1–3), **in the garden** (rows 4–5), **upstairs**, or **on the roof**. No plan
+  belongs in two places.
+- **Upstairs only goes over a room.** A first-floor cell is legal only if the ground-floor
+  cell directly beneath it holds something. What you build downstairs decides what you can
+  sleep above — and the landing above the stair is standing from the start, which is what
+  gives the first floor somewhere to begin.
+- **The front door and the stairs are not yours to change.** GC1 and GB1 came with the
+  house, are never legal cells, and cannot come down. They are the fixed points everything
+  else is decided around.
 
-Which row you land in matters, because rows face different ways:
+**The roof is playable from the first round**, because the house you inherited already has
+one — a rooflight over the old kitchen is a real application before you have built
+anything. But **roofing a cell seals the first floor beneath it, permanently**. You roofed
+it, so you cannot build up there now. It is the only irreversible move in the game besides
+demolition, and the rules card says so.
+
+Which row you land in matters, because rows face different ways — at every height. A
+first-floor front bedroom faces the street exactly as the room under it does:
 
 | Row | | What it is |
 |---|---|---|
@@ -103,8 +117,14 @@ Which row you land in matters, because rows face different ways:
 
 ![A house plan selected: rows 1–3 light up and the garden stays dark](docs/screenshots/2-where-it-can-go.png)
 
-*A room is chosen, so the house lights and the garden does not. The old rooms are lit too —
-building on one is always allowed, and it takes it down.*
+*A room is chosen, so the ground floor lights and the garden does not. The old rooms are lit
+too — building on one is always allowed, and it takes it down.*
+
+![A bathroom chosen: the board has moved to the first floor, where three cells are lit](docs/screenshots/3-going-up.png)
+
+*Round 5, and every card in this hand goes upstairs. Choosing one takes the board up with it.
+Only three cells are lit — the landing's neighbours that have a room underneath them. The rest
+of the first floor has nothing to stand on yet, and the prompt says so.*
 
 ### 3 · You place it, and that is permanent
 
@@ -121,7 +141,7 @@ They are named — *Old scullery*, not *Inherited* — for a reason found in pla
 cell shouting **INHERITED** reads as scenery and nobody worked out it could be built on. A
 cell that says *Old scullery* and murmurs *inherited* reads as a room, and rooms can go.
 
-![The demolition confirmation: take it down, or put it somewhere else](docs/screenshots/3-the-one-question.png)
+![The demolition confirmation: take it down, or put it somewhere else](docs/screenshots/4-the-one-question.png)
 
 *It states what happens and gets out of the way. It does not warn and it does not argue —
 the weight arrives on its own, because it is a house someone left you.*
@@ -147,7 +167,7 @@ than as a consequence of the move just made. Row 2 faces nothing at all, and no 
 line written for every direction — which is what keeps the game from having a remark about
 every single placement.
 
-![An adjacency line, with the cause named above it and both cells lit](docs/screenshots/4-what-it-noticed.png)
+![An adjacency line, with the cause named above it and both cells lit](docs/screenshots/5-what-it-noticed.png)
 
 *The utility room has just gone in beside the living room. Both are lit, everything else is
 dimmed, and the cause is printed above the line it caused.*
@@ -186,7 +206,7 @@ their own answer to give.
 
 Eight rounds placed, and the game stops asking you things.
 
-![The report: what you'll have, what it asks, the cost, and the situation answered](docs/screenshots/5-the-house-you-built.png)
+![The report: what you'll have, what it asks, the cost, and the situation answered](docs/screenshots/6-the-house-you-built.png)
 
 **Three rooms, benefit beside obligation.** Not all eight — the three that ask the most of
 you, ranked by what they cost plus the heaviest consent flag they took on, ties going to
@@ -233,7 +253,7 @@ short version is that everything above is either content or one small engine mod
 | Every colour, size and font | `src/theme.css` |
 | The round count and the conservation dial | `config` in `src/content.ts` |
 | The deal and the tier schedule | `src/engine/deck.ts` |
-| Legal cells, zones, rows and what they face | `src/engine/grid.ts` |
+| Legal cells, levels, rows and what they face | `src/engine/grid.ts` |
 | Which line fires, and why | `src/engine/adjacency.ts` |
 | Flags and obligations | `src/engine/consent.ts` |
 | What the report picks, and how it ranks it | `src/engine/report.ts` |

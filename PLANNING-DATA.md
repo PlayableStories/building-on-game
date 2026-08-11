@@ -232,17 +232,27 @@ This is `works.csv` in full. Non-exclusive: one description names several works.
 | EV charger | 239 | 21.8% | 14.6% | — |
 | Summer house | 51 | 27.5% | 17.6% | — |
 
-### The biggest gap is the roof, and it is not fixable
+### The biggest gap was the roof — and this measurement is what closed it
 
 Dormer, rooflight, roof extension and hip to gable are the **2nd, 3rd, 4th and 8th** most
-common works in London — 187,492 mentions between them — and the deck represents none of
+common works in London — 187,492 mentions between them — and the deck represented none of
 them. Nor windows, at 39,827.
 
-This is a fact about the board rather than a gap in the writing. The plot is a five-by-five
-**plan view with no vertical dimension**: a dormer is not a cell, a rooflight is not a
-cell, and a window is an elevation. Representing any of it means a second storey or an
-elevation view, which is a different game. Recorded here so that it is a known limit rather
-than an unnoticed one.
+This was recorded here as a fact about the board rather than a gap in the writing. The plot
+was a five-by-five **plan view with no vertical dimension**: a dormer is not a cell, a
+rooflight is not a cell, and a window is an elevation. Representing any of it meant a
+second storey, which GDD §4 had ruled out of scope.
+
+**M15 overturned that ruling, and this figure is why.** The board is now three levels —
+ground, first and roof — with a `roof` placement rule and a roof that is playable from the
+first round, because the house you inherited already has one. The 187,492 stopped being an
+argument about writing and became an argument about the board, and the board lost. See
+GDD §4 for the decision and §5 for the rules.
+
+**The cards themselves land in M17**, so the gap is open rather than closed: the board can
+hold a dormer, and the deck does not yet contain one. Only `solar-array` is on the roof
+today, moved there from `indoor`, which was a fudge the flat board forced. Windows remain
+unrepresented — a window is an elevation, and an elevation is still a different game.
 
 The same applies to change of use (19,140) and subdividing into flats (2,205), which are
 not spatial at all — they are what a building is *for*, and the game has no vocabulary for

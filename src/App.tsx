@@ -171,7 +171,7 @@ export default function App() {
             <>
               <p className="app__prompt">
                 {placing && selectedPlan
-                  ? ui.prompt.place[selectedPlan.zone]
+                  ? ui.prompt.place[selectedPlan.where]
                   : ui.prompt.choose}
               </p>
 

@@ -1,46 +1,73 @@
 /**
  * The plot — GDD §5, §7.
  *
- * A 5×5 grid, columns A–E and rows 1–5, divided into the house and the garden
- * behind it. What is already standing on it — the front door and the old rooms —
- * is content, not geometry, and arrives in `GameState` from `PlotContent`.
+ * Three levels of a 5×5 grid: the ground floor with the garden behind it, a
+ * first floor over the rooms, and the roof on top of whatever is built. What is
+ * already standing on it — the front door, the stair and landing, the old rooms
+ * — is content, not geometry, and arrives in `GameState` from `PlotContent`.
  *
  * Everything here is pure geometry and pure state inspection; nothing in this
  * module knows what a plan says.
  */
 import {
   COLUMNS,
+  LEVELS,
+  LEVEL_CODE,
   ROWS,
   type CellId,
   type Column,
   type GameState,
+  type Level,
   type Orientation,
   type Row,
-  type Zone,
+  type Where,
 } from '../types.ts';
 
-export const ALL_CELLS: readonly CellId[] = COLUMNS.flatMap((column) =>
-  ROWS.map((row) => cellId(column, row)),
+export const ALL_CELLS: readonly CellId[] = LEVELS.flatMap((level) =>
+  ROWS.flatMap((row) => COLUMNS.map((column) => cellId(level, column, row))),
 );
 
-export function cellId(column: Column, row: Row): CellId {
-  return `${column}${row}`;
+export function cellId(level: Level, column: Column, row: Row): CellId {
+  return `${LEVEL_CODE[level]}${column}${row}`;
 }
 
-export function parseCell(cell: CellId): { column: Column; row: Row } {
-  // A CellId is always one column letter followed by one row digit.
-  const column = cell[0] as Column;
-  const row = Number(cell[1]) as Row;
-  return { column, row };
+const LEVEL_BY_CODE = Object.fromEntries(
+  LEVELS.map((level) => [LEVEL_CODE[level], level]),
+) as Record<string, Level>;
+
+export function parseCell(cell: CellId): { level: Level; column: Column; row: Row } {
+  // A CellId is always one level code, one column letter and one row digit.
+  return {
+    level: LEVEL_BY_CODE[cell[0] as string] as Level,
+    column: cell[1] as Column,
+    row: Number(cell[2]) as Row,
+  };
+}
+
+export function levelOf(cell: CellId): Level {
+  return parseCell(cell).level;
+}
+
+/** The same column and row, one level up or down. Null at the top and bottom. */
+export function above(cell: CellId): CellId | null {
+  const { level, column, row } = parseCell(cell);
+  const next = LEVELS[LEVELS.indexOf(level) + 1];
+  return next === undefined ? null : cellId(next, column, row);
+}
+
+export function below(cell: CellId): CellId | null {
+  const { level, column, row } = parseCell(cell);
+  const under = LEVELS[LEVELS.indexOf(level) - 1];
+  return under === undefined ? null : cellId(under, column, row);
 }
 
 /**
- * §5 — the house in front, the garden behind. A plan can only go in its own
- * zone, which is what stops the plot reading as twenty-five interchangeable
- * squares and starts it reading as a building with ground behind it.
+ * §5 — the house in front, the garden behind. Ground floor only: there is no
+ * garden on the first floor, and the rows above the garden are simply not part
+ * of the building.
  */
-export function zoneOf(cell: CellId, gardenFromRow: Row): Zone {
-  return parseCell(cell).row >= gardenFromRow ? 'outdoor' : 'indoor';
+export function isGarden(cell: CellId, gardenFromRow: Row): boolean {
+  return parseCell(cell).row >= gardenFromRow;
 }
 
 /**
@@ -73,14 +100,13 @@ const POSITION_BY_ROW: Record<Row, Position> = {
  * house. So a plan's north line covers both — the sun is somewhere else, and
  * this is what that costs you.
  *
- * Row 2 faces nothing on purpose. Every zone needs somewhere that is simply
+ * Row 2 faces nothing on purpose. Every part of the plot needs somewhere that is simply
  * inside it, or an orientation line fires on nearly every placement and stops
  * being worth reading.
  *
- * Position and orientation are two views of one map rather than two maps: the
- * compass is what the deck's writing is keyed on, and the band is what a cause
- * phrase has to name, because "facing the street" and "in the shadow of the
- * house" are both north and are not the same place to be standing.
+ * Height does not change any of this. A first-floor front bedroom faces the
+ * street exactly as the room under it does, and a dormer on the front slope is
+ * the most street-facing thing a house has.
  */
 const FACING: Record<Position, Orientation | null> = {
   street: 'north',
@@ -100,20 +126,19 @@ export function orientationOf(cell: CellId): Orientation | null {
 
 /**
  * §5, §9.2 — the face of the building the street can see, which is row 1 and
- * only row 1.
+ * only row 1, at any height.
  *
  * Deliberately not "faces north": the garden's shaded strip faces north too,
- * and nobody applies for consent to put a lawn behind a house. The two ideas
- * were the same thing when the north rows were rows 1–2; they are not any more,
- * and §9.2's rule about openings is about the street rather than about the sun.
+ * and nobody applies for consent to put a lawn behind a house. §9.2's rule
+ * about openings is about the street rather than about the sun.
  */
 export function isStreetElevation(cell: CellId): boolean {
   return positionOf(cell) === 'street';
 }
 
-/** Orthogonal only. Diagonals are not neighbours — §7.1. */
+/** Orthogonal, and on the same level. Diagonals are not neighbours — §7.1. */
 export function orthogonalNeighbours(cell: CellId): CellId[] {
-  const { column, row } = parseCell(cell);
+  const { level, column, row } = parseCell(cell);
   const columnIndex = COLUMNS.indexOf(column);
   const rowIndex = ROWS.indexOf(row);
 
@@ -129,7 +154,7 @@ export function orthogonalNeighbours(cell: CellId): CellId[] {
     const neighbourColumn = COLUMNS[c];
     const neighbourRow = ROWS[r];
     if (neighbourColumn === undefined || neighbourRow === undefined) continue;
-    neighbours.push(cellId(neighbourColumn, neighbourRow));
+    neighbours.push(cellId(level, neighbourColumn, neighbourRow));
   }
   return neighbours;
 }
@@ -143,61 +168,111 @@ export function isFabric(state: GameState, cell: CellId): boolean {
 }
 
 /**
- * §7 — the front door came with the house and stays with it. It is occupied for
- * adjacency, so the first round has somewhere to build from, and it is never a
- * legal placement, so it cannot be built over.
+ * §7 — the three cells that came with the house and stay with it: the front
+ * door, the stair, and the landing the stair arrives at. All are occupied for
+ * adjacency, so every level has somewhere to build from, and none is ever a
+ * legal placement, so none can be built over.
  */
-export function isFrontDoor(state: GameState, cell: CellId): boolean {
-  return state.frontDoor === cell;
+export function isFixed(state: GameState, cell: CellId): boolean {
+  return cell === state.frontDoor || cell === state.stair || cell === state.landing;
 }
 
 /** The old house counts as occupied for adjacency — §7.1. */
 export function isOccupied(state: GameState, cell: CellId): boolean {
-  return (
-    placementAt(state, cell) !== undefined ||
-    isFabric(state, cell) ||
-    isFrontDoor(state, cell)
-  );
+  return placementAt(state, cell) !== undefined || isFabric(state, cell) || isFixed(state, cell);
+}
+
+/** A cell with something standing in it that could hold a floor above. */
+function holdsRoom(state: GameState, cell: CellId | null): boolean {
+  if (cell === null) return false;
+  if (isGarden(cell, state.gardenFromRow)) return false;
+  return isOccupied(state, cell);
 }
 
 /**
- * §5, §7 — every cell this plan may legally go in:
+ * §5, §7 — every cell this plan may legally go in.
  *
- *   1. it is in the plan's own zone — a bathroom does not go in the garden, and
- *      a lawn does not go in the hall,
- *   2. it is not the front door, which is the one cell nothing can be built on,
- *   3. and it is either an inherited room, which demolishes it (§7.2), or an
- *      empty cell orthogonally adjacent to something already occupied.
+ * Four rules, one per `where`, all of them composed with the two constants: a
+ * cell already holding a placement is never legal again (§7.3), and the fixed
+ * cells are never legal at all.
  *
- * A cell that already holds a placement is never legal again — §7.3, nothing can
- * be moved or removed.
+ *   house     ground floor, in front of the garden, touching what is standing
+ *   garden    ground floor, behind the house, touching what is standing
+ *   upstairs  first floor, over a room, touching what is standing up there
+ *   roof      on top of the building, at whatever height that turns out to be
  *
- * **The plot can never lock:** a demolished room is replaced by the placement
- * that demolished it, so the cells the old house occupies stay occupied for the
- * whole game. Both zones therefore always touch something, and both always have
- * a frontier. There is a test that plays this out rather than only asserting it.
+ * **Two things are worth reading twice.**
+ *
+ * The roof does not use the frontier rule. What a roof cell touches is the
+ * thing underneath it, which is already connected to the rest of the building
+ * by the rules that let it be built — so requiring roof cells to touch each
+ * other as well would forbid roofing a detached corner for no reason a player
+ * could infer.
+ *
+ * And roofing a cell commits it: once something is on the roof at a column and
+ * row, the first floor beneath it can never be built. You roofed it, so you
+ * cannot build up there now. That is the one genuinely new irreversible move
+ * since §7.3, and the rules card has to say so.
+ *
+ * **The plot can never lock.** The old rooms stay occupied whether or not they
+ * are demolished, so the ground floor always has a frontier; the landing is
+ * always occupied, so the first floor always has one; and the roof is available
+ * from round one, because the house the player inherited already has a roof.
+ * There is a test that plays this out rather than only asserting it.
  */
-export function legalCells(state: GameState, zone: Zone): CellId[] {
+export function legalCells(state: GameState, where: Where): CellId[] {
   const legal = new Set<CellId>();
 
   for (const cell of ALL_CELLS) {
-    if (zoneOf(cell, state.gardenFromRow) !== zone) continue;
-    if (isFrontDoor(state, cell)) continue;
     if (placementAt(state, cell) !== undefined) continue;
+    if (isFixed(state, cell)) continue;
 
-    if (isFabric(state, cell)) {
-      legal.add(cell);
-      continue;
-    }
+    const { level } = parseCell(cell);
+    const garden = isGarden(cell, state.gardenFromRow);
+    const touching = orthogonalNeighbours(cell).some((near) => isOccupied(state, near));
 
-    if (orthogonalNeighbours(cell).some((neighbour) => isOccupied(state, neighbour))) {
-      legal.add(cell);
+    switch (where) {
+      case 'house':
+        // An inherited room is always legal, so demolition is never locked away
+        // behind building up to it.
+        if (level === 'ground' && !garden && (isFabric(state, cell) || touching)) {
+          legal.add(cell);
+        }
+        break;
+
+      case 'garden':
+        if (level === 'ground' && garden && touching) legal.add(cell);
+        break;
+
+      case 'upstairs':
+        if (
+          level === 'first' &&
+          holdsRoom(state, below(cell)) &&
+          touching &&
+          // …and nothing has been roofed over this column and row.
+          !isOccupied(state, above(cell) as CellId)
+        ) {
+          legal.add(cell);
+        }
+        break;
+
+      case 'roof': {
+        if (level !== 'roof') break;
+        const first = below(cell) as CellId;
+        // On top of the first floor if there is one there, and otherwise on top
+        // of the ground floor — the roof sits on whatever is highest.
+        const onTop = isOccupied(state, first)
+          ? true
+          : holdsRoom(state, below(first));
+        if (onTop) legal.add(cell);
+        break;
+      }
     }
   }
 
   return ALL_CELLS.filter((cell) => legal.has(cell));
 }
 
-export function isLegalCell(state: GameState, cell: CellId, zone: Zone): boolean {
-  return legalCells(state, zone).includes(cell);
+export function isLegalCell(state: GameState, cell: CellId, where: Where): boolean {
+  return legalCells(state, where).includes(cell);
 }

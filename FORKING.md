@@ -61,16 +61,22 @@ boolean.
 
 ```ts
 export const plot: PlotContent = {
-  frontDoor: { cell: 'C1', name: 'Front door' },  // permanent: never legal, never removable
+  frontDoor: { cell: 'GC1', name: 'Front door' }, // permanent: never legal, never removable
+  stair: { cell: 'GB1', name: 'Stairs' },         // permanent too, and the way upstairs
   fabric: [                                        // demolishable, and named
-    { cell: 'B2', name: 'Old kitchen' },
-    { cell: 'C2', name: 'Old sitting room' },
-    { cell: 'B3', name: 'Old scullery' },
-    { cell: 'C3', name: 'Old back room' },
+    { cell: 'GB2', name: 'Old kitchen' },
+    { cell: 'GC2', name: 'Old sitting room' },
+    { cell: 'GB3', name: 'Old scullery' },
+    { cell: 'GC3', name: 'Old back room' },
   ],
-  gardenFromRow: 4,      // rows 4–5 are outdoor; rows above are indoor
+  gardenFromRow: 4,      // rows 4–5 are the garden; rows above are the building
 };
 ```
+
+**Cell ids carry their level.** `G` is the ground floor, `F` the first, `R` the roof, so
+`GB2` is the ground floor's B2. Every inherited cell above must be on the ground floor —
+the validator checks it. The **landing** on `FB1`, directly above the stair, is derived
+by the engine rather than written here; it is named by `ui.plot.landing`.
 
 **Name every inherited cell.** The validator insists, because playtesting found that a
 cell labelled *Inherited* reads as scenery and nobody works out it can be built on. A cell
@@ -78,7 +84,8 @@ that says *Old scullery* reads as a room, and rooms can go.
 
 `frontDoor` does not have to be a door. It is whatever this building has that the person
 who inherited it does not get to decide about — a chimney stack, a party wall, a memorial
-bench, a protected tree.
+bench, a protected tree. `stair` is whatever gets you to the level above; if your building
+has only one level, it is still the cell that cannot move.
 
 ### `deck` — 24 plans
 
@@ -87,7 +94,8 @@ bench, a protected tree.
   id: 'porch',                  // unique; pair lines and situations refer to it
   name: 'Porch',                // printed on the block
   tier: 'threshold',            // threshold | daily | private | outside | wildcard
-  zone: 'indoor',               // indoor | outdoor — where it may be placed
+  where: 'house',               // house | garden | upstairs | roof — the rule for
+                                // which cells it may go in (see below)
   consent: 'permitted',         // permitted | householder | sensitive | demolition
   cost: 'low',                  // very-low | low | moderate | high
   have: 'Somewhere to stand while you find your keys, out of the rain.',
@@ -212,7 +220,7 @@ Run these before committing your re-skin:
 
 ```bash
 npm run validate     # content is playable, and the fork surface is intact
-npm test             # 210 unit and component tests
+npm test             # 223 unit and component tests
 npm run build        # type-check and production build
 npm run test:e2e     # plays a whole game in your own Chrome
 ```
@@ -223,9 +231,9 @@ npm run test:e2e     # plays a whole game in your own Chrome
 - Duplicate plan ids, situation ids, or inherited cells
 - **A tier with fewer than 2 plans** — the draw takes two from the round's tier and would
   deal short, which only shows up on some seeds
-- **A zone with fewer than 3 plans** — a round could deal three plans with nowhere to put
-  any of them
-- An unnamed inherited cell, or one placed in the garden
+- **A `where` with no plans at all** — a value nothing uses is a legality rule with no
+  cards, which is a fork surface that silently does nothing
+- An unnamed inherited cell, one placed in the garden, or one above the ground floor
 - **A plot that is not one connected building**, or one that does not touch the garden —
   a garden plan dealt in round 1 would have nowhere legal to go
 - A pair line naming a plan that is not in the deck
@@ -251,10 +259,15 @@ Honest list of what a re-skin will run into.
    writing they check. They are not testing the engine's contract; they are testing this
    content against it.
 
-2. **The grid is 5×5, in the engine.** `ROWS` and `COLUMNS` live in `src/types.ts` and the
-   row→position map in `src/engine/grid.ts`. A differently shaped plot is Level 2.
-   `gardenFromRow` *is* content, so where the indoor/outdoor boundary falls is yours —
-   just not how many rows there are.
+2. **The grid is 5×5 on three levels, in the engine.** `ROWS`, `COLUMNS` and `LEVELS`
+   live in `src/types.ts`, and the row→position map and the four `where` rules in
+   `src/engine/grid.ts`. A differently shaped plot, a fourth level, or a fifth `where` is
+   Level 2. `gardenFromRow` *is* content, so where the building stops and the garden
+   starts is yours — just not how many rows or levels there are.
+
+   A single-storey fork is a re-skin, not an engine edit: give no plan `where: 'upstairs'`
+   or `'roof'` and the upper levels are simply never legal. The switcher still shows them,
+   which is the honest cost of doing it this way.
 
 3. **The resolution ladder is fixed.** Explicit pair → quality match → orientation →
    silence, one line per placement, in `src/engine/adjacency.ts`. You can change every
@@ -283,7 +296,7 @@ A copy-paste checklist for your fork's PR description.
 - [ ] `plot` — the fixed cell, the demolishable rooms, all named, `gardenFromRow`
 - [ ] `premise` and `whyNow` — why this building has to change
 - [ ] `rules` — the objective and the points, in your building's language
-- [ ] All 24 plans: `name`, `have`, `care`, `orientation`, and their `tier` / `zone` / `cost` / `consent`
+- [ ] All 24 plans: `name`, `have`, `care`, `orientation`, and their `tier` / `where` / `cost` / `consent`
 - [ ] All 6 situations, each with an answer written for when the player missed
 - [ ] `pairLines` — the specific pairings worth a sentence
 - [ ] `qualityLines` — one per quality that can fire

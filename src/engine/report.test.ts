@@ -60,9 +60,9 @@ function playThrough(seed: number): GameState {
     const planId = state.hand[0];
     if (planId === undefined) throw new Error('dealt an empty hand');
     const selected = game.reducer(state, { type: 'SELECT_PLAN', planId });
-    const zone = byId.get(planId)?.zone;
-    if (zone === undefined) throw new Error('no such plan');
-    const cell = legalCells(selected, zone)[0];
+    const where = byId.get(planId)?.where;
+    if (where === undefined) throw new Error('no such plan');
+    const cell = legalCells(selected, where)[0];
     if (cell === undefined) throw new Error('no legal cell');
     // §7.2, §13 — say yes to the confirmation, so that demolition is exercised
     // by the report tests rather than avoided by them.
@@ -415,14 +415,17 @@ describe('the same house, with conservation on (§9.2)', () => {
   });
 
   it('says much more about taking the old house down', () => {
-    const state = playThrough(11);
-    const razed: GameState = {
-      ...state,
-      placements: state.placements.map((placement, index) => ({
-        ...placement,
-        demolished: index === 0,
-      })),
-    };
+    /**
+     * Seed 14 takes two of the old rooms down of its own accord, which is what
+     * this test needs: `demolished` set by the placement that did it, on a cell
+     * the old house actually stood on. Setting the flag afterwards on whatever
+     * happened to be placed first is a state the game cannot reach — a bin
+     * store in the garden has no fabric under it to demolish — and it ranks
+     * wherever that plan ranks, which is not necessarily inside the two lines
+     * the report has room for.
+     */
+    const razed = playThrough(14);
+    expect(razed.placements.filter((placement) => placement.demolished)).not.toHaveLength(0);
 
     const ordinary = buildReport(razed, deck, content, qualitySeverity, config)
       .obligations;
@@ -539,7 +542,7 @@ describe('the finished house (§10.4)', () => {
   it('measures from the front door, which is always there to measure from (§7)', () => {
     const state = playThrough(11);
     const house = summarise(state, deck, qualitySeverity);
-    expect(house.frontDoor).toBe('C1');
+    expect(house.frontDoor).toBe('GC1');
     // Null means the plan was never placed, never that the door is missing.
     expect(house.fromFrontDoor('not-a-plan')).toBeNull();
   });

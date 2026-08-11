@@ -657,9 +657,10 @@ nothing has to download a browser. It writes screenshots to `e2e/screenshots/` (
 — the fastest way to see what a playthrough actually looks like without playing one.
 
 Manual playthrough checklist, as of Part two: the rules card appears before round 1 and
-reopens mid-play · one situation, answered once at the end · an outdoor plan cannot be
-placed in the house and an indoor plan cannot be placed in the garden · the front door at
-C1 never highlights · demolishing an old room asks once and surfaces in the obligations ·
+reopens mid-play · one situation, answered once at the end · a garden plan cannot be
+placed in the house and a house plan cannot be placed in the garden · an upstairs plan
+lights only first-floor cells that sit over a room · the front door at GC1 and the stair
+at GB1 never highlight · demolishing an old room asks once and surfaces in the obligations ·
 every line names its cause and lights the cells that caused it · the report is three pairs,
 a cost line, two obligations, a closing line and one answer · no cost, score, counter or
 timer appears before the report · the fork test in M12.
@@ -678,4 +679,7 @@ a playtest answers. M7 was where that happened, and Part two is what it returned
 ## Explicitly out of scope
 
 Discovery (§11) · placement animation and polish (§18.8) · save/load · a seed URL
-parameter · multiple storeys · multi-cell plans · a visible budget · any score.
+parameter · a basement · multi-cell plans · a visible budget · any score.
+
+*Multiple storeys was on this list until M15. See GDD §4 for what changed the decision —
+the short version is 187,492 roof applications in `PLANNING-DATA.md`.*

@@ -72,19 +72,19 @@ describe('consent is a flag, never an outcome (§9.1)', () => {
   });
 
   it('carries the plan’s own flag when nothing complicates it', () => {
-    expect(taken('kitchen', 'C4')).toEqual([plan('kitchen').consent]);
-    expect(taken('shed', 'E5')).toEqual([plan('shed').consent]);
+    expect(taken('kitchen', 'GC4')).toEqual([plan('kitchen').consent]);
+    expect(taken('shed', 'GE5')).toEqual([plan('shed').consent]);
   });
 
   it('adds a demolition flag when the old house came down (§7.2)', () => {
-    expect(taken('kitchen', 'C3')).toEqual([plan('kitchen').consent]);
-    expect(taken('kitchen', 'C3', true)).toContain('demolition');
+    expect(taken('kitchen', 'GC3')).toEqual([plan('kitchen').consent]);
+    expect(taken('kitchen', 'GC3', true)).toContain('demolition');
   });
 
   it('never repeats a flag', () => {
     // The glass extension is already `sensitive`; conservation would add it
     // again on the street, and once is once.
-    const flags = taken('glass-extension', 'C1', false, true);
+    const flags = taken('glass-extension', 'GC1', false, true);
     expect(new Set(flags).size).toBe(flags.length);
   });
 });
@@ -97,16 +97,16 @@ describe('conservation changes four things, and only four (§9.2)', () => {
   it('1. makes a new opening in the street elevation sensitive', () => {
     // The bedroom has a north line, so it has a window on that elevation.
     expect(hasOpening(plan('bedroom'), 'north')).toBe(true);
-    expect(taken('bedroom', 'C1')).not.toContain('sensitive');
-    expect(taken('bedroom', 'C1', false, true)).toContain('sensitive');
+    expect(taken('bedroom', 'GC1')).not.toContain('sensitive');
+    expect(taken('bedroom', 'GC1', false, true)).toContain('sensitive');
   });
 
   it('…on the street rows only, and only for a plan with an opening', () => {
     // Row 5 is the garden. Same plan, same flag as without conservation.
-    expect(taken('bedroom', 'C5', false, true)).toEqual(taken('bedroom', 'C5'));
+    expect(taken('bedroom', 'GC5', false, true)).toEqual(taken('bedroom', 'GC5'));
     // The bin store has nothing to say about any elevation: no opening.
     expect(hasOpening(plan('bin-store'), 'north')).toBe(false);
-    expect(taken('bin-store', 'C1', false, true)).toEqual(taken('bin-store', 'C1'));
+    expect(taken('bin-store', 'GC1', false, true)).toEqual(taken('bin-store', 'GC1'));
   });
 
   /**
@@ -118,16 +118,16 @@ describe('conservation changes four things, and only four (§9.2)', () => {
    * changes what you end up agreeing to.
    */
   it('2. tells the heat pump where it may stand, without changing its flag', () => {
-    expect(taken('heat-pump', 'C4')).toEqual(['sensitive']);
-    expect(taken('heat-pump', 'C4', false, true)).toEqual(['sensitive']);
+    expect(taken('heat-pump', 'GC4')).toEqual(['sensitive']);
+    expect(taken('heat-pump', 'GC4', false, true)).toEqual(['sensitive']);
 
-    expect(consentFor(plan('heat-pump'), 'C4', false, false, content).care).toEqual([]);
-    expect(consentFor(plan('heat-pump'), 'C4', false, true, content).care).toHaveLength(1);
+    expect(consentFor(plan('heat-pump'), 'GC4', false, false, content).care).toEqual([]);
+    expect(consentFor(plan('heat-pump'), 'GC4', false, true, content).care).toHaveLength(1);
   });
 
   it('3. makes demolition sensitive, and says much more about it', () => {
-    const ordinary = consentFor(plan('kitchen'), 'C3', true, false, content);
-    const preserved = consentFor(plan('kitchen'), 'C3', true, true, content);
+    const ordinary = consentFor(plan('kitchen'), 'GC3', true, false, content);
+    const preserved = consentFor(plan('kitchen'), 'GC3', true, true, content);
 
     expect(ordinary.flags).not.toContain('sensitive');
     expect(preserved.flags).toContain('sensitive');
@@ -144,19 +144,19 @@ describe('conservation changes four things, and only four (§9.2)', () => {
   it('4. gives the glass extension its ridge height line', () => {
     const ridge = conservationOverrides.plans['glass-extension']?.care as string;
     expect(ridge).toMatch(/ridge/i);
-    expect(consentFor(plan('glass-extension'), 'C4', false, false, content).care).toEqual(
+    expect(consentFor(plan('glass-extension'), 'GC4', false, false, content).care).toEqual(
       [],
     );
     expect(
-      consentFor(plan('glass-extension'), 'C4', false, true, content).care,
+      consentFor(plan('glass-extension'), 'GC4', false, true, content).care,
     ).toContain(ridge);
   });
 
   it('changes nothing at all for a plan it does not name, away from the street', () => {
     for (const entry of deck) {
       if (entry.id === 'heat-pump' || entry.id === 'glass-extension') continue;
-      const off = consentFor(entry, 'C4', false, false, content);
-      const on = consentFor(entry, 'C4', false, true, content);
+      const off = consentFor(entry, 'GC4', false, false, content);
+      const on = consentFor(entry, 'GC4', false, true, content);
       expect(on.flags).toEqual(off.flags);
       expect(on.care).toEqual(off.care);
     }
@@ -170,9 +170,9 @@ describe('conservation changes four things, and only four (§9.2)', () => {
 describe('the obligations the house takes on (§9.3)', () => {
   it('says a repeated flag once — one relationship, not three', () => {
     const three = [
-      consentFor(plan('kitchen'), 'C4', false, false, content),
-      consentFor(plan('bathroom'), 'C5', false, false, content),
-      consentFor(plan('bedroom'), 'D4', false, false, content),
+      consentFor(plan('kitchen'), 'GC4', false, false, content),
+      consentFor(plan('bathroom'), 'GC5', false, false, content),
+      consentFor(plan('bedroom'), 'GD4', false, false, content),
     ];
     const care = consentCare(three, consentOrder, consentCareLines);
 
@@ -185,9 +185,9 @@ describe('the obligations the house takes on (§9.3)', () => {
    */
   it('reads them heaviest first, not in placement order', () => {
     const placements = [
-      consentFor(plan('glass-extension'), 'C4', false, false, content),
-      consentFor(plan('shed'), 'E5', false, false, content),
-      consentFor(plan('kitchen'), 'C3', true, false, content),
+      consentFor(plan('glass-extension'), 'GC4', false, false, content),
+      consentFor(plan('shed'), 'GE5', false, false, content),
+      consentFor(plan('kitchen'), 'GC3', true, false, content),
     ];
     const care = consentCare(placements, consentOrder, consentCareLines);
 
@@ -202,7 +202,7 @@ describe('the obligations the house takes on (§9.3)', () => {
   it('puts an obligation agreed on this house before the general ones', () => {
     // The same principle §8.6 uses to rank the adjacency lines: a condition on
     // this particular roof says more than the fact that an application exists.
-    const placements = [consentFor(plan('glass-extension'), 'C1', false, true, content)];
+    const placements = [consentFor(plan('glass-extension'), 'GC1', false, true, content)];
     const care = consentCare(placements, consentOrder, consentCareLines);
     const ridge = conservationOverrides.plans['glass-extension']?.care as string;
 
@@ -215,8 +215,8 @@ describe('the obligations the house takes on (§9.3)', () => {
 
   it('says nothing twice', () => {
     const both = [
-      consentFor(plan('glass-extension'), 'C1', false, true, content),
-      consentFor(plan('bedroom'), 'B1', false, true, content),
+      consentFor(plan('glass-extension'), 'GC1', false, true, content),
+      consentFor(plan('bedroom'), 'GB1', false, true, content),
     ];
     const care = consentCare(both, consentOrder, consentCareLines);
     expect(new Set(care).size).toBe(care.length);

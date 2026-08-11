@@ -16,7 +16,14 @@ import type {
 } from '../types.ts';
 import { type AdjacencyContent, type Neighbour, observationFor } from './adjacency.ts';
 import { drawHand } from './deck.ts';
-import { isFabric, isLegalCell, orthogonalNeighbours, placementAt } from './grid.ts';
+import {
+  above,
+  isFabric,
+  isFixed,
+  isLegalCell,
+  orthogonalNeighbours,
+  placementAt,
+} from './grid.ts';
 import { createRng } from './rng.ts';
 
 export type Action =
@@ -33,6 +40,22 @@ export interface Game {
   reducer: (state: GameState, action: Action) => GameState;
 }
 
+/**
+ * §5 — the cell directly above, for a cell that must have one.
+ *
+ * The stair is on the ground floor by definition, so its landing always exists.
+ * A fork that puts the stair on the roof has made a mistake worth hearing about
+ * at start-up rather than as an undefined three rounds later — and
+ * `npm run validate` catches it before that.
+ */
+function aboveOrThrow(cell: CellId): CellId {
+  const up = above(cell);
+  if (up === null) {
+    throw new Error(`plot: the stair at ${cell} has no level above it for a landing (§5).`);
+  }
+  return up;
+}
+
 export function createGame(
   deck: readonly PlanAdjacency[],
   config: Config,
@@ -47,11 +70,12 @@ export function createGame(
   const byId = new Map(deck.map((plan) => [plan.id, plan]));
 
   /**
-   * §5 — the zone a plan may be placed in. A plan that is not in the deck has
-   * no zone, and no legal cell either, so nothing can be placed for it.
+   * §5 — the part of the building a plan may be placed in. A plan that is not
+   * in the deck has no `where`, and no legal cell either, so nothing can be
+   * placed for it.
    */
-  function zoneFor(planId: Plan['id']) {
-    return byId.get(planId)?.zone;
+  function whereFor(planId: Plan['id']) {
+    return byId.get(planId)?.where;
   }
 
   /**
@@ -90,6 +114,11 @@ export function createGame(
       placements: [],
       fabric: plot.fabric.map((room) => room.cell),
       frontDoor: plot.frontDoor.cell,
+      stair: plot.stair.cell,
+      // §5 — the landing is the cell directly above the stair. Derived rather
+      // than written twice, so a fork that moves the stair moves the landing
+      // with it and cannot put them in different columns by accident.
+      landing: aboveOrThrow(plot.stair.cell),
       gardenFromRow: plot.gardenFromRow,
       observation: null,
       pendingDemolition: null,
@@ -107,9 +136,9 @@ export function createGame(
     const planId = state.selectedPlanId;
     if (planId === null) return state;
     if (!state.hand.includes(planId)) return state;
-    const zone = zoneFor(planId);
-    if (zone === undefined) return state;
-    if (!isLegalCell(state, cell, zone)) return state;
+    const where = whereFor(planId);
+    if (where === undefined) return state;
+    if (!isLegalCell(state, cell, where)) return state;
 
     return isFabric(state, cell)
       ? { ...state, pendingDemolition: cell }
@@ -120,9 +149,9 @@ export function createGame(
     const planId = state.selectedPlanId;
     if (planId === null) return state;
     if (!state.hand.includes(planId)) return state;
-    const zone = zoneFor(planId);
-    if (zone === undefined) return state;
-    if (!isLegalCell(state, cell, zone)) return state;
+    const where = whereFor(planId);
+    if (where === undefined) return state;
+    if (!isLegalCell(state, cell, where)) return state;
 
     // §7.2 — placing onto inherited fabric demolishes it. Irreversible: §7.3
     // means there is no way back from here for the rest of the game.
@@ -170,7 +199,7 @@ export function createGame(
       if (placement) {
         const plan = byId.get(placement.planId);
         if (plan) neighbours.push({ kind: 'plan', cell: ref, plan });
-      } else if (state.fabric.includes(ref) || ref === state.frontDoor) {
+      } else if (state.fabric.includes(ref) || isFixed(state, ref)) {
         // The front door is part of the old house too — insulation against it
         // is insulation against a solid wall, same as any other old room.
         neighbours.push({ kind: 'fabric', cell: ref });

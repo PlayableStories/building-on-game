@@ -1,17 +1,21 @@
 import { expect, test, type Page } from '@playwright/test';
 import { config, plot, premise, ui } from '../src/content.ts';
+import type { Where } from '../src/types.ts';
 
 /** Read against whatever plot `content.ts` describes, not against this one. */
 const ROOM = plot.fabric[0]!.cell;
 /** An empty cell that is legal at the opening — somewhere ordinary to build. */
 async function clearCell(page: Page): Promise<string> {
-  await handFor(page, 'indoor').first().click();
+  await handFor(page, 'house').first().click();
   const refs = await legalCells(page).evaluateAll((cells) =>
-    cells.map((cell) => (cell.getAttribute('aria-label') ?? '').split(',')[0] as string),
+    cells.map((cell) => cell.getAttribute('aria-label') ?? ''),
   );
-  const ref = refs.find((one) => !STANDING.includes(one));
-  if (!ref) throw new Error('no clear indoor cell at the opening');
-  return ref;
+  // Back to a cell id, which is what everything downstream of this deals in.
+  const found = refs
+    .map((label) => `G${refFromLabel(label)}`)
+    .find((one) => !STANDING.includes(one));
+  if (!found) throw new Error('no clear indoor cell at the opening');
+  return found;
 }
 const OTHER_ROOM = plot.fabric[1]!.cell;
 const DOOR = plot.frontDoor.cell;
@@ -35,8 +39,35 @@ async function start(page: Page) {
   await page.getByRole('button', { name: ui.begin }).click();
 }
 
-function cell(page: Page, ref: string) {
-  return page.getByRole('gridcell', { name: new RegExp(`^${ref}[,$]`) });
+/** §5 — which grid a cell id belongs to. 'GB2' is the ground floor's B2. */
+const LEVEL_NAME: Record<string, string> = {
+  G: ui.plot.levels.ground,
+  F: ui.plot.levels.first,
+  R: ui.plot.levels.roof,
+};
+
+/** §5 — move the board to a level. The switcher is above the grid. */
+async function showLevel(page: Page, name: string) {
+  const tab = page.locator('.plot__level', { hasText: name });
+  if ((await tab.getAttribute('aria-pressed')) !== 'true') await tab.click();
+}
+
+/**
+ * §5 — the cell with this id. One level is on screen at a time, so a cell on
+ * another one simply is not found: a test that means the first floor says so
+ * with `showLevel` first. The board opens on the ground floor, which is where
+ * almost everything below is aimed.
+ */
+function cell(page: Page, cellId: string) {
+  const level = LEVEL_NAME[cellId[0] as string] as string;
+  return page.getByRole('gridcell', {
+    name: new RegExp(`^${level}, ${cellId.slice(1)},`),
+  });
+}
+
+/** The 'B2' out of a cell's "Ground floor, B2, Old kitchen". */
+function refFromLabel(label: string): string {
+  return (label.split(',')[1] ?? '').trim();
 }
 
 function legalCells(page: Page) {
@@ -48,11 +79,11 @@ function hand(page: Page) {
 }
 
 /**
- * §5 — a plan in hand for one half of the plot. Tests that aim at a named cell
- * need one that is allowed to go there.
+ * §5 — a plan in hand that belongs to one part of the building. Tests that aim
+ * at a named cell need one that is allowed to go there.
  */
-function handFor(page: Page, zone: 'indoor' | 'outdoor') {
-  return page.locator(`.plan[data-zone="${zone}"]`);
+function handFor(page: Page, where: Where) {
+  return page.locator(`.plan[data-where="${where}"]`);
 }
 
 function observation(page: Page) {
@@ -119,13 +150,73 @@ test.describe('the plot (§5, §12)', () => {
     expect(new Set(boxes.map((box) => box.y)).size).toBe(5);
   });
 
+  /**
+   * §5 — the switcher. Three levels, one on screen, and the ground floor first
+   * because that is where a game starts and where most of it happens.
+   */
+  test('shows one level at a time, and switches between them', async ({ page }) => {
+    await start(page);
+
+    const tabs = page.locator('.plot__level');
+    await expect(tabs).toHaveCount(3);
+    // Top to bottom, the way the building stands.
+    await expect(tabs).toHaveText([
+      ui.plot.levels.roof,
+      ui.plot.levels.first,
+      ui.plot.levels.ground,
+    ]);
+    await expect(page.getByRole('grid')).toHaveCount(1);
+    await expect(page.getByRole('grid', { name: ui.plot.levels.ground })).toBeVisible();
+
+    // §5 — the upper levels are the building only, so they stop where the
+    // garden starts, and the street and garden labels stay with the ground.
+    await showLevel(page, ui.plot.levels.first);
+    await expect(page.getByRole('grid', { name: ui.plot.levels.first })).toBeVisible();
+    await expect(page.getByRole('gridcell')).toHaveCount(15);
+    await expect(page.locator('.plot__edge--street')).toHaveCount(0);
+    await expect(page.locator('.plot__edge--garden')).toHaveCount(0);
+
+    // §5 — the stair arrives at an inherited landing. It is what seeds the
+    // first floor, so it is standing before anything is built.
+    await expect(cell(page, 'FB1')).toContainText(ui.plot.landing);
+    await expect(cell(page, 'FB1')).toContainText(ui.plot.inherited);
+
+    await showLevel(page, ui.plot.levels.ground);
+    await expect(page.getByRole('gridcell')).toHaveCount(25);
+  });
+
+  /**
+   * §5 — choosing a plan takes the board to the level it goes on. Without it a
+   * player who picks a bedroom sees a ground floor with nothing lit, and the
+   * level rule reads as the game refusing to work.
+   */
+  test('follows the chosen plan to its level, and marks it beforehand', async ({
+    page,
+  }) => {
+    await start(page);
+
+    for (let round = 1; round <= ROUNDS; round++) {
+      if ((await handFor(page, 'upstairs').count()) > 0) {
+        const marked = page.locator('.plot__level[data-legal="true"]');
+        await handFor(page, 'upstairs').first().click();
+
+        await expect(page.getByRole('grid', { name: ui.plot.levels.first })).toBeVisible();
+        await expect(marked).toHaveText([ui.plot.levels.first]);
+        expect(await legalCells(page).count()).toBeGreaterThan(0);
+        return;
+      }
+      await playRound(page);
+    }
+    throw new Error('no upstairs plan dealt in a whole game');
+  });
+
   test('puts the street at the top and the garden at the bottom', async ({ page }) => {
     await start(page);
 
     const street = await page.locator('.plot__edge--street').boundingBox();
     const garden = await page.locator('.plot__edge--garden').boundingBox();
-    const row1 = await cell(page, 'A1').boundingBox();
-    const row5 = await cell(page, 'A5').boundingBox();
+    const row1 = await cell(page, 'GA1').boundingBox();
+    const row5 = await cell(page, 'GA5').boundingBox();
 
     expect(street && row1 && garden && row5).toBeTruthy();
     // Row 1 is north — the street. Row 5 is south — the garden, and the sun.
@@ -183,7 +274,7 @@ test.describe('placement (§13)', () => {
     await expect(legalCells(page)).toHaveCount(0);
 
     const before = await background(page, '.cell--empty');
-    await handFor(page, 'indoor').first().click();
+    await handFor(page, 'house').first().click();
 
     // The old rooms, plus every empty indoor cell touching what is standing —
     // never the front door, whichever cell that is.
@@ -201,14 +292,19 @@ test.describe('placement (§13)', () => {
 
     // The garden tier arrives late, so play on until one is dealt.
     for (let round = 1; round <= ROUNDS; round++) {
-      if ((await handFor(page, 'outdoor').count()) > 0) {
-        await handFor(page, 'outdoor').first().click();
+      if ((await handFor(page, 'garden').count()) > 0) {
+        await handFor(page, 'garden').first().click();
 
-        const refs = await legalCells(page).evaluateAll((cells) =>
-          cells.map((cell) => (cell.getAttribute('aria-label') ?? '').slice(0, 2)),
+        const labels = await legalCells(page).evaluateAll((cells) =>
+          cells.map((cell) => cell.getAttribute('aria-label') ?? ''),
         );
-        expect(refs.length).toBeGreaterThan(0);
-        for (const ref of refs) expect(Number(ref[1])).toBeGreaterThanOrEqual(4);
+        expect(labels.length).toBeGreaterThan(0);
+        for (const label of labels) {
+          // §5 — the garden is rows 4 and 5 of the ground floor, and nowhere
+          // else. A garden plan never lights an upper level.
+          expect(label.startsWith(`${ui.plot.levels.ground},`)).toBe(true);
+          expect(Number(refFromLabel(label)[1])).toBeGreaterThanOrEqual(4);
+        }
         return;
       }
       await playRound(page);
@@ -220,7 +316,7 @@ test.describe('placement (§13)', () => {
     await start(page);
 
     const ref = await clearCell(page);
-    const name = await handFor(page, 'indoor').first().locator('.plan__name').innerText();
+    const name = await handFor(page, 'house').first().locator('.plan__name').innerText();
     await cell(page, ref).click();
 
     // The block is on the plot before the line is read — you see what you did.
@@ -229,8 +325,10 @@ test.describe('placement (§13)', () => {
 
     await expect(page.getByText(`2 of ${ROUNDS}`)).toBeVisible();
 
-    // Placed cells are never offered again.
-    await hand(page).first().click();
+    // Placed cells are never offered again. A ground-floor plan on purpose:
+    // §5 — choosing one that goes upstairs would take the board with it, and
+    // the cell this test is about is downstairs.
+    await handFor(page, 'house').first().click();
     await expect(cell(page, ref)).toBeDisabled();
   });
 });
@@ -250,7 +348,15 @@ test.describe('a whole game (§15)', () => {
     }
 
     await expect(page.getByText(ui.report.finished)).toBeVisible();
-    await expect(page.locator('.cell--placed')).toHaveCount(ROUNDS);
+
+    // §5 — a finished house is spread over three levels and the board shows
+    // one, so count each in turn. All eight are somewhere on the building.
+    let placed = 0;
+    for (const level of Object.values(ui.plot.levels)) {
+      await showLevel(page, level);
+      placed += await page.locator('.cell--placed').count();
+    }
+    expect(placed).toBe(ROUNDS);
 
     // §10.1 — nothing is totalled or displayed during play.
     const text = (await page.locator('body').innerText()).toLowerCase();
@@ -284,7 +390,7 @@ test.describe('the one confirmation (§7.2, §13)', () => {
   /** Choose a plan for the house and aim it at a named cell. */
   async function aimAt(page: Page, ref: string): Promise<string> {
     await start(page);
-    const chosen = handFor(page, 'indoor').first();
+    const chosen = handFor(page, 'house').first();
     const name = await chosen.locator('.plan__name').innerText();
     await chosen.click();
     await cell(page, ref).click();
@@ -363,7 +469,7 @@ test.describe('the one confirmation (§7.2, §13)', () => {
     page,
   }) => {
     await start(page);
-    await handFor(page, 'indoor').first().click();
+    await handFor(page, 'house').first().click();
 
     // Not merely unhighlighted — not clickable at all. The one cell in the game
     // that is never a decision.
@@ -734,9 +840,9 @@ test.describe('screenshots', () => {
     await page.screenshot({ path: 'e2e/screenshots/01-opening.png', fullPage: true });
 
     // Selected but not yet placed: this is the frame that shows the highlight,
-    // and with it the zone rule — a house plan lights the house and not the
-    // garden (§5).
-    await handFor(page, 'indoor').first().click();
+    // and with it the placement rule — a house plan lights the ground floor
+    // and not the garden (§5).
+    await handFor(page, 'house').first().click();
     await page.screenshot({ path: 'e2e/screenshots/02-selected.png', fullPage: true });
 
     // §13 — the rules looked up mid-round, over a game in progress.

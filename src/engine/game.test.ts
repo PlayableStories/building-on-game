@@ -43,10 +43,10 @@ function settle(state: GameState): GameState {
 }
 
 /** §5 — a plan's half of the plot, which is what its legal cells depend on. */
-function zoneOfPlan(planId: string) {
-  const zone = byId.get(planId)?.zone;
-  if (zone === undefined) throw new Error(`no such plan: ${planId}`);
-  return zone;
+function whereOfPlan(planId: string) {
+  const where = byId.get(planId)?.where;
+  if (where === undefined) throw new Error(`no such plan: ${planId}`);
+  return where;
 }
 
 /**
@@ -54,7 +54,7 @@ function zoneOfPlan(planId: string) {
  * a specific indoor cell, so they need a plan that is allowed to go there.
  */
 function indoorInHand(state: GameState): string {
-  const planId = state.hand.find((id) => byId.get(id)?.zone === 'indoor');
+  const planId = state.hand.find((id) => byId.get(id)?.where === 'house');
   if (planId === undefined) throw new Error('no indoor plan in hand');
   return planId;
 }
@@ -74,7 +74,7 @@ function playThrough(seed: number): {
     const planId = state.hand[0];
     if (planId === undefined) throw new Error('dealt an empty hand');
     const selected = game.reducer(state, { type: 'SELECT_PLAN', planId });
-    const cell = legalCells(selected, zoneOfPlan(planId))[0];
+    const cell = legalCells(selected, whereOfPlan(planId))[0];
     if (cell === undefined) throw new Error('no legal cell');
 
     const placed = settle(game.reducer(selected, { type: 'PLACE', cell }));
@@ -96,6 +96,43 @@ describe('the core loop (§6, §15)', () => {
   it('never runs out of legal cells across many seeds', () => {
     for (let seed = 1; seed <= 50; seed++) {
       expect(playThrough(seed).final.placements).toHaveLength(config.rounds);
+    }
+  });
+
+  /**
+   * §5 — the gate on going vertical. The test above only proves the plan the
+   * simulation happened to take could be placed; this one proves *every* plan
+   * in *every* hand could have been, which is the thing four legality rules on
+   * three levels could plausibly break. A hand with a plan the player cannot
+   * put anywhere is a dead end with no explanation, and the game has no way to
+   * apologise for it.
+   *
+   * Four hundred games rather than fifty because the levels multiplied the
+   * states worth reaching, and this is cheap.
+   */
+  it('never deals a plan with nowhere to put it, on any level (§5)', () => {
+    for (let seed = 1; seed <= 400; seed++) {
+      for (const state of playThrough(seed).steps) {
+        for (const planId of state.hand) {
+          const cells = legalCells(state, whereOfPlan(planId));
+          expect(cells.length, `${planId} had nowhere to go at seed ${seed}`)
+            .toBeGreaterThan(0);
+        }
+      }
+    }
+  });
+
+  /** §5, §7 — and nothing the simulation places ever lands somewhere it may not. */
+  it('never places anything on an unsupported or fixed cell (§5, §7)', () => {
+    for (let seed = 1; seed <= 400; seed++) {
+      const { final, steps } = playThrough(seed);
+      for (const [index, placement] of final.placements.entries()) {
+        const before = steps[index];
+        if (before === undefined) throw new Error('no state before the placement');
+        const where = whereOfPlan(placement.planId);
+        expect(legalCells(before, where)).toContain(placement.cell);
+        expect([final.frontDoor, final.stair, final.landing]).not.toContain(placement.cell);
+      }
     }
   });
 
@@ -127,7 +164,7 @@ describe('the core loop (§6, §15)', () => {
     const passedOver = opening.hand.find((id) => id !== kept) as string;
 
     const selected = game.reducer(opening, { type: 'SELECT_PLAN', planId: kept });
-    const next = game.reducer(selected, { type: 'PLACE', cell: 'D2' });
+    const next = game.reducer(selected, { type: 'PLACE', cell: 'GD2' });
 
     expect(next.pool).not.toContain(kept);
     expect(next.pool).toContain(passedOver);
@@ -136,7 +173,7 @@ describe('the core loop (§6, §15)', () => {
 
 describe('the line, and the pause for it (§8.6, §13)', () => {
   /** Force a placement that is guaranteed to say something. */
-  function placeInto(seed: number, planId: string, cell: 'B1' | 'C4' | 'B4' | 'B2') {
+  function placeInto(seed: number, planId: string, cell: 'GD1' | 'GC4' | 'GB4' | 'GB2') {
     const state = startGame(seed);
     // The hand is drawn, so put the plan we want to test into it directly.
     const rigged: GameState = { ...state, hand: [planId], selectedPlanId: planId };
@@ -145,20 +182,20 @@ describe('the line, and the pause for it (§8.6, §13)', () => {
 
   it('holds the round open while there is a line to read', () => {
     // The glass extension on the street elevation fires its north line.
-    const placed = placeInto(1, 'glass-extension', 'B1');
+    const placed = placeInto(1, 'glass-extension', 'GD1');
 
     expect(placed.observation?.line).toBe(
       'The light is even and cold. You will heat this room more than any other.',
     );
     // §8.6 — and it says what caused it, so the plot can light it.
     expect(placed.observation?.cause).toBe('Glass-roofed extension, facing the street');
-    expect(placed.observation?.cell).toBe('B1');
+    expect(placed.observation?.cell).toBe('GD1');
     expect(placed.round).toBe(1);
     expect(placed.placements).toHaveLength(1);
   });
 
   it('moves on when the line is dismissed', () => {
-    const placed = placeInto(1, 'glass-extension', 'B1');
+    const placed = placeInto(1, 'glass-extension', 'GD1');
     const dismissed = game.reducer(placed, { type: 'DISMISS' });
 
     expect(dismissed.observation).toBeNull();
@@ -169,17 +206,17 @@ describe('the line, and the pause for it (§8.6, §13)', () => {
   it('carries straight on when there is nothing to say (§8.6)', () => {
     // A shed in the garden, backing onto the old scullery: no pair, no
     // quality, no orientation. Silence, and the round advances without a dismissal.
-    const placed = placeInto(1, 'shed', 'B4');
+    const placed = placeInto(1, 'shed', 'GB4');
     expect(placed.observation).toBeNull();
     expect(placed.round).toBe(2);
   });
 
   it('accepts nothing but a dismissal while the line is up', () => {
-    const placed = placeInto(1, 'glass-extension', 'B1');
+    const placed = placeInto(1, 'glass-extension', 'GD1');
     const otherPlan = deck[0]?.id as string;
 
     expect(game.reducer(placed, { type: 'SELECT_PLAN', planId: otherPlan })).toBe(placed);
-    expect(game.reducer(placed, { type: 'PLACE', cell: 'D2' })).toBe(placed);
+    expect(game.reducer(placed, { type: 'PLACE', cell: 'GD2' })).toBe(placed);
   });
 
   it('does nothing when dismissed with no line up', () => {
@@ -212,7 +249,7 @@ describe('selection', () => {
     const selected = game.reducer(opening, { type: 'SELECT_PLAN', planId });
     expect(selected.selectedPlanId).toBe(planId);
 
-    const placed = game.reducer(selected, { type: 'PLACE', cell: 'D2' });
+    const placed = game.reducer(selected, { type: 'PLACE', cell: 'GD2' });
     expect(placed.selectedPlanId).toBeNull();
   });
 
@@ -238,7 +275,7 @@ describe('selection', () => {
 describe('placement (§7)', () => {
   it('does nothing without a selected plan', () => {
     const opening = startGame(5);
-    expect(game.reducer(opening, { type: 'PLACE', cell: 'C1' })).toBe(opening);
+    expect(game.reducer(opening, { type: 'PLACE', cell: 'GC1' })).toBe(opening);
   });
 
   it('refuses an illegal cell', () => {
@@ -246,25 +283,25 @@ describe('placement (§7)', () => {
     const planId = opening.hand[0] as string;
     const selected = game.reducer(opening, { type: 'SELECT_PLAN', planId });
     // E5 is the far corner — nothing touches it at the opening.
-    expect(game.reducer(selected, { type: 'PLACE', cell: 'E5' })).toBe(selected);
+    expect(game.reducer(selected, { type: 'PLACE', cell: 'GE5' })).toBe(selected);
   });
 
   it('records a placement onto fabric as a demolition (§7.2)', () => {
     const opening = startGame(5);
     const planId = indoorInHand(opening);
     const selected = game.reducer(opening, { type: 'SELECT_PLAN', planId });
-    const placed = settle(game.reducer(selected, { type: 'PLACE', cell: 'C3' }));
+    const placed = settle(game.reducer(selected, { type: 'PLACE', cell: 'GC3' }));
 
     expect(placed.placements[0]?.demolished).toBe(true);
-    expect(placed.fabric).not.toContain('C3');
+    expect(placed.fabric).not.toContain('GC3');
   });
 
   it('keeps the front door whatever else comes down (§7)', () => {
     // Every old room demolished, and the door still there. It is the one thing
     // about this house the player did not get to decide.
     const { final } = playThrough(5);
-    expect(final.frontDoor).toBe('C1');
-    expect(final.placements.map((placement) => placement.cell)).not.toContain('C1');
+    expect(final.frontDoor).toBe('GC1');
+    expect(final.placements.map((placement) => placement.cell)).not.toContain('GC1');
   });
 
   it('refuses to build on the front door at all (§7)', () => {
@@ -272,28 +309,28 @@ describe('placement (§7)', () => {
     const planId = indoorInHand(opening);
     const selected = game.reducer(opening, { type: 'SELECT_PLAN', planId });
 
-    expect(game.reducer(selected, { type: 'PLACE', cell: 'C1' })).toBe(selected);
+    expect(game.reducer(selected, { type: 'PLACE', cell: 'GC1' })).toBe(selected);
   });
 
   it('leaves the old house standing when the placement is not on it', () => {
     const opening = startGame(5);
     const planId = indoorInHand(opening);
     const selected = game.reducer(opening, { type: 'SELECT_PLAN', planId });
-    const placed = game.reducer(selected, { type: 'PLACE', cell: 'D2' });
+    const placed = game.reducer(selected, { type: 'PLACE', cell: 'GD2' });
 
     expect(placed.fabric).toEqual(opening.fabric);
     expect(placed.placements[0]?.demolished).toBe(false);
   });
 
-  /* §5 — the zone rule. A plan belongs to the house or to the garden. */
+  /* §5 — a plan belongs to one part of the building, and only there. */
 
-  it('refuses to put an indoor plan in the garden (§5)', () => {
+  it('refuses to put a house plan in the garden (§5)', () => {
     const opening = startGame(5);
     const planId = indoorInHand(opening);
     const selected = game.reducer(opening, { type: 'SELECT_PLAN', planId });
 
     // B4 is legal ground, and touches the old house — but not for a bathroom.
-    expect(game.reducer(selected, { type: 'PLACE', cell: 'B4' })).toBe(selected);
+    expect(game.reducer(selected, { type: 'PLACE', cell: 'GB4' })).toBe(selected);
   });
 
   it('refuses to put an outdoor plan in the house (§5)', () => {
@@ -301,23 +338,30 @@ describe('placement (§7)', () => {
     // walk seeds until one turns up rather than assuming round 1 deals one.
     for (let seed = 1; seed <= 40; seed++) {
       const opening = startGame(seed);
-      const planId = opening.hand.find((id) => byId.get(id)?.zone === 'outdoor');
+      const planId = opening.hand.find((id) => byId.get(id)?.where === 'garden');
       if (planId === undefined) continue;
 
       const selected = game.reducer(opening, { type: 'SELECT_PLAN', planId });
-      expect(game.reducer(selected, { type: 'PLACE', cell: 'D2' })).toBe(selected);
-      expect(game.reducer(selected, { type: 'PLACE', cell: 'C3' })).toBe(selected);
+      expect(game.reducer(selected, { type: 'PLACE', cell: 'GD2' })).toBe(selected);
+      expect(game.reducer(selected, { type: 'PLACE', cell: 'GC3' })).toBe(selected);
       return;
     }
     throw new Error('no outdoor plan dealt in forty openings');
   });
 
-  it('never places anything outside its own zone, across many seeds (§5)', () => {
+  it('never places anything outside its own `where`, across many seeds (§5)', () => {
     for (let seed = 1; seed <= 50; seed++) {
       for (const placement of playThrough(seed).final.placements) {
-        const row = Number(placement.cell[1]);
-        const zone = byId.get(placement.planId)?.zone;
-        expect(zone).toBe(row >= 4 ? 'outdoor' : 'indoor');
+        // 'GB4' — the level code, then the column, then the row.
+        const level = placement.cell[0];
+        const row = Number(placement.cell[2]);
+        const where = byId.get(placement.planId)?.where;
+
+        // §5 — every placement landed where its `where` says it may.
+        if (where === 'garden') expect([level, row >= 4]).toEqual(['G', true]);
+        if (where === 'house') expect([level, row >= 4]).toEqual(['G', false]);
+        if (where === 'upstairs') expect(level).toBe('F');
+        if (where === 'roof') expect(level).toBe('R');
       }
     }
   });
@@ -329,7 +373,7 @@ describe('placement (§7)', () => {
 
 describe('the demolition confirmation (§7.2, §13)', () => {
   /** Select an indoor plan from hand and aim it at a cell in the house. */
-  function aim(seed: number, cell: 'C3' | 'B2' | 'D2') {
+  function aim(seed: number, cell: 'GC3' | 'GB2' | 'GD2') {
     const opening = startGame(seed);
     const planId = indoorInHand(opening);
     const selected = game.reducer(opening, { type: 'SELECT_PLAN', planId });
@@ -337,33 +381,33 @@ describe('the demolition confirmation (§7.2, §13)', () => {
   }
 
   it('asks before taking any of the old house down', () => {
-    const { proposed } = aim(5, 'C3');
+    const { proposed } = aim(5, 'GC3');
 
-    expect(proposed.pendingDemolition).toBe('C3');
+    expect(proposed.pendingDemolition).toBe('GC3');
     // Nothing has happened yet. The plan is still in hand, still selected.
     expect(proposed.placements).toEqual([]);
-    expect(proposed.fabric).toContain('C3');
+    expect(proposed.fabric).toContain('GC3');
     expect(proposed.selectedPlanId).not.toBeNull();
   });
 
   it('is the only confirmation in the game (§13)', () => {
-    const { proposed } = aim(5, 'D2');
+    const { proposed } = aim(5, 'GD2');
 
     expect(proposed.pendingDemolition).toBeNull();
     expect(proposed.placements).toHaveLength(1);
   });
 
   it('takes it down when confirmed', () => {
-    const { proposed } = aim(5, 'C3');
+    const { proposed } = aim(5, 'GC3');
     const done = game.reducer(proposed, { type: 'CONFIRM_DEMOLITION' });
 
     expect(done.pendingDemolition).toBeNull();
     expect(done.placements[0]?.demolished).toBe(true);
-    expect(done.fabric).not.toContain('C3');
+    expect(done.fabric).not.toContain('GC3');
   });
 
   it('leaves the old house standing when it is not, and keeps the plan in hand', () => {
-    const { selected, proposed } = aim(5, 'C3');
+    const { selected, proposed } = aim(5, 'GC3');
     const backedOut = game.reducer(proposed, { type: 'CANCEL_DEMOLITION' });
 
     expect(backedOut.pendingDemolition).toBeNull();
@@ -377,25 +421,25 @@ describe('the demolition confirmation (§7.2, §13)', () => {
   });
 
   it('lets a cancelled plan go somewhere else', () => {
-    const { proposed } = aim(5, 'C3');
+    const { proposed } = aim(5, 'GC3');
     const elsewhere = game.reducer(
       game.reducer(proposed, { type: 'CANCEL_DEMOLITION' }),
-      { type: 'PLACE', cell: 'D2' },
+      { type: 'PLACE', cell: 'GD2' },
     );
 
     expect(elsewhere.placements).toHaveLength(1);
-    expect(elsewhere.placements[0]?.cell).toBe('D2');
+    expect(elsewhere.placements[0]?.cell).toBe('GD2');
     expect(elsewhere.placements[0]?.demolished).toBe(false);
   });
 
   it('accepts nothing else while it is waiting for an answer', () => {
-    const { proposed } = aim(5, 'C3');
+    const { proposed } = aim(5, 'GC3');
     const otherPlan = deck[0]?.id as string;
 
     expect(game.reducer(proposed, { type: 'SELECT_PLAN', planId: otherPlan })).toBe(
       proposed,
     );
-    expect(game.reducer(proposed, { type: 'PLACE', cell: 'D2' })).toBe(proposed);
+    expect(game.reducer(proposed, { type: 'PLACE', cell: 'GD2' })).toBe(proposed);
   });
 
   it('does nothing when answered with no question asked', () => {
@@ -405,20 +449,20 @@ describe('the demolition confirmation (§7.2, §13)', () => {
   });
 
   it('asks about every old room, including the one behind the door (§7)', () => {
-    const { proposed } = aim(5, 'B2');
-    expect(proposed.pendingDemolition).toBe('B2');
+    const { proposed } = aim(5, 'GB2');
+    expect(proposed.pendingDemolition).toBe('GB2');
 
     const done = game.reducer(proposed, { type: 'CONFIRM_DEMOLITION' });
-    expect(done.fabric).not.toContain('B2');
+    expect(done.fabric).not.toContain('GB2');
     // The door itself is not part of what came down. It never is.
-    expect(done.frontDoor).toBe('C1');
+    expect(done.frontDoor).toBe('GC1');
   });
 
   it('never asks about the front door, because it is never on offer (§7)', () => {
     const opening = startGame(5);
     const planId = indoorInHand(opening);
     const selected = game.reducer(opening, { type: 'SELECT_PLAN', planId });
-    const proposed = game.reducer(selected, { type: 'PLACE', cell: 'C1' });
+    const proposed = game.reducer(selected, { type: 'PLACE', cell: 'GC1' });
 
     expect(proposed.pendingDemolition).toBeNull();
     expect(proposed).toBe(selected);
@@ -435,8 +479,8 @@ describe('restart (§15)', () => {
     expect(again.phase).toBe('intro');
     expect(again.round).toBe(1);
     expect(again.placements).toEqual([]);
-    expect(again.fabric).toEqual(['B2', 'C2', 'B3', 'C3']);
-    expect(again.frontDoor).toBe('C1');
+    expect(again.fabric).toEqual(['GB2', 'GC2', 'GB3', 'GC3']);
+    expect(again.frontDoor).toBe('GC1');
     expect(again.pool).toHaveLength(deck.length);
   });
 });

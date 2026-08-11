@@ -1,9 +1,21 @@
 /**
  * The plot — GDD §5, §12, §13.
  *
- * Flat coloured cells on a grid. No floor plan: no wall thicknesses, no doors
+ * A grid of flat coloured cells: no floor plan, no wall thicknesses, no doors
  * drawn, no furniture, no scale bar. Blocks keep it about relationships, which
  * is the useful part.
+ *
+ * Since §5 gained levels there are three such grids — the roof, the first floor
+ * and the ground floor with the garden behind it — and **one of them is on
+ * screen at a time**, chosen by the switcher above the board. Stacking all three
+ * as an elevation was the other option and it was not taken: it shrinks the
+ * cells past the point where a room's name fits, to show two levels that are
+ * empty for most of the game.
+ *
+ * The switcher costs nothing to operate, because it mostly operates itself.
+ * Choosing a plan moves the board to the level that plan can go on, so the
+ * player arrives at a board with highlights on it rather than at an empty one —
+ * without which the level rule looks like the game refusing to work.
  *
  * Every occupied cell is printed the same way — its name at the top, in the same
  * face at the same size — whether the player put it there or inherited it. An
@@ -12,16 +24,19 @@
  * scenery, and nobody worked out it could be built on. A cell that says
  * *Old scullery* and murmurs *inherited* reads as a room, and rooms can go.
  */
+import { useEffect, useState } from 'react';
 import {
   COLUMNS,
+  LEVELS,
   ROWS,
   type CellId,
   type GameState,
   type InterfaceCopy,
+  type Level,
   type PlanIdentity,
   type PlotContent,
 } from '../types.ts';
-import { cellId, legalCells, placementAt, zoneOf } from '../engine/grid.ts';
+import { cellId, isGarden, legalCells, levelOf, placementAt } from '../engine/grid.ts';
 
 interface PlotProps {
   state: GameState;
@@ -32,6 +47,9 @@ interface PlotProps {
   copy: InterfaceCopy['plot'];
   onPlace: (cell: CellId) => void;
 }
+
+/** Roof first, ground last — the switcher reads like the building stands. */
+const TOP_DOWN: readonly Level[] = [...LEVELS].reverse();
 
 export default function Plot({ state, deck, plot, copy, onPlace }: PlotProps) {
   const byId = new Map(deck.map((plan) => [plan.id, plan]));
@@ -46,33 +64,90 @@ export default function Plot({ state, deck, plot, copy, onPlace }: PlotProps) {
   const causes = state.observation?.because ?? [];
 
   // §5 — the highlight answers "where can *this* go", so it needs the selected
-  // plan's zone. With nothing selected there is no question and no highlight.
+  // plan's `where`. With nothing selected there is no question and no highlight.
   const selected = state.selectedPlanId === null ? undefined : byId.get(state.selectedPlanId);
-  const legal = selected ? legalCells(state, selected.zone) : [];
+  const legal = selected ? legalCells(state, selected.where) : [];
 
-  /** The name of an inherited cell — an old room, or the front door. */
+  const [shown, setShown] = useState<Level>('ground');
+
+  /**
+   * §5 — where choosing a plan takes you. Read off the plan's own legal cells
+   * rather than from a table of which `where` lives on which level: there is
+   * already exactly one place that rule is written down, and it is the engine.
+   * A fork that invents a fifth `where` gets this for free.
+   */
+  const target = legal[0] === undefined ? null : levelOf(legal[0]);
+  useEffect(() => {
+    if (target !== null) setShown(target);
+    // Following `target` alone would fight the player: it does not change when
+    // they switch levels by hand, but it does the moment a placement alters
+    // what is legal, which would drag the board back mid-look.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.selectedPlanId]);
+
+  /**
+   * §8.6 — a line about a cell has to be readable next to that cell. Nothing
+   * fires across levels yet, so this only ever confirms where the board already
+   * is; it is here so that the day something does, the board follows it.
+   */
+  useEffect(() => {
+    if (subject !== undefined) setShown(levelOf(subject));
+  }, [subject]);
+
+  /** The name of an inherited cell — an old room, the front door, the stair. */
   const inheritedName = (cell: CellId): string | undefined => {
     if (state.frontDoor === cell) return plot.frontDoor.name;
+    if (state.stair === cell) return plot.stair.name;
+    if (state.landing === cell) return copy.landing;
     if (!state.fabric.includes(cell)) return undefined;
     return plot.fabric.find((room) => room.cell === cell)?.name;
   };
 
+  // §5 — the garden is ground only. The upper levels are the building.
+  const rows = shown === 'ground' ? ROWS : ROWS.filter((row) => row < state.gardenFromRow);
+
   return (
     <div className={`plot${state.observation ? ' plot--reading' : ''}`}>
-      <p className="plot__edge plot__edge--street">{copy.street}</p>
+      <div className="plot__levels" role="group" aria-label={copy.levelPicker}>
+        {TOP_DOWN.map((level) => (
+          <button
+            key={level}
+            type="button"
+            className="plot__level"
+            // Not a tab set: `aria-pressed` says the state without promising
+            // the arrow-key handling a tablist is read as offering.
+            aria-pressed={level === shown}
+            // §5 — a quiet mark on the levels the chosen plan could go on, so
+            // the switcher answers "where does this go" before it is touched.
+            data-legal={legal.some((cell) => levelOf(cell) === level)}
+            onClick={() => setShown(level)}
+          >
+            {copy.levels[level]}
+          </button>
+        ))}
+      </div>
+
+      {shown === 'ground' && <p className="plot__edge plot__edge--street">{copy.street}</p>}
 
       <div className="plot__frame">
-        <div className="plot__grid" role="grid" aria-label="The plot">
-          {ROWS.map((row) =>
+        <div
+          className="plot__grid"
+          role="grid"
+          aria-label={copy.levels[shown]}
+          style={{ ['--plot-rows' as string]: rows.length }}
+        >
+          {rows.map((row) =>
             COLUMNS.map((column) => {
-              const cell = cellId(column, row);
+              const cell = cellId(shown, column, row);
+              const ref = `${column}${row}`;
               const placement = placementAt(state, cell);
               const plan = placement ? byId.get(placement.planId) : undefined;
               const inherited = plan ? undefined : inheritedName(cell);
               const isLegal = legal.includes(cell);
-              // §7 — the front door came with the house and stays with it. It
-              // is inherited, but unlike the old rooms it can never come down.
-              const isDoor = state.frontDoor === cell;
+              // §7 — the cells the house came with that can never come down:
+              // the front door, the stair, and the landing above it.
+              const isFixedCell =
+                cell === state.frontDoor || cell === state.stair || cell === state.landing;
 
               const classes = ['cell'];
               if (placement) classes.push('cell--placed');
@@ -80,15 +155,16 @@ export default function Plot({ state, deck, plot, copy, onPlace }: PlotProps) {
               else classes.push('cell--empty');
               // Two classes, because they are two different facts: `inherited`
               // is where it came from, `fabric` is that it could still go. The
-              // front door is the first without being the second.
-              if (inherited && !isDoor) classes.push('cell--fabric');
-              if (isDoor) classes.push('cell--door');
+              // fixed cells are the first without being the second.
+              if (inherited && !isFixedCell) classes.push('cell--fabric');
+              if (isFixedCell) classes.push('cell--door');
               if (isLegal) classes.push('cell--legal');
               // §8.6 — the two ends of the relationship the line is about.
               if (cell === subject) classes.push('cell--subject');
               if (causes.includes(cell)) classes.push('cell--cause');
 
               const name = plan?.name ?? inherited ?? '';
+              const place = `${copy.levels[shown]}, ${ref}`;
 
               return (
                 <button
@@ -97,22 +173,20 @@ export default function Plot({ state, deck, plot, copy, onPlace }: PlotProps) {
                   role="gridcell"
                   className={classes.join(' ')}
                   data-tier={plan?.tier}
-                  data-zone={zoneOf(cell, state.gardenFromRow)}
+                  data-garden={shown === 'ground' && isGarden(cell, state.gardenFromRow)}
                   disabled={!isLegal}
                   onClick={() => onPlace(cell)}
                   aria-label={
                     name
-                      ? `${cell}, ${name}${inherited ? `, ${copy.inherited}` : ''}${
-                          isDoor ? `, ${copy.fixed}` : ''
+                      ? `${place}, ${name}${inherited ? `, ${copy.inherited}` : ''}${
+                          isFixedCell ? `, ${copy.fixed}` : ''
                         }`
-                      : `${cell}, ${copy.empty}`
+                      : `${place}, ${copy.empty}`
                   }
                 >
-                  <span className="cell__ref">{cell}</span>
+                  <span className="cell__ref">{ref}</span>
                   <span className="cell__name">{name}</span>
-                  {inherited && (
-                    <span className="cell__inherited">{copy.inherited}</span>
-                  )}
+                  {inherited && <span className="cell__inherited">{copy.inherited}</span>}
                 </button>
               );
             }),
@@ -120,9 +194,11 @@ export default function Plot({ state, deck, plot, copy, onPlace }: PlotProps) {
         </div>
       </div>
 
-      <p className="plot__edge plot__edge--garden">
-        {copy.garden} <span className="plot__sun">{copy.sun}</span>
-      </p>
+      {shown === 'ground' && (
+        <p className="plot__edge plot__edge--garden">
+          {copy.garden} <span className="plot__sun">{copy.sun}</span>
+        </p>
+      )}
     </div>
   );
 }

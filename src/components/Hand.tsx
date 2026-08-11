@@ -44,7 +44,7 @@ export default function Hand({
               type="button"
               className={`plan${selected ? ' plan--selected' : ''}`}
               data-tier={plan.tier}
-              data-zone={plan.zone}
+              data-where={plan.where}
               data-consent={consent}
               aria-pressed={selected}
               onClick={() => onSelect(planId)}
@@ -54,7 +54,7 @@ export default function Hand({
                   player deciding between three should not have to select one to
                   find out that it only fits in the garden. */}
               <span className="plan__tier">
-                {plan.tier} · {plan.zone === 'outdoor' ? 'garden' : 'house'}
+                {plan.tier} · {plan.where}
               </span>
               <span className="plan__consent">{consentLabels[consent]}</span>
             </button>

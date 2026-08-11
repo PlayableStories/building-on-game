@@ -10,16 +10,21 @@
  * the moment worth showing rather than whatever round it happens to be on, and
  * what it writes is committed.
  *
- * Two frames need a particular thing to happen rather than just a round to
- * pass — the demolition question, and an adjacency line that reads one room
- * against another. The deck is dealt from a random seed, so both are played for
- * rather than assumed, and the whole game is restarted if a run does not
- * produce them.
+ * Three frames need a particular thing to happen rather than just a round to
+ * pass — the demolition question, a plan that goes upstairs, and an adjacency
+ * line that reads one room against another. The deck is dealt from a random
+ * seed, so all three are played for rather than assumed, and the whole game is
+ * restarted if a run does not produce them.
+ *
+ * **The numbers are reading order, not capture order.** They are the order the
+ * frames appear in `GAME-FLOW.md`; an upstairs plan can turn up in any round,
+ * and the demolition question is always photographed in the first.
  */
 import { spawn } from 'node:child_process';
-import { mkdirSync, rmSync } from 'node:fs';
+import { mkdirSync, readdirSync, rmSync } from 'node:fs';
 import { chromium, type Page } from '@playwright/test';
 import { config, ui } from '../src/content.ts';
+import type { Where } from '../src/types.ts';
 
 const PORT = 4179;
 const URL = `http://localhost:${PORT}/`;
@@ -56,7 +61,7 @@ async function waitForServer(): Promise<void> {
  * ------------------------------------------------------------------ */
 
 const hand = (page: Page) => page.locator('.plan');
-const handFor = (page: Page, zone: string) => page.locator(`.plan[data-zone="${zone}"]`);
+const handFor = (page: Page, where: Where) => page.locator(`.plan[data-where="${where}"]`);
 const legalCells = (page: Page) => page.locator('.cell:not([disabled])');
 const observation = (page: Page) => page.locator('.observation');
 const demolition = (page: Page) => page.locator('.demolition');
@@ -101,9 +106,9 @@ async function capture(page: Page): Promise<boolean> {
 
   await page.getByRole('button', { name: ui.begin }).click();
 
-  // §5 — a house plan selected, so the highlight shows the zone rule: rows 1–3
-  // light up and the garden stays dark.
-  await handFor(page, 'indoor').first().click();
+  // §5 — a house plan selected, so the highlight shows the rule: the ground
+  // floor lights, rows 1–3, and the garden stays dark.
+  await handFor(page, 'house').first().click();
   await shot(page, '2-where-it-can-go');
 
   // §7.2 — the only question the game asks. Aim at an old room and stop there.
@@ -111,32 +116,45 @@ async function capture(page: Page): Promise<boolean> {
   if (!(await fabric.count())) return false;
   await fabric.click();
   if (!(await demolition(page).count())) return false;
-  await shot(page, '3-the-one-question');
+  await shot(page, '4-the-one-question');
   await page.keyboard.press('Escape');
 
+  // Two frames that have to be played for.
+  //
+  // §5 — a plan that goes upstairs, which takes the board up with it and lights
+  // only the cells sitting over a room. It is the whole level rule in one
+  // picture, and no amount of prose does the same job.
+  //
   // §8.6 — the frame the prototype is for. A line that reads one room against
   // another lights both cells, so wait for a pair rather than the orientation
   // line, which has only the one cell to light.
+  let gotUpstairs = false;
   let gotPair = false;
   for (let round = 1; round <= config.rounds; round += 1) {
+    if (!gotUpstairs && (await handFor(page, 'upstairs').count())) {
+      await handFor(page, 'upstairs').first().click();
+      await shot(page, '3-going-up');
+      gotUpstairs = true;
+    }
+
     await choose(page);
     await legalCells(page).first().click();
     await confirmDemolition(page);
 
     if (await observation(page).count()) {
       if (!gotPair && (await page.locator('.cell--cause').count())) {
-        await shot(page, '4-what-it-noticed');
+        await shot(page, '5-what-it-noticed');
         gotPair = true;
       }
       await observation(page).click();
     }
   }
-  if (!gotPair) return false;
+  if (!gotUpstairs || !gotPair) return false;
 
   while (!(await page.getByText(ui.report.finished).count())) await playRound(page);
 
   // §10 — what you have, beside what it asks of you, and the situation answered.
-  await shot(page, '5-the-house-you-built');
+  await shot(page, '6-the-house-you-built');
   return true;
 }
 
@@ -170,4 +188,4 @@ if (!done) {
   process.exit(1);
 }
 
-console.log(`Wrote 5 screenshots to ${OUT}/.`);
+console.log(`Wrote ${readdirSync(OUT).length} screenshots to ${OUT}/.`);
