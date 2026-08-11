@@ -2,7 +2,7 @@
  * The published screenshots — the ones in the README.
  *
  * `npm run screenshots`. Builds the game, serves it, plays it in real Chrome
- * and writes seven frames to `docs/screenshots/`.
+ * and writes eight frames to `docs/screenshots/`.
  *
  * This is not the same job as the `screenshots` block in `e2e/play.spec.ts`.
  * That one dumps full-page frames into a gitignored folder so a failing run can
@@ -10,10 +10,10 @@
  * the moment worth showing rather than whatever round it happens to be on, and
  * what it writes is committed.
  *
- * Four frames need a particular thing to happen rather than just a round to
- * pass — the demolition question, a plan that goes upstairs, an adjacency line
- * that reads one room against another, and one that reads a room against the
- * floor below. The deck is dealt from a random seed, so all four are played for
+ * Five frames need a particular thing to happen rather than just a round to
+ * pass — the demolition question, a plan that goes upstairs, a plan that goes on
+ * the roof, an adjacency line that reads one room against another, and one that
+ * reads a room against the floor below. The deck is dealt from a random seed, so all four are played for
  * rather than assumed, and the whole game is restarted if a run does not
  * produce them.
  *
@@ -117,7 +117,7 @@ async function capture(page: Page): Promise<boolean> {
   if (!(await fabric.count())) return false;
   await fabric.click();
   if (!(await demolition(page).count())) return false;
-  await shot(page, '4-the-one-question');
+  await shot(page, '5-the-one-question');
   await page.keyboard.press('Escape');
 
   // Three frames that have to be played for.
@@ -133,6 +133,7 @@ async function capture(page: Page): Promise<boolean> {
   // §8.6 again — and the same thing through a floor, which about half of games
   // produce. That is exactly why it is played for rather than assumed.
   let gotUpstairs = false;
+  let gotRoof = false;
   let gotPair = false;
   let gotVertical = false;
   for (let round = 1; round <= config.rounds; round += 1) {
@@ -142,13 +143,22 @@ async function capture(page: Page): Promise<boolean> {
       gotUpstairs = true;
     }
 
+    // §6 — and the tier the planning data asked for. Choosing a roof plan takes
+    // the board to the top of the house and lights everything the roof can sit
+    // on, which is the one rule in §5 that is not the frontier rule.
+    if (!gotRoof && (await handFor(page, 'roof').count())) {
+      await handFor(page, 'roof').first().click();
+      await shot(page, '4-on-the-roof');
+      gotRoof = true;
+    }
+
     await choose(page);
     await legalCells(page).first().click();
     await confirmDemolition(page);
 
     if (await observation(page).count()) {
       if (!gotPair && (await page.locator('.cell--cause').count())) {
-        await shot(page, '5-what-it-noticed');
+        await shot(page, '6-what-it-noticed');
         gotPair = true;
       }
       // §8.6 — and the one the levels made possible: a line whose other end is
@@ -156,18 +166,18 @@ async function capture(page: Page): Promise<boolean> {
       // mark is the whole answer to "a sentence about two cells, one of which
       // you cannot see", so the frame is of the mark rather than of the line.
       if (!gotVertical && (await page.locator('.plot__level[data-cause="true"]').count())) {
-        await shot(page, '6-through-the-floor');
+        await shot(page, '7-through-the-floor');
         gotVertical = true;
       }
       await observation(page).click();
     }
   }
-  if (!gotUpstairs || !gotPair || !gotVertical) return false;
+  if (!gotUpstairs || !gotRoof || !gotPair || !gotVertical) return false;
 
   while (!(await page.getByText(ui.report.finished).count())) await playRound(page);
 
   // §10 — what you have, beside what it asks of you, and the situation answered.
-  await shot(page, '7-the-house-you-built');
+  await shot(page, '8-the-house-you-built');
   return true;
 }
 

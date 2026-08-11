@@ -425,6 +425,9 @@
 .cell--placed[data-tier='outside'] {
   background: var(--colour-tier-outside);
 }
+.cell--placed[data-tier='roof'] {
+  background: var(--colour-tier-roof);
+}
 .cell--placed[data-tier='wildcard'] {
   background: var(--colour-tier-wildcard);
 }
@@ -554,6 +557,9 @@
 }
 .plan[data-tier='outside'] {
   border-left: var(--space-1) solid var(--colour-tier-outside);
+}
+.plan[data-tier='roof'] {
+  border-left: var(--space-1) solid var(--colour-tier-roof);
 }
 .plan[data-tier='wildcard'] {
   border-left: var(--space-1) solid var(--colour-tier-wildcard);

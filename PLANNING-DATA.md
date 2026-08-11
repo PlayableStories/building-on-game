@@ -249,30 +249,55 @@ first round, because the house you inherited already has one. The 187,492 stoppe
 argument about writing and became an argument about the board, and the board lost. See
 GDD §4 for the decision and §5 for the rules.
 
-**The cards themselves land in M17**, so the gap is open rather than closed: the board can
-hold a dormer, and the deck does not yet contain one. Only `solar-array` is on the roof
-today, moved there from `indoor`, which was a fudge the flat board forced. Windows remain
-unrepresented — a window is an elevation, and an elevation is still a different game.
+**M17 dealt the cards, and the gap is closed.** The deck now holds a dormer, a rooflight,
+a roof extension, a hip-to-gable and a chimney, in a roof tier of their own on rounds 9 and
+10 — plus a garage and a balcony, the other two big absences in the table above. Seven
+cards, none of them from the GDD, all of them from this file:
+
+| Card | Decided | Conditions | Flag | Why |
+|---|---|---|---|---|
+| Dormer | 74,319 | 15.8% | `householder` | Under the 24.0% baseline, but a front dormer is not permitted development |
+| Rooflight | 46,098 | 15.5% | `permitted` | The lowest rate on the roof, and it does not change the outline |
+| Roof extension | 44,988 | 23.8% | `householder` | Effectively the baseline exactly. The heaviest work and the least remarkable to a planner |
+| Hip to gable | 22,087 | **9.8%** | `householder` | The lowest rate in the deck: the least argued-about way of gaining a real room |
+| Garage | 19,491 | 30.0% | `householder` | Above the line, and read the same way the porch is at 31.2% |
+| Balcony | 11,659 | 13.8% | `householder` | Well under, which is not what anyone expects. Overlooking is argued at refusal, not settled with a condition |
+| Chimney | 4,495 | 18.1% | `householder` | The one roof work that is usually about putting something *back* |
+
+`solar-array` sits on the roof too, from the wildcard pool, moved there from `indoor` —
+which was a fudge the flat board forced.
+
+That leaves **windows** (39,827) as the largest remaining absence, and it stays absent for
+the reason it always did: a window is an elevation, and an elevation is still a different
+game.
 
 The same applies to change of use (19,140) and subdividing into flats (2,205), which are
 not spatial at all — they are what a building is *for*, and the game has no vocabulary for
 that.
 
-### The deck was left alone, deliberately
+### The deck is still a designed object
 
-Several works would fit the board — garage (19,491), basement (12,275), bike store,
-decking, driveway, annexe, swimming pool, EV charger. Some of them are among the most
+This section used to say the deck had been left alone deliberately, and the reasoning
+holds even though seven cards have since been added. It is worth keeping both halves.
+
+Several works would still fit the board and are still not in it — basement (12,275), bike
+store, decking, driveway, annexe, swimming pool, EV charger. Some are among the most
 conditioned things measured: swimming pool 41.9%, decking 40.2%, driveway 39.5%, basement
 39.5%.
 
-None were added. **The deck is a designed object, not a sample of London.** It is
-twenty-four plans across four tiers because that is what fills a hand for eight rounds, and
-it is about rooms and the things you agree to look after — not about planning throughput. A
-card earns its place by being a decision worth making next to another card, and "it is
-common in the data" is not that argument.
+**The deck is a designed object, not a sample of London.** A card earns its place by being
+a decision worth making next to another card, and *"it is common in the data"* is not that
+argument on its own.
 
-What the data is good for is checking the cards that *are* there, which is what the rest of
-this document does.
+What changed with the roof cards is that it became half the argument. A dormer is a
+decision worth making — it is the difference between a loft and a room, it commits the cell
+under it forever, and it is the second commonest work in the city. The data did not make
+the case by itself; it identified where the case was worth making, and the board had to
+change before the case could be made at all. A swimming pool is common enough and is still
+not a decision this game is about.
+
+What the data is otherwise good for is checking the cards that *are* there, which is what
+the rest of this document does.
 
 Two cards deserve a note in the other direction:
 

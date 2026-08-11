@@ -373,7 +373,7 @@ test.describe('placement (§13)', () => {
 });
 
 test.describe('a whole game (§15)', () => {
-  test('reaches the finish in eight placements, with nothing in the console', async ({
+  test('reaches the finish in every round, with nothing in the console', async ({
     page,
   }) => {
     const errors = watchForErrors(page);

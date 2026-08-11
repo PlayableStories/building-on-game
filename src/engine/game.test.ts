@@ -13,6 +13,7 @@ import type { GameState, Observation } from '../types.ts';
 import { tierForRound } from './deck.ts';
 import { createGame } from './game.ts';
 import { legalCells } from './grid.ts';
+import { createRng, pick } from './rng.ts';
 
 const game = createGame(
   deck,
@@ -86,6 +87,34 @@ function playThrough(seed: number): {
   return { final: state, steps, lines };
 }
 
+/**
+ * The same game, played by somebody choosing at random rather than always
+ * reaching for the first card and the first square.
+ *
+ * Seeded off the game seed so a failure is reproducible, and deliberately kept
+ * separate from `playThrough` rather than replacing it: the first-choice walk is
+ * what most of the assertions in this file are written against, and it is fast.
+ */
+function playRandomly(seed: number): { final: GameState; steps: GameState[] } {
+  const rng = createRng(seed ^ 0x5eed);
+  const steps: GameState[] = [];
+  let state = startGame(seed);
+
+  while (state.phase === 'play') {
+    steps.push(state);
+    const planId = pick(state.hand, rng);
+    if (planId === undefined) throw new Error('dealt an empty hand');
+    const selected = game.reducer(state, { type: 'SELECT_PLAN', planId });
+    const cell = pick(legalCells(selected, whereOfPlan(planId)), rng);
+    if (cell === undefined) throw new Error('no legal cell');
+
+    const placed = settle(game.reducer(selected, { type: 'PLACE', cell }));
+    state = placed.observation === null ? placed : game.reducer(placed, { type: 'DISMISS' });
+  }
+
+  return { final: state, steps };
+}
+
 describe('the core loop (§6, §15)', () => {
   it('ends after exactly the configured number of placements', () => {
     const { final } = playThrough(7);
@@ -120,6 +149,101 @@ describe('the core loop (§6, §15)', () => {
         }
       }
     }
+  });
+
+  /**
+   * The same gate, played by somebody who does not always take the first thing.
+   *
+   * This matters more than it looks. `playThrough` takes the first plan and the
+   * first legal cell every time, and it turns out that never reaches the states
+   * where the board can strangle itself: it took a random walk to find that
+   * roofing the cells around the landing kills the first floor for good, and
+   * that one game in four hundred then dealt a hand of three plans with nowhere
+   * to put any of them. The gate above had been passing over that the whole
+   * time, because the walk it takes never goes there.
+   *
+   * A deterministic first-choice policy is a *shape* of play, not a sample of
+   * one. Two shapes are not a proof either, but they are twice as many.
+   */
+  it('holds under a player who does not always take the first thing (§5, §15)', () => {
+    for (let seed = 1; seed <= 400; seed++) {
+      for (const state of playRandomly(seed).steps) {
+        for (const planId of state.hand) {
+          const cells = legalCells(state, whereOfPlan(planId));
+          expect(cells.length, `${planId} had nowhere to go at seed ${seed}`)
+            .toBeGreaterThan(0);
+        }
+      }
+    }
+  });
+
+  /**
+   * §5, §6 — the specific arrangement that found it, built on purpose.
+   *
+   * The first floor's whole opening move is the cells around the landing that
+   * have a room underneath them: at the start that is FC1 over the front door
+   * and FB2 over the old kitchen. Roof both and the upstairs frontier is gone
+   * and can never come back, because roofing a cell seals the one beneath it.
+   *
+   * The rules are right — that irreversibility is the most interesting move in
+   * §5. What must not happen is the game then offering a bedroom.
+   */
+  it('stops offering upstairs once the roof has sealed the way up (§5)', () => {
+    let state = startGame(1);
+    for (const cell of ['RC1', 'RB2'] as const) {
+      state = settle(
+        game.reducer(
+          { ...state, hand: ['rooflight'], selectedPlanId: 'rooflight' },
+          { type: 'PLACE', cell },
+        ),
+      );
+      state = state.observation === null ? state : game.reducer(state, { type: 'DISMISS' });
+    }
+
+    // The board really is sealed…
+    expect(legalCells(state, 'upstairs')).toEqual([]);
+    // …the plans are still in the pool, because somewhere may yet open up…
+    expect(state.pool).toContain('bedroom');
+    // …and none of them is in the hand while there is nowhere to put it.
+    for (const planId of state.hand) {
+      expect(whereOfPlan(planId)).not.toBe('upstairs');
+    }
+  });
+
+  /**
+   * …and it is a filter, not a ban. The first floor is reachable from the
+   * landing, so a new ground-floor room beside the stair opens a way up again
+   * and the plans that were being held back come straight back into the draw.
+   *
+   * Worth its own test because the cheap version of the fix — dropping a plan
+   * from the pool the first time it has nowhere to go — would pass every other
+   * assertion in this file and quietly delete the first floor from the game.
+   */
+  it('offers upstairs again the moment a room opens a way up (§5)', () => {
+    let state = startGame(1);
+    for (const cell of ['RC1', 'RB2'] as const) {
+      state = settle(
+        game.reducer(
+          { ...state, hand: ['rooflight'], selectedPlanId: 'rooflight' },
+          { type: 'PLACE', cell },
+        ),
+      );
+      state = state.observation === null ? state : game.reducer(state, { type: 'DISMISS' });
+    }
+    expect(legalCells(state, 'upstairs')).toEqual([]);
+
+    // A1 is beside the stair, so a room there gives FA1 something to stand on
+    // and the landing something to reach it from.
+    state = settle(
+      game.reducer(
+        { ...state, hand: ['boot-room'], selectedPlanId: 'boot-room' },
+        { type: 'PLACE', cell: 'GA1' },
+      ),
+    );
+    state = state.observation === null ? state : game.reducer(state, { type: 'DISMISS' });
+
+    expect(legalCells(state, 'upstairs')).toContain('FA1');
+    expect(state.pool).toContain('bedroom');
   });
 
   /** §5, §7 — and nothing the simulation places ever lands somewhere it may not. */

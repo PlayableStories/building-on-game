@@ -51,7 +51,7 @@ One line, shown at the start, explaining why the work is happening at all:
 
 > *The roof failed in February. You can't put it off any longer.*
 
-**[Design note]** This justifies the eight rounds, the fixed door and the existing
+**[Design note]** This justifies the ten rounds, the fixed door and the existing
 fabric in a single sentence. The player is not building a dream house — they are
 responding to something. That framing keeps the game modest, which is what makes the
 end report land.
@@ -104,7 +104,7 @@ The second claim, which arrives only at the end:
 ## 4. Prototype Scope
 
 **Includes:** a 5×5 plot on **three levels** · four cells of inherited fabric · a fixed
-front door and a fixed stair · a household of 2–3 people · 8 rounds · a hand of 3 drawn
+front door and a fixed stair · a household of 2–3 people · 10 rounds · a hand of 3 drawn
 per round · tier-weighted draw · orthogonal adjacency placement · demolition onto
 inherited fabric · a written observation on each placement · orientation effects
 (street/garden, north/south) · consent flags · a four-part end report.
@@ -229,11 +229,13 @@ which is a second rule to write, teach and test for the same result.
 
 ### Rounds
 
-**8 rounds. 8 placements.** The game ends when the eighth plan is placed.
+**10 rounds. 10 placements.** The game ends when the tenth plan is placed.
 
-**[Open]** Six was the original figure. Eight gives two placements per tier, which is
-where adjacency starts firing often enough to be the point. Build the round count as
-a config value and playtest 6 and 8 before deciding.
+**[Open, settled]** Six was the original figure and eight was the answer: two placements
+per tier, which is where adjacency starts firing often enough to be the point. The roof
+tier made it ten on the same arithmetic — five tiers, two rounds each. `tierForRound` is
+written proportionally rather than as a lookup, so the round count is still one config
+value to change, and six and eight both still cover every tier.
 
 ### Tiers
 
@@ -242,9 +244,19 @@ The deck is staged, so the house is built roughly in the order a house is built.
 | Tier | Rounds | Contains |
 |---|---|---|
 | **Threshold** | 1–2 | Porch, hall, boot room, downstairs WC, bin store |
-| **Daily** | 3–4 | Kitchen, living room, dining room, utility, glass-roofed extension |
-| **Private** | 5–6 | Bedroom, bathroom, study, gym, spare room |
+| **Daily** | 3–4 | Kitchen, living room, dining room, utility, glass-roofed extension, garage |
+| **Private** | 5–6 | Bedroom, bathroom, study, gym, spare room, balcony |
 | **Outside** | 7–8 | Vegetable garden, terrace, shed, lawn, home farm |
+| **Roof** | 9–10 | Dormer, rooflight, roof extension, chimney, hip to gable |
+
+**The roof tier is last because a roof goes on last** — and because roofing a cell seals
+the first floor under it for good (§5). A tier that can take something away from you is
+the right one to end on, and the wrong one to open with.
+
+Note that a tier and a `where` are different things that happen to share the word *roof*:
+a tier is *when* a plan is dealt, a `where` is which part of the building it goes on. They
+coincide for the five roof cards and nowhere else — `solar-array` is a wildcard that goes
+on the roof, and `balcony` is dealt in the private tier and stands upstairs.
 
 ### The draw rule
 
@@ -256,6 +268,19 @@ The hand does not carry over. A plan passed over is gone.
 **[Design note]** The wildcard is what stops the game feeling on-rails. It also lets
 system plans (§8.3) and the garden turn up early, where they are tempting and awkward
 — which is exactly when they are interesting.
+
+**Two floors under that.** The third card is free to raid any tier, and left alone it eats
+the ones it has not reached yet: the last tier in the order is exposed to every round
+before it, and 10 games in 400 reached round 10 with a single roof plan left to deal. So a
+tier still to come **keeps its last few cards** — enough for the rounds it has left, and no
+more. Only the last few: a roof plan can still turn up in round two.
+
+And **the draw never offers a plan with nowhere to go.** The game cannot be failed, and
+that has to be true of the board as well as of the rules. Roofing a cell seals the first
+floor under it, the first floor's only opening move is the three cells around the landing,
+and roofing all three strangles it for good — one game in four hundred dealt three plans
+that could not be placed anywhere. The placement rules are right and were left alone; what
+was wrong was offering a card the board could not take, so the draw asks the board first.
 
 **[Design note]** Because the hand is fresh each round, the tension is not *should I
 hold this* but *this tier will not come back*. Spend the daily round on a utility room
@@ -394,6 +419,30 @@ pattern to follow.
 
 Each needs the same seven fields. The system plans are deliberately in the wildcard
 pool rather than a tier of their own — see §8.7.
+
+### 8.4a The cards the data asked for
+
+**[Decision, M17]** Seven plans in the deck are not from this document. They are from
+`works.csv`, and each carries its figure in a comment beside its consent flag:
+
+| Card | Tier | Where | Decided | Conditions |
+|---|---|---|---|---|
+| Dormer | roof | roof | **74,319** | 15.8% |
+| Rooflight | roof | roof | **46,098** | 15.5% |
+| Roof extension | roof | roof | **44,988** | 23.8% |
+| Hip to gable | roof | roof | 22,087 | **9.8%** |
+| Garage | daily | house | 19,491 | 30.0% |
+| Balcony | private | upstairs | 11,659 | 13.8% |
+| Chimney | roof | roof | 4,495 | 18.1% |
+
+Dormer, rooflight and roof extension are the **2nd, 3rd and 4th** commonest works in
+London and the deck contained none of them, because a dormer is not a cell on a flat
+board. §4 records why the board went up; this is what it went up for. They are in the
+deck because London builds them, not because they seemed like good cards.
+
+Hip to gable is the fifth roof card rather than the fourth for a mechanical reason as
+much as an editorial one — four was enough to pass the validator and not enough to
+play. See §6 on what a tier's last few cards are reserved for.
 
 ### 8.5 The quality vocabulary
 
@@ -622,7 +671,7 @@ game.
 ## 14. Interface Elements
 
 Title · the "why now" line and the household, shown once before round 1 · the 5×5 plot
-with orientation labels · the hand of three · round indicator (*3 of 8*) · consent flag
+with orientation labels · the hand of three · round indicator (*3 of 10*) · consent flag
 on each plan in hand · adjacency line overlay · the end report · a **Build again**
 button.
 
@@ -671,7 +720,7 @@ the four, and every discovery trigger names a real cell.
 3. Does the tier progression feel like building a house, or like being led?
 4. Is one wildcard in three the right amount of disruption?
 5. Do adjacency lines land as observations, or do players read them as scores?
-6. Is 8 rounds right? Does 6 leave adjacency underfired?
+6. ~~Is 8 rounds right? Does 6 leave adjacency underfired?~~ Settled at **10** — five tiers, two rounds each. See §6.
 7. Does anyone demolish? If nobody does, the cost is set too high — or the inherited
    fabric isn't in the way enough.
 8. Does the inheritance premise change how people treat the old fabric, compared to a
@@ -684,7 +733,7 @@ the four, and every discovery trigger names a real cell.
 ## 18. Development Priorities
 
 1. **Core loop** — grid, inherited fabric, hand of three, tier-weighted draw,
-   adjacency-legal placement, 8 rounds, end.
+   adjacency-legal placement, 10 rounds, end.
 2. **Framing** — the "why now" line and the household, shown once before round 1.
 3. **Adjacency lines** — the resolution order in §8.6, the overlay, the six worked plans
    as seed content.

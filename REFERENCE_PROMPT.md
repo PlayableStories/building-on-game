@@ -87,7 +87,7 @@ The game is not done until all of these are implemented and working:
    out it can be built on. Render every occupied cell the same way — its name at the top,
    same face, same size — and add a small, quiet *inherited* label underneath.
 
-4. **Eight rounds, three plans each.** Deal two from the round's tier and one from anywhere
+4. **Ten rounds, three plans each.** Deal two from the round's tier and one from anywhere
    left in the pool, then shuffle the three so the free card is not always in the same
    place. **Unchosen plans return to the pool** and can be dealt again; only a plan the
    player actually places leaves it.
@@ -196,7 +196,7 @@ One export per thing:
   the reference: a conservation area, which makes demolition heavier and adds conditions)
 - `plot` — the fixed cells, the demolishable cells (all named, all on the ground floor),
   and where the garden rows start
-- `deck` — 24 plans, each with `id`, `name`, `tier`, `where`, `cost`, `consent`, `emits[]`,
+- `deck` — 31 plans, each with `id`, `name`, `tier`, `where`, `cost`, `consent`, `emits[]`,
   `sensitive[]`, optional `orientation` per compass direction, and the two report lines
   `have` and `care`
 - `situations` — 6, each a line plus a function that receives a read-only summary of the
@@ -245,7 +245,7 @@ Seed the content file with:
 
 - The agreed building and premise
 - A plot with two permanent cells and at least 4 named demolishable ones
-- **24 plans** across 4 tiers plus a wildcard pool, at least 3 per tier, and at least one
+- **31 plans** across 5 tiers plus a wildcard pool, at least 3 per tier, and at least one
   plan for every `where`
 - **6 situations**, each with an answer written for the case where the player missed
 - **At least 8 pair lines** and one line per quality that can fire
@@ -288,7 +288,7 @@ Here's the game I'll build. Tell me which to change.
   placeable, never removable, plus the derived landing above the stair
 - Inherited rooms: <4 named, demolishable>
 - Rounds: 8, three plans dealt each, two from the round's tier
-- Deck: 24 plans across 4 tiers + wildcards
+- Deck: 31 plans across 5 tiers + wildcards
 - Situations: 6, one drawn per game, answered at the end
 - Stack I plan to use: <state your stack>
 - Two-file architecture: content file (text) + theme file (visuals), engine imports

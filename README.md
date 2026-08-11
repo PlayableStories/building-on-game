@@ -2,7 +2,7 @@
 
 > A home isn't a list of rooms. It's what ended up next to what.
 
-A no-fail placement game about renovating a house you inherited. Eight rounds; each one
+A no-fail placement game about renovating a house you inherited. Ten rounds; each one
 deals you three plans and you choose one. It has to touch what's already built, and you can
 never move it again. Occasionally the house tells you what you've just put next to what. At
 the end it tells you what you built and what it will ask of you for the rest of your life.
@@ -91,7 +91,7 @@ Four mechanics carry the game:
   choice: it splits the project into a clean engine and an editable surface, and it is
   enforced rather than intended.
 
-The deck is 24 plans across four tiers plus a wildcard pool, and 6 situations of which one
+The deck is 31 plans across five tiers plus a wildcard pool, and 6 situations of which one
 is drawn per game. A game is reproducible from a single seed.
 
 ## The Concept

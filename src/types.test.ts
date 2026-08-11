@@ -19,9 +19,11 @@ describe('vocabulary', () => {
     expect(new Set(QUALITIES).size).toBe(9);
   });
 
-  it('has the four staged tiers in §6, plus a wildcard pool', () => {
-    expect(TIERS).toEqual(['threshold', 'daily', 'private', 'outside']);
-    expect(PLAN_TIERS).toHaveLength(5);
+  it('has the five staged tiers in §6, plus a wildcard pool', () => {
+    // The roof is last because a roof goes on last — and because roofing a cell
+    // seals the first floor under it, which is the wrong move to open with.
+    expect(TIERS).toEqual(['threshold', 'daily', 'private', 'outside', 'roof']);
+    expect(PLAN_TIERS).toHaveLength(6);
   });
 
   it('has exactly the four consent flags in §9.1', () => {

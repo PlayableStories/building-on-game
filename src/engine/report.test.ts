@@ -179,22 +179,47 @@ describe('the paired rows (§10.2)', () => {
         demolished: false,
       })),
     };
-    const razed: GameState = {
-      ...state,
-      // The last placement is the cheapest thing on the plot in most games, so
-      // demolishing with it is the clearest test that demolition counts.
-      placements: state.placements.map((placement, index) => ({
-        ...placement,
-        demolished: index === state.placements.length - 1,
-      })),
+    const keeper = buildReport(untouched, deck, content, qualitySeverity, config);
+    const reported = keeper.pairs.map((pair) => pair.name);
+
+    /**
+     * The heaviest placement the report leaves out — the one just under the cut,
+     * which is where demolition has to be able to make a difference. Lifting the
+     * lightest thing on the plot over three roof cards is not what §7 claims.
+     *
+     * Found rather than assumed. This used to take the last placement, on the
+     * reasoning that it is the cheapest thing on the plot — true until the roof
+     * tier landed on rounds 9 and 10 and made the last placements the most
+     * expensive in the game. The test passed for the wrong reason for as long as
+     * that held, and would have gone on passing.
+     */
+    const bands = ['very-low', 'low', 'moderate', 'high'];
+    const asks = (planId: string) => {
+      const entry = plan(planId);
+      return bands.indexOf(entry.cost) + consentOrder.indexOf(entry.consent);
     };
 
-    const wrecker = buildReport(razed, deck, content, qualitySeverity, config);
-    const keeper = buildReport(untouched, deck, content, qualitySeverity, config);
-    const name = plan(state.placements[state.placements.length - 1]!.planId).name;
+    let index = -1;
+    for (const [at, placement] of state.placements.entries()) {
+      if (reported.includes(plan(placement.planId).name)) continue;
+      if (index < 0 || asks(placement.planId) > asks(state.placements[index]!.planId)) {
+        index = at;
+      }
+    }
+    expect(index).toBeGreaterThanOrEqual(0);
+    const name = plan(state.placements[index]!.planId).name;
 
+    const razed: GameState = {
+      ...state,
+      placements: state.placements.map((placement, at) => ({
+        ...placement,
+        demolished: at === index,
+      })),
+    };
+    const wrecker = buildReport(razed, deck, content, qualitySeverity, config);
+
+    expect(reported).not.toContain(name);
     expect(wrecker.pairs.map((pair) => pair.name)).toContain(name);
-    expect(keeper.pairs.map((pair) => pair.name)).not.toContain(name);
   });
 
   it('reports the same house the same way, whatever order it was built in', () => {

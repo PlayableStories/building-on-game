@@ -22,6 +22,7 @@ import {
   isFabric,
   isFixed,
   isLegalCell,
+  legalCells,
   placementAt,
 } from './grid.ts';
 import { createRng } from './rng.ts';
@@ -84,13 +85,47 @@ export function createGame(
    * without the reducer holding hidden state.
    */
   function deal(
-    pool: readonly Plan['id'][],
+    state: Omit<GameState, 'hand' | 'phase' | 'round' | 'seed'>,
     round: number,
     seed: number,
   ): { hand: Plan['id'][]; seed: number } {
     const rng = createRng(seed);
-    const hand = drawHand(deck, pool, round, config.rounds, rng);
+    const hand = drawHand(deck, placeable(state), round, config.rounds, rng);
     return { hand, seed: Math.floor(rng() * 2 ** 32) };
+  }
+
+  /**
+   * §15 — the pool, minus anything that has nowhere to go.
+   *
+   * The game cannot be failed and cannot be blocked, and that has to survive
+   * being true of the *plot* as well as of the rules. It stopped being true of
+   * the plot when the roof tier arrived: roofing a cell seals the first floor
+   * under it (§5), the first floor's only opening move is the three cells around
+   * the landing, and roofing all three strangles the upstairs frontier for good.
+   * One game in four hundred dealt a hand of three plans with nowhere to put any
+   * of them, which is the one outcome a no-fail game must not produce.
+   *
+   * Fixed here rather than in the placement rules, because the rules are right:
+   * roofing a cell really should commit it, and that irreversibility is the most
+   * interesting move in §5. What was wrong was offering a card the board could
+   * not take. So the draw asks the board first.
+   *
+   * A plan filtered out this round is not discarded — it stays in the pool, and
+   * comes back the moment somewhere opens up for it.
+   */
+  function placeable(
+    state: Omit<GameState, 'hand' | 'phase' | 'round' | 'seed'>,
+  ): Plan['id'][] {
+    const alive = new Map<Plan['where'], boolean>();
+    return state.pool.filter((id) => {
+      const where = byId.get(id)?.where;
+      if (where === undefined) return false;
+      const known = alive.get(where);
+      if (known !== undefined) return known;
+      const open = legalCells(state as GameState, where).length > 0;
+      alive.set(where, open);
+      return open;
+    });
   }
 
   function initialState(seed: number): GameState {
@@ -100,16 +135,11 @@ export function createGame(
     // still reproduces a whole game: the same circumstances and the same deal.
     const rng = createRng(seed);
     const situationId = situationIds[Math.floor(rng() * situationIds.length)] ?? '';
-    const first = deal(pool, 1, Math.floor(rng() * 2 ** 32));
 
-    return {
-      // §2 — the why-now line and the household are shown once, before round 1.
-      // The first hand is dealt here so that dismissing the intro puts the
-      // player straight into a round rather than into a wait.
-      phase: 'intro',
+    // The board before anything is on it, so the first deal can ask it the same
+    // question every later deal asks: what has somewhere to go?
+    const opening = {
       situationId,
-      round: 1,
-      hand: first.hand,
       selectedPlanId: null,
       placements: [],
       fabric: plot.fabric.map((room) => room.cell),
@@ -123,6 +153,18 @@ export function createGame(
       observation: null,
       pendingDemolition: null,
       pool,
+    } satisfies Omit<GameState, 'hand' | 'phase' | 'round' | 'seed'>;
+
+    const first = deal(opening, 1, Math.floor(rng() * 2 ** 32));
+
+    return {
+      ...opening,
+      // §2 — the why-now line and the household are shown once, before round 1.
+      // The first hand is dealt here so that dismissing the intro puts the
+      // player straight into a round rather than into a wait.
+      phase: 'intro',
+      round: 1,
+      hand: first.hand,
       seed: first.seed,
     };
   }
@@ -229,7 +271,7 @@ export function createGame(
     }
 
     const nextRound = state.round + 1;
-    const dealt = deal(state.pool, nextRound, state.seed);
+    const dealt = deal(state, nextRound, state.seed);
 
     return {
       ...state,
