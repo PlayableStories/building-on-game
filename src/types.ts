@@ -28,8 +28,17 @@ export const QUALITIES = [
 ] as const;
 export type Quality = (typeof QUALITIES)[number];
 
-/** §6 — the four staged tiers, in the order the house gets built. */
-export const TIERS = ['threshold', 'daily', 'private', 'outside'] as const;
+/**
+ * §6 — the staged tiers, in the order the house gets built.
+ *
+ * `roof` is last because it is last: you do not put a dormer on a house before
+ * there is a floor under it. It shares a name with the `where` of the same
+ * value and they are different things — a tier is *when* a plan is dealt, a
+ * `where` is which part of the building it goes on. They coincide for the roof
+ * cards and nowhere else: `solar-array` goes on the roof from the wildcard
+ * pool, and `balcony` is dealt in the private tier but stands upstairs.
+ */
+export const TIERS = ['threshold', 'daily', 'private', 'outside', 'roof'] as const;
 export type Tier = (typeof TIERS)[number];
 
 /** A plan belongs to a tier, or to the wildcard pool that can appear in any round. */

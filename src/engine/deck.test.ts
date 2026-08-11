@@ -21,8 +21,10 @@ describe('the deck (§8.1)', () => {
 });
 
 describe('tierForRound (§6)', () => {
-  it('reproduces the GDD table at eight rounds', () => {
-    const tiers = [1, 2, 3, 4, 5, 6, 7, 8].map((round) => tierForRound(round, 8));
+  it('reproduces the GDD table, with the roof on the end, at ten rounds', () => {
+    const tiers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((round) =>
+      tierForRound(round, 10),
+    );
     expect(tiers).toEqual([
       'threshold',
       'threshold',
@@ -32,12 +34,65 @@ describe('tierForRound (§6)', () => {
       'private',
       'outside',
       'outside',
+      'roof',
+      'roof',
     ]);
   });
 
-  it('still covers all four tiers at six rounds, the §6 [Open] alternative', () => {
-    const tiers = [1, 2, 3, 4, 5, 6].map((round) => tierForRound(round, 6));
-    expect(new Set(tiers)).toEqual(new Set(TIERS));
+  /**
+   * §6 leaves the round count open, and being proportional is what let the roof
+   * tier arrive without touching `tierForRound` at all. The two counts that were
+   * playtested still cover every tier — eight simply gives one of them a single
+   * round instead of two.
+   */
+  it('still covers every tier at eight rounds and at six', () => {
+    for (const rounds of [8, 6]) {
+      const tiers = Array.from({ length: rounds }, (_, i) =>
+        tierForRound(i + 1, rounds),
+      );
+      expect(new Set(tiers)).toEqual(new Set(TIERS));
+    }
+  });
+});
+
+/**
+ * §6 — a tier still to come keeps enough cards for the rounds it has left.
+ *
+ * The third card of a hand comes from any tier, which is what stops the game
+ * feeling on-rails and is also what nearly broke the roof tier: it is last in
+ * the order, so every one of the nine rounds before it can take a card off it.
+ * Ten games in four hundred reached round 10 with a single roof plan to deal.
+ */
+describe('the staging floor (§6)', () => {
+  const roof = deck.filter((plan) => plan.tier === 'roof').map((plan) => plan.id);
+
+  it('will not spend a later tier down past what its rounds need', () => {
+    // Three roof plans left, and two rounds of roof still to come. Those two
+    // rounds need two cards each and one of them will be placed in between, so
+    // all three are spoken for and round 1 may not have any of them.
+    const pool = [...deck.filter((plan) => plan.tier !== 'roof').map((p) => p.id), ...roof.slice(0, 3)];
+    for (let seed = 1; seed <= 200; seed++) {
+      const hand = drawHand(deck, pool, 1, 10, createRng(seed));
+      expect(hand.filter((id) => roof.includes(id))).toEqual([]);
+    }
+  });
+
+  it('still lets one turn up early while the tier can spare it', () => {
+    // The whole deck, so the roof has five and can spare two. If reserving had
+    // become hoarding, this would never fire.
+    let early = 0;
+    for (let seed = 1; seed <= 200; seed++) {
+      const hand = drawHand(deck, allIds, 1, 10, createRng(seed));
+      if (hand.some((id) => roof.includes(id))) early++;
+    }
+    expect(early).toBeGreaterThan(0);
+  });
+
+  it('deals three rather than protecting the reserve, if it ever comes to that', () => {
+    // A pool of nothing but a reserved tier. The floor is a preference, and the
+    // hand still has to be a hand.
+    const hand = drawHand(deck, roof, 1, 10, createRng(7));
+    expect(hand).toHaveLength(HAND_SIZE);
   });
 });
 

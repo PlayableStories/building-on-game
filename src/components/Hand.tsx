@@ -52,9 +52,13 @@ export default function Hand({
               <span className="plan__name">{plan.name}</span>
               {/* §5, §14 — where it goes is part of what the plan *is*, and a
                   player deciding between three should not have to select one to
-                  find out that it only fits in the garden. */}
+                  find out that it only fits in the garden.
+
+                  The roof tier goes on the roof, so it would read "roof · roof"
+                  — the same word twice, which tells nobody anything and looks
+                  like a bug. Said once when the two coincide. */}
               <span className="plan__tier">
-                {plan.tier} · {plan.where}
+                {plan.tier === plan.where ? plan.where : `${plan.tier} · ${plan.where}`}
               </span>
               <span className="plan__consent">{consentLabels[consent]}</span>
             </button>

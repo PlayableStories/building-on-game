@@ -8,7 +8,7 @@ Everything player-facing lives in **two files**:
 
 | File | What's in it | Who edits it |
 |---|---|---|
-| **`src/content.ts`** | All text: the plot, 24 plans, 6 situations, every observation, the rules card, the report, every UI string | Writers, designers, game designers |
+| **`src/content.ts`** | All text: the plot, 31 plans, 6 situations, every observation, the rules card, the report, every UI string | Writers, designers, game designers |
 | **`src/theme.css`** | All visuals: palette, tier colours, type scale, spacing, measures | Designers, themers |
 
 Both are plain declarations — objects and arrays of strings, and CSS custom properties.
@@ -87,13 +87,13 @@ who inherited it does not get to decide about — a chimney stack, a party wall,
 bench, a protected tree. `stair` is whatever gets you to the level above; if your building
 has only one level, it is still the cell that cannot move.
 
-### `deck` — 24 plans
+### `deck` — 31 plans
 
 ```ts
 {
   id: 'porch',                  // unique; pair lines and situations refer to it
   name: 'Porch',                // printed on the block
-  tier: 'threshold',            // threshold | daily | private | outside | wildcard
+  tier: 'threshold',            // threshold | daily | private | outside | roof | wildcard
   where: 'house',               // house | garden | upstairs | roof — the rule for
                                 // which cells it may go in (see below)
   consent: 'permitted',         // permitted | householder | sensitive | demolition
@@ -189,7 +189,7 @@ Four vocabularies in `src/types.ts` are ids the engine matches on, not text:
 |---|---|
 | `QUALITIES` | `heat` `damp` `noise` `smell` `light` `work` `quiet` `footfall` `shade` |
 | `CONSENT_FLAGS` | `permitted` `householder` `sensitive` `demolition` |
-| `TIERS` | `threshold` `daily` `private` `outside` (+ `wildcard` for plans) |
+| `TIERS` | `threshold` `daily` `private` `outside` `roof` (+ `wildcard` for plans) — the order is the order they are dealt in |
 | `COST_BANDS` | `very-low` `low` `moderate` `high` |
 
 **The labels for all four are content.** `consentLabels` decides that `householder` prints
@@ -207,7 +207,7 @@ component stylesheet hard-codes a value.
 |---|---|
 | Surface | Page, ink, rules |
 | The plot | Empty cells, the garden band, the legal-cell highlight, inherited fill, the front door |
-| Tiers | One colour per tier — the five that make the plot readable at a glance |
+| Tiers | One colour per tier — the six that make the plot readable at a glance |
 | Selection and controls | The selected plan, focus rings, buttons |
 | The adjacency line | The observation panel |
 | Consent | One colour per flag. A scale of process, not a traffic light: nothing here should read as a warning |
@@ -312,7 +312,7 @@ A copy-paste checklist for your fork's PR description.
 - [ ] `plot` — the fixed cell, the demolishable rooms, all named, `gardenFromRow`
 - [ ] `premise` and `whyNow` — why this building has to change
 - [ ] `rules` — the objective and the points, in your building's language
-- [ ] All 24 plans: `name`, `have`, `care`, `orientation`, and their `tier` / `where` / `cost` / `consent`
+- [ ] All 31 plans: `name`, `have`, `care`, `orientation`, and their `tier` / `where` / `cost` / `consent`
 - [ ] All 6 situations, each with an answer written for when the player missed
 - [ ] `pairLines` — the specific pairings worth a sentence
 - [ ] `qualityLines` — one per quality that can fire
@@ -324,7 +324,7 @@ A copy-paste checklist for your fork's PR description.
 ### The look (`src/theme.css`)
 - [ ] Page palette
 - [ ] The garden band and the legal-cell highlight
-- [ ] Five tier colours
+- [ ] Six tier colours
 - [ ] Four consent colours — a scale of process, not a traffic light
 - [ ] (Optional) `--font-body` / `--font-ui`, and the type scale
 

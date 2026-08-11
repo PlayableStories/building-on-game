@@ -29,11 +29,15 @@ import type {
 
 export const config: Config = {
   /**
-   * §6 [Open] — eight gives two placements per tier, which is where adjacency
-   * starts firing often enough to be the point. Six was the original figure.
-   * Change this one number to playtest the other.
+   * §6 [Open] — two placements per tier, which is where adjacency starts firing
+   * often enough to be the point. Six was the original figure and eight was the
+   * answer; the roof tier made it ten, because four tiers over eight rounds and
+   * five over ten are the same game with one more floor in it.
+   *
+   * `tierForRound` is proportional rather than a lookup, so this is still one
+   * number to change to playtest another.
    */
-  rounds: 8,
+  rounds: 10,
 
   /** §9.2 — one flag that changes the character of the whole game. Lands in M5. */
   conservation: false,
@@ -91,7 +95,7 @@ export const premise = 'Someone left you a house.';
 
 /**
  * §2 — one line, shown at the start, explaining why the work is happening at
- * all. It justifies the eight rounds, the fixed front door and the existing
+ * all. It justifies the ten rounds, the fixed front door and the existing
  * fabric in a single sentence: the player is not building a dream house, they
  * are responding to something.
  */
@@ -113,7 +117,7 @@ export const whyNow = 'The roof failed in February. You can’t put it off any l
  */
 export const rules: Rules = {
   objective:
-    'Eight rounds. Turn the house you were left into one that works for the situation you are in. There is no score, and no way to lose.',
+    'Ten rounds. Turn the house you were left into one that works for the situation you are in. There is no score, and no way to lose.',
 
   points: [
     'Each round you are dealt three plans. Choose one — the other two are gone.',
@@ -379,10 +383,18 @@ export const situations: Situation[] = [
 /**
  * The deck — §8.1, §8.3, §8.4.
  *
- * Twenty-four plans: five in each of the four tiers, plus four wildcards that
- * can turn up in any round. §8.1 asks for "16–18", but the document names these
- * twenty-four across §6's tier table and §8.4's stub list, and five per tier is
- * what keeps every tier able to fill a hand. Noted rather than trimmed.
+ * Thirty plans across five tiers, plus four wildcards that can turn up in any
+ * round. §8.1 asks for "16–18", but the document names twenty-four across §6's
+ * tier table and §8.4's stub list, and five per tier is what keeps every tier
+ * able to fill a hand. Noted rather than trimmed.
+ *
+ * The six added since are not from the GDD at all — they are from `works.csv`.
+ * Dormer, rooflight and roof extension are the second, third and fourth most
+ * common works in London and the deck contained none of them, because a dormer
+ * is not a cell on a flat board. §5 gave the board a roof, and this is what the
+ * roof is for. Each of the six carries its figure in a comment, the same way the
+ * flags do: they are in the deck because London builds them, not because they
+ * seemed like good cards.
  *
  * §8.7 — the systems are ordinary plans in the wildcard pool, not a second card
  * type attached to the house. A heat pump needs somewhere to stand, and it makes
@@ -404,7 +416,8 @@ export const situations: Situation[] = [
  * What the data does *not* reach: the `care` line on each plan below. Those are
  * maintenance claims — gutters, a felt roof with ten years in it, a filter and
  * a service — and a record of planning decisions has nothing to say about any
- * of them. All twenty-four were re-read against it and all twenty-four stand,
+ * of them. All twenty-four in the deck at the time were re-read against it and
+ * all twenty-four stand,
  * unchanged, because the evidence is silent rather than agreeing. The lines the
  * data does reach are the four in `consentCare`, which are about process.
  */
@@ -566,6 +579,29 @@ export const deck: Plan[] = [
     },
   },
 
+  {
+    id: 'garage',
+    name: 'Garage',
+    tier: 'daily',
+    where: 'house',
+    /**
+     * `works.csv` — 19,491 London decisions mention a garage, the ninth most
+     * common work in the city, and 30.0% come back with conditions against a
+     * 24.0% baseline. Above the line but not far above it, which is the same
+     * reading the porch gets at 31.2%: an application, not a hard one. What
+     * gets conditioned is usually the door and what the street sees of it.
+     */
+    consent: 'householder',
+    have: 'The car is off the street, and the street is one car quieter.',
+    cost: 'moderate',
+    care: 'It will fill with everything that is not the car, and then the car stays out.',
+    emits: ['work'],
+    sensitive: [],
+    orientation: {
+      north: 'On the street, which is the only side a car can actually reach.',
+    },
+  },
+
   /* ---- §6 Private — rounds 5–6 ----------------------------------- */
   {
     id: 'bedroom',
@@ -637,6 +673,28 @@ export const deck: Plan[] = [
     care: 'Whatever you meant it to be, it will be full of things by Christmas.',
     emits: ['shade'],
     sensitive: ['noise'],
+  },
+  {
+    id: 'balcony',
+    name: 'Balcony',
+    tier: 'private',
+    where: 'upstairs',
+    /**
+     * `works.csv` — 11,659 decisions, and 13.8% conditioned against a 24.0%
+     * baseline. Well under, which is not what anyone expects of the work most
+     * likely to annoy a neighbour: the objection to a balcony is overlooking,
+     * and overlooking is argued at the refusal stage rather than settled with a
+     * condition. 18.0% refused, in line with everything else here.
+     */
+    consent: 'householder',
+    have: 'Somewhere to stand outside without going downstairs first.',
+    cost: 'moderate',
+    care: 'A drain that blocks with leaves, and a rail somebody has to check.',
+    emits: ['footfall'],
+    sensitive: ['noise', 'smell'],
+    orientation: {
+      north: 'Over the street. You will see who is coming, and they will see you.',
+    },
   },
 
   /* ---- §6 Outside — rounds 7–8 ----------------------------------- */
@@ -731,6 +789,134 @@ export const deck: Plan[] = [
     orientation: {
       north: 'Too little sun. It will be a hobby rather than a crop.',
     },
+  },
+
+  /* ---- §6 Roof — rounds 9–10 -------------------------------------
+   *
+   * The tier the data asked for. Dormer, rooflight and roof extension are the
+   * second, third and fourth most common works in London — 165,405 decisions
+   * between them, more than every kind of extension except the rear one — and
+   * for four milestones the deck contained none of them, because the board had
+   * no roof to put them on.
+   *
+   * Last in the order because a roof goes on last, and because roofing a cell
+   * seals the first floor under it for good (§5). A tier that can take something
+   * away from you is the right one to end on.
+   * ---------------------------------------------------------------- */
+  {
+    id: 'dormer',
+    name: 'Dormer',
+    tier: 'roof',
+    where: 'roof',
+    /**
+     * `works.csv` — 74,319 decisions, the **second most common work in London**
+     * after the rear extension. 15.8% conditioned against a 24.0% baseline,
+     * which is well under: a rear dormer is usually permitted development and
+     * the volume is people checking rather than people arguing. `householder`
+     * rather than `permitted` because a dormer on the front slope is not, and
+     * the flag on a card is the plan's own before it knows where it lands.
+     */
+    consent: 'householder',
+    have: 'A room in the roof you can stand up in, with a window at eye height.',
+    cost: 'high',
+    care: 'Flashing, and a small flat roof over your head living its own life.',
+    emits: ['light'],
+    sensitive: ['noise'],
+    orientation: {
+      north: 'On the front slope, where the whole street reads it as new.',
+      south: 'At the back, where nobody sees it and the light is better anyway.',
+    },
+  },
+  {
+    id: 'rooflight',
+    name: 'Rooflight',
+    tier: 'roof',
+    where: 'roof',
+    /**
+     * `works.csv` — 46,098 decisions, third most common, and 15.5% conditioned
+     * against 24.0%. The lowest rate of anything on the roof, and a rooflight
+     * genuinely is permitted development in most cases: it does not change the
+     * outline of the building, which is most of what the roof rules are about.
+     */
+    consent: 'permitted',
+    have: 'Daylight from directly overhead, which is a different light entirely.',
+    cost: 'low',
+    care: 'A seal that fails quietly, and a pole you will need and not find.',
+    emits: ['light', 'heat'],
+    sensitive: [],
+    // No orientation line, and that is the point of a rooflight: it faces up.
+    // Which row of the roof it lands in is the one thing about it that does not
+    // matter, and §8.6 only speaks when it has something to say.
+  },
+  {
+    id: 'roof-extension',
+    name: 'Roof extension',
+    tier: 'roof',
+    where: 'roof',
+    /**
+     * `works.csv` — 44,988 decisions, fourth most common, and 23.8% conditioned:
+     * effectively the 24.0% baseline exactly. It is the heaviest thing on this
+     * list and the least remarkable to a planner, which is worth stating plainly
+     * rather than flagging harder than the evidence supports.
+     */
+    consent: 'householder',
+    have: 'A whole floor you did not have, under a ridge that is now yours.',
+    cost: 'high',
+    care: 'A staircase eating the landing, and a roof with a date on it.',
+    emits: ['shade'],
+    sensitive: [],
+    orientation: {
+      north: 'The street will see the ridge change. That is the part people mind.',
+    },
+  },
+  {
+    id: 'chimney',
+    name: 'Chimney',
+    tier: 'roof',
+    where: 'roof',
+    /**
+     * `works.csv` — 4,495 decisions and 18.1% conditioned, under the 24.0%
+     * baseline. The smallest number in this tier by a long way, and it is here
+     * because it is the one roof work that is usually about putting something
+     * *back*: §7 is a game about what you keep, and the roof should have one
+     * card that agrees with it.
+     */
+    consent: 'householder',
+    have: 'A real fire, and a roofline that looks like it was always there.',
+    cost: 'moderate',
+    care: 'Sweeping, once a year, by somebody who does it for a living.',
+    emits: ['heat', 'smell'],
+    sensitive: [],
+    // Nothing about which way it faces. A chimney is a chimney from every side.
+  },
+  {
+    id: 'hip-to-gable',
+    name: 'Hip to gable',
+    tier: 'roof',
+    where: 'roof',
+    /**
+     * `works.csv` — 22,087 decisions, the eighth most common work in London, and
+     * **9.8% conditioned** against a 24.0% baseline: the lowest rate of anything
+     * in the deck. It is the least argued-about way of gaining a real room, and
+     * that is worth a card on its own.
+     *
+     * It is also the fifth roof card rather than the fourth, and that is a
+     * mechanical decision as much as an editorial one. Four was enough to pass
+     * the validator and not enough to play: the third card of a hand can be
+     * drawn from any tier, so a four-card tier could be down to one by the round
+     * it is meant to be staged in, and 10 games in 400 dealt a round-10 hand
+     * with a single roof plan in it. Five per tier is what the rest of the deck
+     * has, and it is what fixed it.
+     */
+    consent: 'householder',
+    have: 'The sloping end of the roof becomes a wall, and the room becomes usable.',
+    cost: 'high',
+    care: 'A gable end that is now weather-facing, and was not built to be.',
+    emits: ['shade'],
+    sensitive: [],
+    // Deliberately silent. What matters about a hip-to-gable is which *end* of
+    // the terrace it is on, and §5 keys orientation on the row rather than the
+    // column — so any line here would be about the wrong axis.
   },
 
   /* ---- §8.7 Wildcards — any round -------------------------------- */

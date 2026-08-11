@@ -23,7 +23,7 @@ Target: §18 priorities **1–6**. Discovery (§11) and polish (§18.8) are out.
 |---|---|---|
 | Build | **Vite 8** | Instant dev server, static `dist/`, zero config for TS |
 | UI | **React 19 + TypeScript** | §16's fork test needs a stack participants already read |
-| State | **`useReducer` in `App.tsx`** | The whole game is one immutable `GameState`; a state library earns nothing at 25 cells and 8 rounds |
+| State | **`useReducer` in `App.tsx`** | The whole game is one immutable `GameState`; a state library earns nothing at 75 cells and 10 rounds |
 | Styling | **Plain CSS + custom properties** in `theme.css` | §16 names the file; every colour, fill, font, spacing value is a `--var` |
 | Rendering | **CSS Grid of `<button>` cells** | §12 forbids a floor plan — flat blocks are the correct fidelity, no canvas needed |
 | Tests | **Vitest** | Engine is pure functions; also runs the §16 `validate` script |
@@ -357,6 +357,8 @@ condition, with three simulated players (never demolish, always demolish, choose
 random), because anything that depends on choice is not one number:
 
 - **§17.6 — is 8 rounds right? Yes, and 6 underfires exactly as §6's [Open] suspected.**
+  *(Superseded by M17: the roof tier made it ten, on the same arithmetic of two placements
+  per tier. The finding below is why it was not six.)*
   At six rounds a line fires on 38.7% of placements, the median game gets **2** lines, and
   17 of 400 games are silent from start to finish. At eight: 45.8%, median **4**, and only
   3 of 400 silent. Six rounds does not shave a quarter off the adjacency, it halves the
@@ -500,7 +502,7 @@ and is given one reason to care rather than three they will forget.
 **The rules card** — new `src/components/Rules.tsx`, copy in `content.ts` as
 `rules: { objective: string; points: string[] }`:
 
-> **The objective** — Eight rounds. Turn the house you inherited into one that works for
+> **The objective** — Ten rounds. Turn the house you inherited into one that works for
 > the situation you are in. There is no score and no way to lose.
 >
 > - Each round you are dealt three plans. Choose one. The other two are gone.

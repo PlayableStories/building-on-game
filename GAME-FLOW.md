@@ -10,7 +10,7 @@ document — what it is for, and why — and [`PLAN.md`](PLAN.md) records how it
 
 ## The shape of it
 
-You have inherited a house. Over eight rounds you are dealt plans and you place them on a
+You have inherited a house. Over ten rounds you are dealt plans and you place them on a
 five-by-five plot, one per round, and you can never move one afterwards. The house
 occasionally tells you what you have just put next to what. At the end it tells you what
 you built and what it will ask of you for the rest of your life.
@@ -20,7 +20,7 @@ There is no score, no timer, no resource, and no way to lose.
 ```mermaid
 flowchart TD
     A["<b>The situation</b><br/>one of six, drawn for this game"] --> B["<b>The rules</b><br/>and Begin"]
-    B --> C{{"Round 1 of 8"}}
+    B --> C{{"Round 1 of 10"}}
     C --> D["<b>Deal</b> — three plans<br/>two from this round's tier, one from anywhere"]
     D --> E["<b>Choose one</b><br/>the other two go back in the pool"]
     E --> F["<b>Place it</b><br/>on the level it belongs to,<br/>touching what is already built"]
@@ -31,7 +31,7 @@ flowchart TD
     G -- no --> I{"Did anything<br/>happen next door?"}
     I -- yes --> J["<b>The house says one thing</b><br/>the cause named, both cells lit"]
     I -- "no — silence is allowed" --> K
-    J --> K{"Eight rounds<br/>placed?"}
+    J --> K{"Ten rounds<br/>placed?"}
     K -- no --> C
     K -- yes --> L["<b>The report</b><br/>what you have, what it asks,<br/>what it cost, and the situation answered"]
 ```
@@ -64,16 +64,30 @@ shuffled so the odd one is not always the card on the right.
 | Rounds | Tier | Roughly |
 |---|---|---|
 | 1–2 | Threshold | Porch, boot room, downstairs WC — the way in |
-| 3–4 | Daily | Kitchen, living room, utility — where the day happens |
-| 5–6 | Private | Bedrooms, bathroom, study — the doors that close |
+| 3–4 | Daily | Kitchen, living room, utility, garage — where the day happens |
+| 5–6 | Private | Bedrooms, bathroom, study, balcony — the doors that close |
 | 7–8 | Outside | Terrace, shed, vegetable garden, heat pump |
+| 9–10 | Roof | Dormer, rooflight, roof extension, hip to gable, chimney |
+
+**The roof is last because a roof goes on last** — and because roofing a cell seals the
+first floor under it for good. A tier that can take something away from you is the right
+one to end on.
 
 The free third card is what stops the game being on rails: it is how a heat pump or the
 vegetable garden turns up in round two, where it is both tempting and awkward. Across 400
-simulated games, 87% of hands hold something off-tier.
+simulated games, 89% of hands hold something off-tier.
+
+It has one limit. Left alone it eats the tiers it has not reached yet — the roof is last,
+so all nine rounds before it can take a card off it — so **a tier still to come keeps
+enough cards for the rounds it has left**, and no more. A roof plan can still turn up in
+round two. It just cannot be the reason round ten has nothing to deal.
+
+**And the draw never offers a plan with nowhere to go.** The game cannot be failed, and
+that has to be true of the board as well as of the rules: seal the way upstairs and the
+bedrooms wait in the pool until something opens a route again.
 
 **The two you do not pick are not lost.** They go back in the pool and can be dealt again.
-Only a plan you actually place leaves it — the game is 24 plans and you will build 8, so
+Only a plan you actually place leaves it — the game is 31 plans and you will build 10, so
 most of the house is the house you did not build.
 
 ### 2 · You choose one, and the plot shows you where it can go
@@ -126,6 +140,12 @@ too — building on one is always allowed, and it takes it down.*
 Only three cells are lit — the landing's neighbours that have a room underneath them. The rest
 of the first floor has nothing to stand on yet, and the prompt says so.*
 
+![A roof extension chosen: the board is on the roof and everything the house stands under is lit](docs/screenshots/4-on-the-roof.png)
+
+*A roof extension, dealt as the free third card in round 4 rather than waiting for the roof
+tier. The roof does not use the touching rule — what a roof cell touches is the thing under
+it — so everything standing lights at once, wherever it is.*
+
 ### 3 · You place it, and that is permanent
 
 Placement lands on the click. There is no undo, no drag to reposition, no confirmation —
@@ -134,14 +154,14 @@ Placement lands on the click. There is no undo, no drag to reposition, no confir
 Four rooms of the old house are still standing: the old kitchen, the old sitting room, the
 old scullery, the old back room. They are ordinary cells and you can build on them. Doing
 so takes them down, for good, and that is the only thing the game asks you about before it
-happens. Everything else in eight rounds is additive and forgiving; demolition is not,
+happens. Everything else in ten rounds is additive and forgiving; demolition is not,
 because in building it is not.
 
 They are named — *Old scullery*, not *Inherited* — for a reason found in playtesting. A
 cell shouting **INHERITED** reads as scenery and nobody worked out it could be built on. A
 cell that says *Old scullery* and murmurs *inherited* reads as a room, and rooms can go.
 
-![The demolition confirmation: take it down, or put it somewhere else](docs/screenshots/4-the-one-question.png)
+![The demolition confirmation: take it down, or put it somewhere else](docs/screenshots/5-the-one-question.png)
 
 *It states what happens and gets out of the way. It does not warn and it does not argue —
 the weight arrives on its own, because it is a house someone left you.*
@@ -168,7 +188,7 @@ than as a consequence of the move just made. Row 2 faces nothing at all, and no 
 line written for every direction — which is what keeps the game from having a remark about
 every single placement.
 
-![An adjacency line, with the cause named above it and both cells lit](docs/screenshots/5-what-it-noticed.png)
+![An adjacency line, with the cause named above it and both cells lit](docs/screenshots/6-what-it-noticed.png)
 
 *The living room has just gone in beside the utility room. Both are lit, everything else is
 dimmed, and the cause is printed above the line it caused.*
@@ -180,7 +200,7 @@ switcher marks the floor the rest of it is on so you can go and look without los
 line. A pair line only speaks vertically if it was written to: everything written for two
 rooms sharing a wall stays about walls.
 
-![A line about two levels: the study lit on the first floor, and the ground floor marked on the switcher](docs/screenshots/6-through-the-floor.png)
+![A line about two levels: the study lit on the first floor, and the ground floor marked on the switcher](docs/screenshots/7-through-the-floor.png)
 
 *The study has just gone in over the porch. The line says* above*, not* beside*, and the
 dot on **Ground floor** is where the other half of the sentence is standing.*
@@ -218,9 +238,9 @@ their own answer to give.
 
 ## The report
 
-Eight rounds placed, and the game stops asking you things.
+Ten rounds placed, and the game stops asking you things.
 
-![The report: what you'll have, what it asks, the cost, and the situation answered](docs/screenshots/7-the-house-you-built.png)
+![The report: what you'll have, what it asks, the cost, and the situation answered](docs/screenshots/8-the-house-you-built.png)
 
 **Three rooms, benefit beside obligation.** Not all eight — the three that ask the most of
 you, ranked by what they cost plus the heaviest consent flag they took on, ties going to

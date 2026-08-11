@@ -38,6 +38,13 @@
   --colour-tier-daily: #b7c3a8;
   --colour-tier-private: #a9b6c4;
   --colour-tier-outside: #a8bfa0;
+  /**
+   * §6 — the roof tier. Clay rather than slate: it has to sit beside the
+   * threshold sand without being read as the same colour, and pushing it
+   * towards the red is the only direction with any room left in this palette.
+   * The three greens and the blue are all spoken for.
+   */
+  --colour-tier-roof: #cb9f8c;
   --colour-tier-wildcard: #c4b0bd;
 
   /* ---- Orientation labels — §5 ------------------------------------ */

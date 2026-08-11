@@ -2,7 +2,7 @@
  * The framing — GDD §2, §13, §14.
  *
  * Shown once, before round 1. It does three jobs and keeps each of them short:
- * why the work is happening at all, which is what justifies eight rounds and a
+ * why the work is happening at all, which is what justifies ten rounds and a
  * front door nobody chose; who it is happening for, which is the only motivation
  * a no-fail game can afford; and how the game is played, which it turns out it
  * has to say out loud.
