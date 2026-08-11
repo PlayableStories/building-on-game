@@ -107,7 +107,7 @@ The second claim, which arrives only at the end:
 front door and a fixed stair · a household of 2–3 people · 10 rounds · a hand of 3 drawn
 per round · tier-weighted draw · orthogonal adjacency placement · demolition onto
 inherited fabric · a written observation on each placement · orientation effects
-(street/garden, north/south) · consent flags · a four-part end report.
+(street/garden, north/south) · consent flags · a five-part end report.
 
 **Does not include:** costs shown during play · any score or points · removal or
 relocation of placed plans · a basement or any below-ground level · plans larger than
@@ -617,6 +617,53 @@ it will be like to live in it.
 the moment the game is at its most useful in the architect-and-client use: three
 people responding to a plan is a conversation, where a score would have been an
 argument.
+
+### 10.5 What you would actually have to submit
+
+**[Addition, M18]** Four short lines between the obligations and the closing line:
+
+> **If you build this**
+> You would need to apply.
+> Seven of these are householder applications.
+> Of 83,990 decided in London, half were settled inside 8 weeks, and 81% were approved.
+> *London planning decisions, 2016–2026. Median time to decision.*
+
+Built entirely from the consent flags the house has already computed. There is no new
+game state and no new decision — it is the same information §9.3 turns into obligations,
+read one step further out: those are what the house will ask of you, this is what the
+process will.
+
+A house of nothing but permitted development says so instead, in one line, and quotes no
+figures at all. That is a real result and the player should be told it plainly.
+
+**Medians, not averages.** Decision times have a long right tail and the mean is five
+weeks adrift on the routes where it matters most — full planning permission averages 104
+days and the median is 69. The mean answers "the total divided by the count"; the median
+answers "how long will this take".
+
+**The route is per placement, not per house.** Take part of the old building down inside a
+conservation area and *that* placement is its own consent; the rest is still ordinary
+householder work. The statement names the slowest door the house goes through, because a
+project takes as long as its longest application, and says how much of the house is
+actually on it.
+
+#### This is a statement about the dataset, and never about your house
+
+§9.1 says consent is a flag and never an outcome, and this section is the easiest place in
+the whole game to break that by accident. *"81% were approved"* is a fact about London.
+*"You have an 81% chance"* is a prediction the game has spent ten rounds refusing to make.
+
+So: past tense, the count the rate is a share of said out loud, attribution printed with
+the figures rather than tucked away, and no branch anywhere that reads a rate and decides
+something. The house's own numbers and the dataset's numbers never meet. There is a test
+that reads every line of the finished report across 400 games, in both settings of the
+conservation flag, and fails on any sentence that could be read as a verdict.
+
+**[Fork surface]** The figures and the writing live in `planning` in `content.ts`, and
+`routeFor` — which door a placement goes through — is content rather than engine, because
+it is a fact about a planning system rather than about a grid. Delete the block and the
+section disappears: a fork whose building is somewhere else should say nothing here rather
+than borrow London's numbers.
 
 ## 11. Discovery — What the House Was Hiding
 

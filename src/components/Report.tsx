@@ -63,6 +63,35 @@ export default function Report({ report, copy }: ReportProps) {
         )}
       </dl>
 
+      {/**
+       * §10.5 — what you would actually have to submit.
+       *
+       * After the obligations because it is the same subject one step further
+       * out: those are what this house will ask of you, this is what the
+       * process will. Before the closing line because the closing line is the
+       * last word and this is not it.
+       *
+       * Every figure in here is about London and none is about this house —
+       * §9.1 — and the attribution is printed with them rather than tucked
+       * anywhere, because a rate with no visible denominator is how a statement
+       * about a dataset turns into a prediction about a player.
+       */}
+      {report.planning && (
+        <section className="planning">
+          <h2 className="planning__heading">{copy.planning.heading}</h2>
+          <p className="planning__needed">{report.planning.needed}</p>
+          {report.planning.route && (
+            <p className="planning__route">{report.planning.route}</p>
+          )}
+          {report.planning.record && (
+            <p className="planning__record">{report.planning.record}</p>
+          )}
+          {report.planning.source && (
+            <p className="planning__source">{report.planning.source}</p>
+          )}
+        </section>
+      )}
+
       {/* §10.3 — what kind of house it turned out to be. Not a verdict. */}
       <p className="report__closing">{report.closing}</p>
 

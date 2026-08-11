@@ -7,7 +7,7 @@ deals you three plans and you choose one. It has to touch what's already built, 
 never move it again. Occasionally the house tells you what you've just put next to what. At
 the end it tells you what you built and what it will ask of you for the rest of your life.
 
-A game is eight decisions and a report. There is no score and no way to lose. The whole
+A game is ten decisions and a report. There is no score and no way to lose. The whole
 thing is text and coloured blocks, and the layout adapts to narrow screens.
 
 **[Play it →](https://playablestories.github.io/building-on-game/)** ·
@@ -79,10 +79,17 @@ Four mechanics carry the game:
   warn and it does not argue: the weight arrives on its own, because it is a house someone
   left you.
 
-- **The report pairs benefit with obligation.** Three rooms, not eight — the three that ask
+- **The report pairs benefit with obligation.** Three rooms, not ten — the three that ask
   the most of you. What you gain is printed beside what it will want, and the layout never
   lets you read one without the other. Then one cost line, as a phrase with no figure in
   it, and the situation you were given at the start, answered.
+
+- **It ends by telling you what you would have to submit** — whether any of it needs an
+  application, which door, and what happened to 302,584 real London applications that went
+  through the same one. Medians, not averages: decision times have a long tail and the
+  average is five weeks adrift on the routes where it matters. Every figure is about London
+  and none is about your house, which is the same rule the consent flags follow — the game
+  reports process and never predicts an outcome.
 
 - **Two-file customization.** All player-facing text lives in **one** file
   (`src/content.ts`); all visuals live in **one** file (`src/theme.css`). Nothing in

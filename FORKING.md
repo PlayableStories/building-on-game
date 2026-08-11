@@ -174,6 +174,27 @@ than calling everything "beside". If your fork's building has no levels, give no
 | `consentCare`, `consentLabels`, `consentOrder` | One obligation line and one short label per flag, and the order that decides which two obligations the report has room for. |
 | `demolitionCare` | The obligation that arrives when something came down. |
 | `conservationOverrides` | What changes when `config.conservation` is on. |
+| `planning` | `{ data, copy, routeFor }` — the closing statement about what you would have to submit. **Optional: set it to `null` and the section disappears.** |
+
+**`planning` is the one export that is allowed to be nothing.** It holds real figures
+about a real planning system, and a fork whose building is somewhere else should say
+nothing rather than borrow London's. `data.routes` is keyed by whatever `routeFor`
+returns, so a city with three doors has three entries and a place with no planning system
+returns `null` from every branch.
+
+`routeFor` is content and not engine on purpose — which application you make is a fact
+about a planning system, not about a grid. It is called **once per placement**, with that
+placement's consent flags, so a house can be on more than one route at a time. Returning
+`null` for a placement means it needs no application at all.
+
+Two rules the copy has to keep, and they are GDD §9.1 rather than style:
+
+- **Past tense, about the dataset.** *"81% were approved"* is a fact about other people's
+  applications. *"You have an 81% chance"* is a prediction, and this game does not make
+  them. A test reads every line of the finished report across 400 games and fails on any
+  sentence that could be read as a verdict on the player's house.
+- **Never quote a rate without its denominator on screen.** `copy.source` is printed with
+  the figures, not tucked into a footer.
 
 ### What you can change freely
 
@@ -318,6 +339,7 @@ A copy-paste checklist for your fork's PR description.
 - [ ] `qualityLines` — one per quality that can fire
 - [ ] `closingLines` — including at least one with no conditions on it
 - [ ] `costPhrases`, `consentCare`, `consentLabels`, `demolitionCare`
+- [ ] `planning` — your city's figures and doors, **or `null` to say nothing**
 - [ ] `causeWords.facing` — one phrase per band of your plot
 - [ ] `ui` — every remaining string
 

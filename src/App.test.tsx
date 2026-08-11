@@ -818,6 +818,32 @@ describe('the report, when the eighth plan lands (§10)', () => {
     expect(line).not.toMatch(/\d/);
   });
 
+  /**
+   * §10.5 — what you would actually have to submit. Between the obligations
+   * and the closing line: it is the same subject one step further out, and the
+   * closing line is the last word.
+   */
+  it('says what you would have to apply for, before it closes (§10.5)', () => {
+    playToTheEnd();
+
+    const planning = document.querySelector('.planning');
+    expect(planning).not.toBeNull();
+    expect(planning?.querySelector('.planning__needed')?.textContent?.length).toBeGreaterThan(0);
+
+    // …and the attribution is on the page with the figures, never separated
+    // from them: a rate with no visible denominator is a prediction (§9.1).
+    const record = planning?.querySelector('.planning__record')?.textContent ?? '';
+    if (record.length > 0) {
+      expect(planning?.querySelector('.planning__source')?.textContent ?? '').not.toBe('');
+    }
+
+    // Order on the page: obligations, then this, then the closing line.
+    const order = Array.from(
+      document.querySelectorAll('.report__notes, .planning, .report__closing'),
+    ).map((node) => node.className.split(' ')[0]);
+    expect(order).toEqual(['report__notes', 'planning', 'report__closing']);
+  });
+
   it('closes on one sentence about what kind of house it is (§10.3)', () => {
     playToTheEnd();
     const closing = document.querySelector('.report__closing');
